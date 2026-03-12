@@ -66,7 +66,7 @@ Return ONLY valid JSON with no markdown:
 Each take must sound authentic to that political viewpoint — use language, framing, and emphasis that genuinely reflects that stance. 1-3 sources per take. Only use URLs from the articles above (omit url field if uncertain).`;
 
     const msg = await client.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 3500,
       messages: [{ role: 'user', content: prompt }],
     });
