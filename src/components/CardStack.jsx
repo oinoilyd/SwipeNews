@@ -62,7 +62,7 @@ export default function CardStack({
         />
       </div>
 
-      {/* Topic navigation — dots + prev/next buttons */}
+      {/* Topic navigation — dots (≤10 topics) or numeric counter (>10) */}
       <div className="topic-nav">
         <button
           className="topic-nav-btn"
@@ -72,14 +72,20 @@ export default function CardStack({
           ↑
         </button>
 
-        <div className="topic-dots">
-          {Array.from({ length: totalTopics }).map((_, i) => (
-            <span
-              key={i}
-              className={`topic-dot ${i === currentTopicIndex ? 'active' : ''}`}
-            />
-          ))}
-        </div>
+        {totalTopics <= 10 ? (
+          <div className="topic-dots">
+            {Array.from({ length: totalTopics }).map((_, i) => (
+              <span
+                key={i}
+                className={`topic-dot ${i === currentTopicIndex ? 'active' : ''}`}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="topic-counter-inline">
+            {currentTopicIndex + 1} <span className="topic-counter-sep">/</span> {totalTopics}
+          </div>
+        )}
 
         <button
           className="topic-nav-btn"
