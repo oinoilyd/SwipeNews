@@ -33,11 +33,19 @@ export default function TopicDrawer({ topics, takesMap = {}, currentIndex, onSel
                   <div className="drawer-item-summary">{topic.summary}</div>
                 )}
                 <div className="drawer-coverage">
-                  {takesMap[topic.id] ? (
-                    <span className="cov-pill cov-total">✓ 7 perspectives ready</span>
-                  ) : (
-                    <span className="cov-pill cov-loading">Loading perspectives…</span>
-                  )}
+                  {(() => {
+                    const byPos = takesMap[topic.id] || {};
+                    const loaded = Object.keys(byPos).length;
+                    if (loaded === 0) return (
+                      <span className="cov-pill cov-loading">Loading…</span>
+                    );
+                    if (loaded >= 7) return (
+                      <span className="cov-pill cov-total">✓ All 7 perspectives</span>
+                    );
+                    return (
+                      <span className="cov-pill cov-partial">{loaded} / 7 perspectives</span>
+                    );
+                  })()}
                 </div>
               </div>
 

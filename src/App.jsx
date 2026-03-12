@@ -5,73 +5,85 @@ import LoadingScreen from './components/LoadingScreen';
 import TopicDrawer from './components/TopicDrawer';
 import './App.css';
 
+// Map take index (0-6) to position (-3 to 3)
+const indexToPosition = (i) => i - 3;
+
 export default function App() {
-  const [topicShells, setTopicShells]         = useState([]);
-  const [takesMap, setTakesMap]               = useState({});   // { [topicId]: takes[] }
-  const [loadingTakes, setLoadingTakes]       = useState(new Set());
+  const [topicShells, setTopicShells]           = useState([]);
+  // { [topicId]: { [position]: take } }  — individual takes keyed by position
+  const [takesMap, setTakesMap]                 = useState({});
+  // Set<"topicId:position"> — tracks in-flight requests
+  const [loadingSet, setLoadingSet]             = useState(new Set());
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
-  const [currentTakeIndex, setCurrentTakeIndex]   = useState(3); // 3 = Neutral
-  const [isLoading, setIsLoading]             = useState(true);
-  const [loadingStage, setLoadingStage]       = useState(0);
-  const [error, setError]                     = useState(null);
-  const [showTopicDrawer, setShowTopicDrawer] = useState(false);
+  const [currentTakeIndex, setCurrentTakeIndex]   = useState(3); // 3 = Neutral (position 0)
+  const [isLoading, setIsLoading]               = useState(true);
+  const [loadingStage, setLoadingStage]         = useState(0);
+  const [error, setError]                       = useState(null);
+  const [showTopicDrawer, setShowTopicDrawer]   = useState(false);
 
   // Refs for stale-closure-safe access inside async callbacks
-  const takesMapRef       = useRef({});
-  const loadingRef        = useRef(new Set());
-  const topicShellsRef    = useRef([]);
-
-  // Keep refs in sync
-  useEffect(() => { topicShellsRef.current = topicShells; }, [topicShells]);
+  const takesMapRef    = useRef({});
+  const loadingSetRef  = useRef(new Set());
+  const topicShellsRef = useRef([]);
 
   // Derived values
-  const currentTopic  = topicShells[currentTopicIndex];
-  const currentTakes  = currentTopic ? takesMap[currentTopic.id] : null;
-  const currentTake   = Array.isArray(currentTakes) ? currentTakes[currentTakeIndex] : null;
-  const takesAreLoading = currentTopic ? loadingTakes.has(currentTopic.id) : false;
+  const currentTopic    = topicShells[currentTopicIndex];
+  const currentPosition = indexToPosition(currentTakeIndex);
+  const currentTake     = currentTopic
+    ? (takesMap[currentTopic.id]?.[currentPosition] ?? null)
+    : null;
+  const currentTakeLoading = currentTopic
+    ? loadingSet.has(`${currentTopic.id}:${currentPosition}`)
+    : false;
 
-  // ── Fetch takes for one topic ────────────────────────────────────────────────
-  const prefetchTakes = useCallback(async (index) => {
+  // ── Fetch ONE take at ONE position ──────────────────────────────────────────
+  const prefetchTake = useCallback(async (topicIndex, position) => {
     const shells = topicShellsRef.current;
-    const topic = shells[index];
+    const topic  = shells[topicIndex];
     if (!topic) return;
 
-    // Skip if already loaded or in-flight
-    if (takesMapRef.current[topic.id] || loadingRef.current.has(topic.id)) return;
+    const key = `${topic.id}:${position}`;
 
-    loadingRef.current = new Set([...loadingRef.current, topic.id]);
-    setLoadingTakes(new Set(loadingRef.current));
+    // Skip if already loaded or in-flight
+    if (takesMapRef.current[topic.id]?.[position] !== undefined) return;
+    if (loadingSetRef.current.has(key)) return;
+
+    loadingSetRef.current = new Set([...loadingSetRef.current, key]);
+    setLoadingSet(new Set(loadingSetRef.current));
 
     try {
       const res = await fetch('/api/generate-takes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, position }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      if (!Array.isArray(data.takes) || data.takes.length !== 7) {
-        throw new Error('Invalid takes response');
-      }
+      if (!data.take) throw new Error('No take in response');
 
-      takesMapRef.current = { ...takesMapRef.current, [topic.id]: data.takes };
+      takesMapRef.current = {
+        ...takesMapRef.current,
+        [topic.id]: {
+          ...(takesMapRef.current[topic.id] || {}),
+          [position]: data.take,
+        },
+      };
       setTakesMap({ ...takesMapRef.current });
     } catch (err) {
-      console.warn(`Failed to load takes for "${topic.title}":`, err.message);
+      console.warn(`Failed take for "${topic.title}" pos ${position}:`, err.message);
     } finally {
-      loadingRef.current = new Set([...loadingRef.current].filter(id => id !== topic.id));
-      setLoadingTakes(new Set(loadingRef.current));
+      loadingSetRef.current = new Set([...loadingSetRef.current].filter(k => k !== key));
+      setLoadingSet(new Set(loadingSetRef.current));
     }
   }, []);
 
-  // ── Fetch topic shells (fast — just clustering) ──────────────────────────────
+  // ── Fetch topic shells (fast — just clustering, ~5-8s) ───────────────────────
   const fetchTopicShells = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     setLoadingStage(0);
     setError(null);
 
-    // Animate stages — clustering takes ~5-8s
     const timer1 = setTimeout(() => setLoadingStage(1), 2500);
 
     try {
@@ -84,11 +96,11 @@ export default function App() {
 
       clearTimeout(timer1);
 
-      // Reset takes state
-      takesMapRef.current = {};
-      loadingRef.current  = new Set();
+      // Reset all takes state on refresh
+      takesMapRef.current  = {};
+      loadingSetRef.current = new Set();
       setTakesMap({});
-      setLoadingTakes(new Set());
+      setLoadingSet(new Set());
 
       setTopicShells(data.topics);
       topicShellsRef.current = data.topics;
@@ -106,21 +118,30 @@ export default function App() {
   // Initial load
   useEffect(() => { fetchTopicShells(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset take to neutral when topic changes
+  // Reset to neutral when topic changes
   useEffect(() => {
     setCurrentTakeIndex(3);
   }, [currentTopicIndex]);
 
-  // Prefetch takes for current topic + adjacent topics
+  // When topic changes: prefetch neutral (0) for current + adjacent topics
   useEffect(() => {
     if (!topicShells.length) return;
     const total = topicShells.length;
-    prefetchTakes(currentTopicIndex);
-    prefetchTakes((currentTopicIndex + 1) % total);
-    if (currentTopicIndex > 0) prefetchTakes(currentTopicIndex - 1);
-  }, [currentTopicIndex, topicShells.length, prefetchTakes]);
+    prefetchTake(currentTopicIndex, 0);
+    prefetchTake((currentTopicIndex + 1) % total, 0);
+    if (currentTopicIndex > 0) prefetchTake(currentTopicIndex - 1, 0);
+  }, [currentTopicIndex, topicShells.length, prefetchTake]);
 
-  // ── Navigate takes (left = more liberal, right = more conservative) ──────────
+  // When take index changes: fetch that position + prefetch one step in each direction
+  useEffect(() => {
+    if (!topicShells.length) return;
+    const pos = indexToPosition(currentTakeIndex);
+    prefetchTake(currentTopicIndex, pos);
+    if (pos > -3) prefetchTake(currentTopicIndex, pos - 1);
+    if (pos <  3) prefetchTake(currentTopicIndex, pos + 1);
+  }, [currentTakeIndex, currentTopicIndex, topicShells.length, prefetchTake]);
+
+  // ── Navigate takes ────────────────────────────────────────────────────────────
   const handleTakeLeft = useCallback(() => {
     setCurrentTakeIndex(i => Math.max(0, i - 1));
   }, []);
@@ -206,7 +227,7 @@ export default function App() {
             topic={currentTopic}
             currentTake={currentTake}
             currentTakeIndex={currentTakeIndex}
-            takesLoading={takesAreLoading}
+            takesLoading={currentTakeLoading}
             onTakeLeft={handleTakeLeft}
             onTakeRight={handleTakeRight}
             onTakeJump={handleTakeJump}
