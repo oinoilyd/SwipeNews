@@ -1,12 +1,11 @@
 const STAGES = [
   "Fetching today's headlines…",
   "Identifying major stories…",
-  "Generating all 7 perspectives…",
-  "Almost ready…",
+  "Ready!",
 ];
 
 export default function LoadingScreen({ stage = 0 }) {
-  const pct = Math.round(((stage) / (STAGES.length)) * 100);
+  const pct = Math.round(((stage + 1) / STAGES.length) * 100);
 
   return (
     <div className="loading-screen">

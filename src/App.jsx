@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import CardStack from './components/CardStack';
 import Header from './components/Header';
 import LoadingScreen from './components/LoadingScreen';
@@ -6,34 +6,73 @@ import TopicDrawer from './components/TopicDrawer';
 import './App.css';
 
 export default function App() {
-  const [topics, setTopics] = useState([]);
+  const [topicShells, setTopicShells]         = useState([]);
+  const [takesMap, setTakesMap]               = useState({});   // { [topicId]: takes[] }
+  const [loadingTakes, setLoadingTakes]       = useState(new Set());
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
-  const [currentTakeIndex, setCurrentTakeIndex] = useState(3); // 3 = Neutral (center)
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingStage, setLoadingStage] = useState(0);
-  const [error, setError] = useState(null);
+  const [currentTakeIndex, setCurrentTakeIndex]   = useState(3); // 3 = Neutral
+  const [isLoading, setIsLoading]             = useState(true);
+  const [loadingStage, setLoadingStage]       = useState(0);
+  const [error, setError]                     = useState(null);
   const [showTopicDrawer, setShowTopicDrawer] = useState(false);
 
-  const currentTopic = topics[currentTopicIndex];
-  const currentTake = currentTopic?.takes[currentTakeIndex];
+  // Refs for stale-closure-safe access inside async callbacks
+  const takesMapRef       = useRef({});
+  const loadingRef        = useRef(new Set());
+  const topicShellsRef    = useRef([]);
 
-  useEffect(() => { fetchTopics(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Keep refs in sync
+  useEffect(() => { topicShellsRef.current = topicShells; }, [topicShells]);
 
-  // Reset take to neutral whenever topic changes
-  useEffect(() => {
-    setCurrentTakeIndex(3);
-  }, [currentTopicIndex]);
+  // Derived values
+  const currentTopic  = topicShells[currentTopicIndex];
+  const currentTakes  = currentTopic ? takesMap[currentTopic.id] : null;
+  const currentTake   = Array.isArray(currentTakes) ? currentTakes[currentTakeIndex] : null;
+  const takesAreLoading = currentTopic ? loadingTakes.has(currentTopic.id) : false;
 
-  // ── Fetch topics (all 7 takes pre-generated server-side) ─────────────────────
-  async function fetchTopics(forceRefresh = false) {
+  // ── Fetch takes for one topic ────────────────────────────────────────────────
+  const prefetchTakes = useCallback(async (index) => {
+    const shells = topicShellsRef.current;
+    const topic = shells[index];
+    if (!topic) return;
+
+    // Skip if already loaded or in-flight
+    if (takesMapRef.current[topic.id] || loadingRef.current.has(topic.id)) return;
+
+    loadingRef.current = new Set([...loadingRef.current, topic.id]);
+    setLoadingTakes(new Set(loadingRef.current));
+
+    try {
+      const res = await fetch('/api/generate-takes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (!Array.isArray(data.takes) || data.takes.length !== 7) {
+        throw new Error('Invalid takes response');
+      }
+
+      takesMapRef.current = { ...takesMapRef.current, [topic.id]: data.takes };
+      setTakesMap({ ...takesMapRef.current });
+    } catch (err) {
+      console.warn(`Failed to load takes for "${topic.title}":`, err.message);
+    } finally {
+      loadingRef.current = new Set([...loadingRef.current].filter(id => id !== topic.id));
+      setLoadingTakes(new Set(loadingRef.current));
+    }
+  }, []);
+
+  // ── Fetch topic shells (fast — just clustering) ──────────────────────────────
+  const fetchTopicShells = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     setLoadingStage(0);
     setError(null);
 
-    // Animate loading stages — the server takes ~40-60s so we pace messages
-    const timer1 = setTimeout(() => setLoadingStage(1), 3000);
-    const timer2 = setTimeout(() => setLoadingStage(2), 8000);
-    const timer3 = setTimeout(() => setLoadingStage(3), 20000);
+    // Animate stages — clustering takes ~5-8s
+    const timer1 = setTimeout(() => setLoadingStage(1), 2500);
 
     try {
       const url = forceRefresh ? '/api/clustered-news?refresh=1' : '/api/clustered-news';
@@ -44,20 +83,42 @@ export default function App() {
       if (!data.topics?.length) throw new Error('No topics returned');
 
       clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      setTopics(data.topics);
+
+      // Reset takes state
+      takesMapRef.current = {};
+      loadingRef.current  = new Set();
+      setTakesMap({});
+      setLoadingTakes(new Set());
+
+      setTopicShells(data.topics);
+      topicShellsRef.current = data.topics;
       setCurrentTopicIndex(0);
       setCurrentTakeIndex(3);
+      setLoadingStage(2);
     } catch (err) {
       clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
       setError(err.message || 'Failed to load news');
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
+
+  // Initial load
+  useEffect(() => { fetchTopicShells(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset take to neutral when topic changes
+  useEffect(() => {
+    setCurrentTakeIndex(3);
+  }, [currentTopicIndex]);
+
+  // Prefetch takes for current topic + adjacent topics
+  useEffect(() => {
+    if (!topicShells.length) return;
+    const total = topicShells.length;
+    prefetchTakes(currentTopicIndex);
+    prefetchTakes((currentTopicIndex + 1) % total);
+    if (currentTopicIndex > 0) prefetchTakes(currentTopicIndex - 1);
+  }, [currentTopicIndex, topicShells.length, prefetchTakes]);
 
   // ── Navigate takes (left = more liberal, right = more conservative) ──────────
   const handleTakeLeft = useCallback(() => {
@@ -74,12 +135,12 @@ export default function App() {
 
   // ── Navigate topics ───────────────────────────────────────────────────────────
   const handleNextTopic = useCallback(() => {
-    setCurrentTopicIndex(i => (i + 1) % topics.length);
-  }, [topics.length]);
+    setCurrentTopicIndex(i => (i + 1) % topicShells.length);
+  }, [topicShells.length]);
 
   const handlePrevTopic = useCallback(() => {
-    setCurrentTopicIndex(i => (i - 1 + topics.length) % topics.length);
-  }, [topics.length]);
+    setCurrentTopicIndex(i => (i - 1 + topicShells.length) % topicShells.length);
+  }, [topicShells.length]);
 
   const handleJumpToTopic = useCallback((index) => {
     setShowTopicDrawer(false);
@@ -112,20 +173,20 @@ export default function App() {
           <div className="error-icon">⚠️</div>
           <h2>Something went wrong</h2>
           <p className="error-msg">{error}</p>
-          <button className="btn-primary" onClick={() => fetchTopics(true)}>Try Again</button>
+          <button className="btn-primary" onClick={() => fetchTopicShells(true)}>Try Again</button>
         </div>
       </div>
     );
   }
 
-  if (!topics.length) {
+  if (!topicShells.length) {
     return (
       <div className="error-screen">
         <div className="error-card">
           <div className="error-icon">📭</div>
           <h2>No topics found</h2>
           <p className="error-msg">Couldn't identify major stories right now.</p>
-          <button className="btn-primary" onClick={() => fetchTopics(true)}>Refresh</button>
+          <button className="btn-primary" onClick={() => fetchTopicShells(true)}>Refresh</button>
         </div>
       </div>
     );
@@ -134,9 +195,9 @@ export default function App() {
   return (
     <div className="app">
       <Header
-        onRefresh={() => fetchTopics(true)}
+        onRefresh={() => fetchTopicShells(true)}
         topicNumber={currentTopicIndex + 1}
-        totalTopics={topics.length}
+        totalTopics={topicShells.length}
         onShowTopics={() => setShowTopicDrawer(true)}
       />
       <main className="main">
@@ -145,20 +206,22 @@ export default function App() {
             topic={currentTopic}
             currentTake={currentTake}
             currentTakeIndex={currentTakeIndex}
+            takesLoading={takesAreLoading}
             onTakeLeft={handleTakeLeft}
             onTakeRight={handleTakeRight}
             onTakeJump={handleTakeJump}
             onNextTopic={handleNextTopic}
             onPrevTopic={handlePrevTopic}
             currentTopicIndex={currentTopicIndex}
-            totalTopics={topics.length}
+            totalTopics={topicShells.length}
           />
         )}
       </main>
 
       {showTopicDrawer && (
         <TopicDrawer
-          topics={topics}
+          topics={topicShells}
+          takesMap={takesMap}
           currentIndex={currentTopicIndex}
           onSelect={handleJumpToTopic}
           onClose={() => setShowTopicDrawer(false)}

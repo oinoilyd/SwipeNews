@@ -15,12 +15,48 @@ export default function SwipeCard({
   topic,
   currentTake,
   currentTakeIndex,
+  takesLoading,
   onTakeLeft,
   onTakeRight,
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
 
-  if (!currentTake) return null;
+  // Show loading state while takes are being fetched
+  if (!currentTake) {
+    const tint = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
+    return (
+      <div className="swipe-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
+        {topic.urlToImage && (
+          <div className="card-image-container">
+            <img
+              src={topic.urlToImage}
+              alt={topic.title}
+              className="card-image"
+              onError={(e) => {
+                e.target.closest('.card-image-container').style.display = 'none';
+              }}
+            />
+            <div className="card-image-overlay" />
+            <span className="card-image-topic-badge">{topic.title}</span>
+          </div>
+        )}
+        {!topic.urlToImage && (
+          <div className="card-no-image-header">
+            <p className="card-eyebrow">TODAY'S TOPIC</p>
+            <h2 className="card-topic-title-large">{topic.title}</h2>
+          </div>
+        )}
+        <div className="card-body">
+          <div className="takes-loading-state">
+            <div className="spinner-ring" />
+            <p className="takes-loading-label">
+              {takesLoading ? 'Generating perspectives…' : 'Loading…'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tint       = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
   const accent     = currentTake.color || '#a78bfa';

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export default function TopicDrawer({ topics, currentIndex, onSelect, onClose }) {
+export default function TopicDrawer({ topics, takesMap = {}, currentIndex, onSelect, onClose }) {
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -33,9 +33,11 @@ export default function TopicDrawer({ topics, currentIndex, onSelect, onClose })
                   <div className="drawer-item-summary">{topic.summary}</div>
                 )}
                 <div className="drawer-coverage">
-                  <span className="cov-pill cov-total">
-                    7 perspectives ready
-                  </span>
+                  {takesMap[topic.id] ? (
+                    <span className="cov-pill cov-total">✓ 7 perspectives ready</span>
+                  ) : (
+                    <span className="cov-pill cov-loading">Loading perspectives…</span>
+                  )}
                 </div>
               </div>
 

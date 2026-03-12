@@ -688,7 +688,23 @@ body {
   font-weight: 600;
   border: 1px solid;
 }
-.cov-total { color: #a78bfa; border-color: #a78bfa44; background: #a78bfa15; }
+.cov-total    { color: #a78bfa; border-color: #a78bfa44; background: #a78bfa15; }
+.cov-loading  { color: #6b7280; border-color: #6b728044; background: #6b728015; }
+
+/* ── Takes in-card loading state ── */
+.takes-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+}
+.takes-loading-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
 
 .drawer-item-dot {
   position: absolute;

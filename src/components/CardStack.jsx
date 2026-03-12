@@ -6,6 +6,7 @@ export default function CardStack({
   topic,
   currentTake,
   currentTakeIndex,
+  takesLoading,
   onTakeLeft,
   onTakeRight,
   onTakeJump,
@@ -55,6 +56,7 @@ export default function CardStack({
           topic={topic}
           currentTake={currentTake}
           currentTakeIndex={currentTakeIndex}
+          takesLoading={takesLoading}
           onTakeLeft={onTakeLeft}
           onTakeRight={onTakeRight}
         />
