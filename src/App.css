@@ -859,3 +859,213 @@ body {
   transition: filter 0.15s;
 }
 .btn-primary:hover { filter: brightness(1.1); }
+
+/* ── Neutral card — taller image ── */
+.neutral-image {
+  height: 220px !important;
+}
+
+/* Deeper gradient on neutral so title reads clearly */
+.neutral-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0.35) 50%,
+    rgba(0, 0, 0, 0.85) 100%
+  ) !important;
+}
+
+/* Overlay layout: category badge top-left, title bottom-left */
+.neutral-image-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.topic-category-badge {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(167, 139, 250, 0.75);
+  border: 1px solid rgba(167, 139, 250, 0.5);
+  backdrop-filter: blur(4px);
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.neutral-card-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.25;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+  letter-spacing: -0.01em;
+}
+
+/* No-image header variant for neutral */
+.neutral-no-image {
+  padding: 20px 16px 16px;
+  gap: 8px;
+  display: flex;
+  flex-direction: column;
+}
+.neutral-no-image .topic-category-badge {
+  background: rgba(167, 139, 250, 0.2);
+  color: #c4b5fd;
+  border-color: #a78bfa55;
+}
+
+/* ── Timestamp ── */
+.card-timestamp {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Neutral card body elements ── */
+.neutral-blurb {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #c9c9d8;
+  margin: 0;
+}
+
+.neutral-take-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+/* Smaller spinner for inline use */
+.spinner-ring-sm {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(167, 139, 250, 0.25);
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.neutral-expand-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.neutral-read-more-btn {
+  align-self: flex-start;
+  background: none;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  color: #a78bfa;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.01em;
+}
+.neutral-read-more-btn:hover {
+  background: rgba(167, 139, 250, 0.1);
+  border-color: #a78bfa;
+}
+.neutral-read-more-btn.open {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: #a78bfa;
+}
+
+.neutral-full-take {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Voting row ── */
+.voting-row {
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.voting-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.voting-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.vote-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.vote-btn:hover:not(:disabled):not(.voted) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.vote-btn.voted {
+  background: rgba(167, 139, 250, 0.18);
+  border-color: #a78bfa;
+  color: #c4b5fd;
+  font-weight: 600;
+}
+.vote-btn.other-voted {
+  opacity: 0.35;
+}
+.vote-btn:disabled {
+  cursor: default;
+}
+
+.vote-count {
+  font-size: 0.82rem;
+  font-weight: 600;
+  min-width: 16px;
+}
+
+@keyframes vote-bounce {
+  0%   { transform: scale(1);   }
+  35%  { transform: scale(1.35); }
+  65%  { transform: scale(0.9); }
+  100% { transform: scale(1);   }
+}
+.vote-btn.vote-anim {
+  animation: vote-bounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}

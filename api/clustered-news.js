@@ -63,12 +63,13 @@ async function fetchArticles(url, tagCategory = null) {
     return data.articles
       .filter(a => a.title && a.title !== '[Removed]' && a.description)
       .map(a => ({
-        title:        a.title,
-        description:  a.description,
-        source:       a.source?.name || 'Unknown',
-        url:          a.url,
-        urlToImage:   a.urlToImage || null,
-        bias:         getBias(a.source?.name),
+        title:         a.title,
+        description:   a.description,
+        source:        a.source?.name || 'Unknown',
+        url:           a.url,
+        urlToImage:    a.urlToImage || null,
+        publishedAt:   a.publishedAt || null,
+        bias:          getBias(a.source?.name),
         fetchCategory: tagCategory,
       }));
   } catch (err) {
@@ -197,12 +198,17 @@ export default async function handler(req, res) {
 
         const img = articles.find(a => a.urlToImage);
 
+        // Find the most recently published article date
+        const latestPublishedAt = articles.reduce((max, a) =>
+          a.publishedAt && a.publishedAt > max ? a.publishedAt : max, '');
+
         return {
-          id:         `topic-${i}`,
-          title:      cluster.title    || 'Untitled Story',
-          summary:    cluster.summary  || '',
-          category:   cluster.category || 'Top US',
-          urlToImage: img?.urlToImage  || null,
+          id:               `topic-${i}`,
+          title:            cluster.title    || 'Untitled Story',
+          summary:          cluster.summary  || '',
+          category:         cluster.category || 'Top US',
+          urlToImage:       img?.urlToImage  || null,
+          latestPublishedAt: latestPublishedAt || null,
           // Articles kept lean — only what generate-takes needs
           articles: articles.map(a => ({
             title:       a.title,

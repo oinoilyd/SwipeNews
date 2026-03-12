@@ -3,7 +3,8 @@
   "outputDirectory": "dist",
   "functions": {
     "api/clustered-news.js": { "maxDuration": 45 },
-    "api/generate-takes.js": { "maxDuration": 30 }
+    "api/generate-takes.js": { "maxDuration": 30 },
+    "api/votes.js":          { "maxDuration": 10 }
   },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
