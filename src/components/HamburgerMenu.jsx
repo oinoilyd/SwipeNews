@@ -1,0 +1,33 @@
+export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo }) {
+  const items = [
+    { label: 'Profile',             icon: '👤', disabled: true,  note: 'Coming soon' },
+    { label: '🔥 Top 10 Trending',  disabled: false, action: () => { onShowTrending(); onClose(); } },
+    { label: 'Settings',            icon: '⚙️', disabled: true,  note: 'Coming soon' },
+    { label: 'Contact Us',          icon: '✉️', disabled: true,  note: 'Coming soon' },
+    { label: 'About / Disclaimer',  icon: 'ℹ️', disabled: false, action: () => { onShowInfo(); onClose(); } },
+  ];
+
+  return (
+    <div className="hamburger-overlay" onClick={onClose}>
+      <div className="hamburger-drawer" onClick={e => e.stopPropagation()}>
+        <div className="hamburger-header">
+          <span className="hamburger-title">Menu</span>
+          <button className="hamburger-close" onClick={onClose} aria-label="Close menu">✕</button>
+        </div>
+        <nav className="hamburger-nav">
+          {items.map((item, i) => (
+            <button
+              key={i}
+              className={`hamburger-item${item.disabled ? ' disabled' : ''}`}
+              onClick={item.disabled ? undefined : item.action}
+              disabled={item.disabled}
+            >
+              <span className="hamburger-item-label">{item.label}</span>
+              {item.note && <span className="hamburger-item-note">{item.note}</span>}
+            </button>
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
+}

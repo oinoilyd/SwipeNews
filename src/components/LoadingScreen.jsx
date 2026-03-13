@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+
 const STAGES = [
   "Fetching today's headlines…",
   "Identifying major stories…",
@@ -6,6 +8,18 @@ const STAGES = [
 
 export default function LoadingScreen({ stage = 0 }) {
   const pct = Math.round(((stage + 1) / STAGES.length) * 100);
+
+  const [countdown, setCountdown] = useState(10);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCountdown(n => {
+        if (n <= 1) { clearInterval(id); return 1; }
+        return n - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="loading-screen">
@@ -24,6 +38,10 @@ export default function LoadingScreen({ stage = 0 }) {
           />
         </div>
 
+        <p className="loading-countdown">
+          {countdown > 1 ? `~${countdown}s` : 'Almost there…'}
+        </p>
+
         <div className="loading-spinner">
           <div className="spinner-ring" />
         </div>
@@ -32,11 +50,7 @@ export default function LoadingScreen({ stage = 0 }) {
           Pre-generating all perspectives so navigation is instant
         </p>
 
-        <div className="loading-sources">
-          <span className="loading-source-pill left">🔵 Liberal Sources</span>
-          <span className="loading-source-pill center">⚪ Neutral Sources</span>
-          <span className="loading-source-pill right">🔴 Conservative Sources</span>
-        </div>
+        <p className="loading-tagline">Left · Right · and everything in between</p>
       </div>
     </div>
   );

@@ -16,27 +16,49 @@ export default function CardStack({
   totalTopics,
   perspectiveMode,
 }) {
-  // Touch tracking for vertical swipe (topic navigation)
-  const touchStartY = useRef(null);
-  const touchStartX = useRef(null);
+  const touchStartY      = useRef(null);
+  const touchStartX      = useRef(null);
+  const touchStartTarget = useRef(null);
 
   const handleTouchStart = (e) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current      = e.touches[0].clientY;
+    touchStartX.current      = e.touches[0].clientX;
+    touchStartTarget.current = e.target;
   };
 
   const handleTouchEnd = (e) => {
     if (touchStartY.current === null) return;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartY.current = null;
-    touchStartX.current = null;
+    touchStartY.current      = null;
+    touchStartX.current      = null;
+    touchStartTarget.current = null;
 
-    // Only treat as vertical swipe if dy > dx (more vertical than horizontal)
-    if (Math.abs(dy) < 60 || Math.abs(dy) < Math.abs(dx)) return;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
 
-    if (dy < 0) onNextTopic();       // swipe up → next topic
-    else        onPrevTopic();       // swipe down → prev topic
+    // ── Horizontal swipe → change perspective ────────────────────────────────
+    if (absDx >= 60 && absDx > absDy) {
+      if (dx < 0) onTakeRight();   // swipe left  → more conservative
+      else        onTakeLeft();    // swipe right → more liberal
+      return;
+    }
+
+    // ── Vertical swipe → navigate topics ─────────────────────────────────────
+    if (absDy < 60 || absDy < absDx) return;
+
+    // Scroll-awareness: if touch started inside a scrollable card-body,
+    // only navigate when the user is already at the scroll boundary
+    const cardBody = touchStartTarget.current?.closest?.('.card-body');
+    if (cardBody) {
+      const atTop    = cardBody.scrollTop <= 5;
+      const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 5;
+      if (dy < 0 && !atBottom) return;   // swipe up, but not at bottom yet
+      if (dy > 0 && !atTop)    return;   // swipe down, but not at top yet
+    }
+
+    if (dy < 0) onNextTopic();     // swipe up   → next topic
+    else        onPrevTopic();     // swipe down → prev topic
   };
 
   return (
@@ -48,7 +70,7 @@ export default function CardStack({
         perspectiveMode={perspectiveMode}
       />
 
-      {/* Card area with touch handlers for vertical swipe */}
+      {/* Card area with touch handlers */}
       <div
         className="card-area"
         onTouchStart={handleTouchStart}
@@ -100,7 +122,7 @@ export default function CardStack({
       </div>
 
       <p className="keyboard-hint">
-        ← → keys to shift perspective · ↑ ↓ or swipe to change topic
+        ← → to shift perspective · ↑ ↓ or swipe to change topic
       </p>
     </div>
   );

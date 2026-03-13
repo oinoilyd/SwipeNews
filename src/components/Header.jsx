@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import HamburgerMenu from './HamburgerMenu';
 
 function InfoModal({ onClose }) {
   return (
@@ -20,8 +21,9 @@ function InfoModal({ onClose }) {
   );
 }
 
-export default function Header({ onRefresh, topicNumber, totalTopics, onShowTopics }) {
-  const [showInfo, setShowInfo] = useState(false);
+export default function Header({ onRefresh, topicNumber, totalTopics, onShowTopics, onShowTrending }) {
+  const [showInfo, setShowInfo]   = useState(false);
+  const [showMenu, setShowMenu]   = useState(false);
 
   return (
     <>
@@ -55,10 +57,27 @@ export default function Header({ onRefresh, topicNumber, totalTopics, onShowTopi
           <button className="header-btn" onClick={onRefresh} title="Refresh news">
             ↻ Refresh
           </button>
+          <button
+            className="header-btn"
+            onClick={() => setShowMenu(true)}
+            title="Menu"
+            aria-label="Open menu"
+            style={{ padding: '5px 8px' }}
+          >
+            ☰
+          </button>
         </div>
       </header>
 
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
+
+      {showMenu && (
+        <HamburgerMenu
+          onClose={() => setShowMenu(false)}
+          onShowTrending={onShowTrending}
+          onShowInfo={() => { setShowMenu(false); setShowInfo(true); }}
+        />
+      )}
     </>
   );
 }

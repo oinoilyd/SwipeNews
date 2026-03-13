@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function formatAge(iso) {
@@ -30,7 +30,6 @@ function VotingButtons({ topicId }) {
     let next;
 
     if (userVote === dir) {
-      // Tap same button → remove vote
       next = {
         up:   votes.up   - (dir === 'up'   ? 1 : 0),
         down: votes.down - (dir === 'down' ? 1 : 0),
@@ -38,7 +37,6 @@ function VotingButtons({ topicId }) {
       setUserVote(null);
       localStorage.removeItem(voteKey);
     } else if (userVote && userVote !== dir) {
-      // Tap opposite → switch vote
       next = {
         up:   votes.up   + (dir === 'up'   ? 1 : -1),
         down: votes.down + (dir === 'down' ? 1 : -1),
@@ -46,7 +44,6 @@ function VotingButtons({ topicId }) {
       setUserVote(dir);
       localStorage.setItem(voteKey, dir);
     } else {
-      // No vote yet → cast
       next = {
         up:   votes.up   + (dir === 'up'   ? 1 : 0),
         down: votes.down + (dir === 'down' ? 1 : 0),
@@ -124,14 +121,29 @@ export default function SwipeCard({
   onTakeRight,
   perspectiveMode,
 }) {
-  const [sourcesOpen,      setSourcesOpen]      = useState(false);
-  const [neutralExpanded,  setNeutralExpanded]  = useState(false);
+  const [sourcesOpen,     setSourcesOpen]     = useState(false);
+  const [neutralExpanded, setNeutralExpanded] = useState(false);
+  const [atBound,         setAtBound]         = useState(null); // 'top' | 'bottom' | null
 
-  // Reset expand states when topic changes
+  const cardBodyRef = useRef(null);
+
+  // Reset scroll + expand states when topic changes
   useEffect(() => {
     setNeutralExpanded(false);
     setSourcesOpen(false);
+    setAtBound(null);
+    if (cardBodyRef.current) cardBodyRef.current.scrollTop = 0;
   }, [topic.id]);
+
+  const handleScroll = (e) => {
+    const el = e.currentTarget;
+    const atTop    = el.scrollTop <= 5;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 5;
+    if (atTop && atBottom) setAtBound(null);  // content fits, no scroll needed
+    else if (atTop)        setAtBound('top');
+    else if (atBottom)     setAtBound('bottom');
+    else                   setAtBound(null);
+  };
 
   const isNeutral  = currentTakeIndex === 3;
   const isLimited  = perspectiveMode === 'limited';
@@ -145,27 +157,21 @@ export default function SwipeCard({
     : currentTakeIndex < 6;
   const timestamp  = formatAge(topic.latestPublishedAt);
 
-  // ── Shared: nav arrows ────────────────────────────────────────────────────
+  // ── Shared: nav buttons (blue + / red +) ─────────────────────────────────
   const navArrows = (
     <div className="card-nav-arrows">
       <button
-        className={`nav-arrow nav-arrow-left ${!canGoLeft ? 'disabled' : ''}`}
+        className={`perspective-btn perspective-btn-left${!canGoLeft ? ' disabled' : ''}`}
         onClick={onTakeLeft}
         disabled={!canGoLeft}
         aria-label="More liberal perspective"
-      >
-        <span className="arrow-icon">←</span>
-        <span className="arrow-label">More Liberal</span>
-      </button>
+      >+</button>
       <button
-        className={`nav-arrow nav-arrow-right ${!canGoRight ? 'disabled' : ''}`}
+        className={`perspective-btn perspective-btn-right${!canGoRight ? ' disabled' : ''}`}
         onClick={onTakeRight}
         disabled={!canGoRight}
         aria-label="More conservative perspective"
-      >
-        <span className="arrow-label">More Conservative</span>
-        <span className="arrow-icon">→</span>
-      </button>
+      >+</button>
     </div>
   );
 
@@ -237,18 +243,25 @@ export default function SwipeCard({
     );
   }
 
-  // ── NEUTRAL CARD — always shows image + summary; AI analysis expands ──────
+  // ── Scroll boundary hint ─────────────────────────────────────────────────
+  const scrollHint = atBound && (
+    <div className={`scroll-hint scroll-hint-${atBound}`}>
+      {atBound === 'top' ? '↑' : '↓'}
+    </div>
+  );
+
+  // ── NEUTRAL CARD ──────────────────────────────────────────────────────────
   if (isNeutral) {
     return (
       <div className="swipe-card neutral-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
         {renderImage('neutral')}
 
-        <div className="card-body">
+        <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
+          {scrollHint}
           {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
 
           {topic.summary && <p className="neutral-blurb">{topic.summary}</p>}
 
-          {/* Expandable AI analysis */}
           {!currentTake && takesLoading && (
             <div className="neutral-take-loading">
               <span className="spinner-ring-sm" />
@@ -277,7 +290,6 @@ export default function SwipeCard({
             </div>
           )}
 
-          {/* Voting — uses key prop to force re-mount per topic */}
           <VotingButtons key={topic.id} topicId={topic.id} />
         </div>
 
@@ -292,7 +304,7 @@ export default function SwipeCard({
     return (
       <div className="swipe-card" style={{ '--card-tint': tint, '--accent': meta.color }}>
         {renderImage()}
-        <div className="card-body">
+        <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
           {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
           <div
             className="perspective-badge"
@@ -316,7 +328,8 @@ export default function SwipeCard({
   return (
     <div className="swipe-card" style={{ '--card-tint': tint, '--accent': accent }}>
       {renderImage()}
-      <div className="card-body">
+      <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
+        {scrollHint}
         {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
         <div
           className="perspective-badge"

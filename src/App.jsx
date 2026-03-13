@@ -3,8 +3,11 @@ import CardStack from './components/CardStack';
 import Header from './components/Header';
 import LoadingScreen from './components/LoadingScreen';
 import TopicDrawer from './components/TopicDrawer';
+import TrendingDrawer from './components/TrendingDrawer';
 import CategoryFilter from './components/CategoryFilter';
 import './App.css';
+
+const FORCE_LIMITED_CATEGORIES = new Set(['Sports & Culture', 'Technology']);
 
 // Map take index (0-6) → position (-3 to 3)
 const indexToPosition = (i) => i - 3;
@@ -67,7 +70,8 @@ export default function App() {
   const [isLoading, setIsLoading]               = useState(true);
   const [loadingStage, setLoadingStage]         = useState(0);
   const [error, setError]                       = useState(null);
-  const [showTopicDrawer, setShowTopicDrawer]   = useState(false);
+  const [showTopicDrawer,    setShowTopicDrawer]    = useState(false);
+  const [showTrendingDrawer, setShowTrendingDrawer] = useState(false);
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef   = useRef({});
@@ -202,7 +206,10 @@ export default function App() {
       setTakesMap({});
       setLoadingSet(new Set());
 
-      setTopicShells(data.topics);
+      const processedTopics = data.topics.map(t =>
+        FORCE_LIMITED_CATEGORIES.has(t.category) ? { ...t, perspectiveMode: 'limited' } : t
+      );
+      setTopicShells(processedTopics);
       setCurrentTopicIndex(0);
       setCurrentTakeIndex(3);
       setActiveCategory('All');
@@ -259,6 +266,15 @@ export default function App() {
     setCurrentTopicIndex(index);
   }, []);
 
+  const handleTrendingSelect = useCallback((topic) => {
+    setShowTrendingDrawer(false);
+    const index = topicShells.findIndex(t => t.id === topic.id);
+    if (index !== -1) {
+      setActiveCategory('All');
+      setCurrentTopicIndex(index);
+    }
+  }, [topicShells]);
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
@@ -311,6 +327,7 @@ export default function App() {
         topicNumber={filteredTopics.length > 0 ? currentTopicIndex + 1 : 0}
         totalTopics={filteredTopics.length}
         onShowTopics={() => setShowTopicDrawer(true)}
+        onShowTrending={() => setShowTrendingDrawer(true)}
       />
 
       <CategoryFilter
@@ -352,6 +369,14 @@ export default function App() {
           currentIndex={currentTopicIndex}
           onSelect={handleJumpToTopic}
           onClose={() => setShowTopicDrawer(false)}
+        />
+      )}
+
+      {showTrendingDrawer && (
+        <TrendingDrawer
+          topics={topicShells}
+          onClose={() => setShowTrendingDrawer(false)}
+          onSelectTopic={handleTrendingSelect}
         />
       )}
     </div>
