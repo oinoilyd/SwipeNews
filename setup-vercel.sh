@@ -9,20 +9,20 @@ echo ""
 echo "=== SwipeNews — Vercel Setup ==="
 echo ""
 
-# 1. Install deps (in case vercel package wasn't installed yet)
+# 1. Install deps
 echo "→ Installing dependencies..."
 npm install
 
 # 2. Log in to Vercel (opens browser the first time; skips if already logged in)
 echo ""
 echo "→ Logging in to Vercel (browser will open if not already authenticated)..."
-npx vercel login
+npx vercel@latest login
 
 # 3. Link this directory to the Vercel project
 #    --yes skips prompts (re-run without --yes if you need to choose a different project)
 echo ""
 echo "→ Linking project to Vercel..."
-npx vercel link
+npx vercel@latest link
 
 echo ""
 echo "════════════════════════════════════════════════════"
