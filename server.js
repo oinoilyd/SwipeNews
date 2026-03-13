@@ -497,5 +497,34 @@ Return ONLY valid JSON:
   }
 });
 
+// ── Votes endpoint (dev server — localStorage fallback, no Redis) ─────────────
+const devVotes = new Map(); // topicTitle → { up, down }
+
+app.get('/api/votes', (req, res) => {
+  const { topicTitle } = req.query;
+  if (!topicTitle) return res.status(400).json({ error: 'topicTitle required' });
+  const v = devVotes.get(topicTitle) || { up: 0, down: 0 };
+  res.json(v);
+});
+
+app.post('/api/votes', (req, res) => {
+  const { topicTitle, direction } = req.body || {};
+  if (!topicTitle) return res.status(400).json({ error: 'topicTitle required' });
+  const v = devVotes.get(topicTitle) || { up: 0, down: 0 };
+  if (direction === 'up')               v.up   = Math.max(0, v.up   + 1);
+  else if (direction === 'down')        v.down = Math.max(0, v.down + 1);
+  else if (direction === 'remove-up')   v.up   = Math.max(0, v.up   - 1);
+  else if (direction === 'remove-down') v.down = Math.max(0, v.down - 1);
+  else if (direction === 'switch-to-up')   { v.up = Math.max(0, v.up + 1);   v.down = Math.max(0, v.down - 1); }
+  else if (direction === 'switch-to-down') { v.down = Math.max(0, v.down + 1); v.up  = Math.max(0, v.up  - 1); }
+  devVotes.set(topicTitle, v);
+  res.json(v);
+});
+
+// ── Pregenerate stub (dev server) ─────────────────────────────────────────────
+app.post('/api/pregenerate', (req, res) => {
+  res.json({ ok: true, message: 'pregenerate not available in dev mode', generated: 0, cached: 0 });
+});
+
 const PORT = process.env.API_PORT || 3001;
 app.listen(PORT, () => console.log(`SwipeNews server running on :${PORT}`));

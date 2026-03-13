@@ -1,4 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+// ── Word-by-word streaming animation ─────────────────────────────────────────
+function useStreamingText(text, speedMs = 35) {
+  const [displayed, setDisplayed] = useState('');
+  const textRef = useRef('');
+
+  useEffect(() => {
+    if (!text) { setDisplayed(''); return; }
+    // Reset when text changes (new topic or position)
+    textRef.current = text;
+    setDisplayed('');
+    const words = text.split(' ');
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      // Guard against stale closure: make sure we're still on same text
+      if (textRef.current !== text) { clearInterval(id); return; }
+      setDisplayed(words.slice(0, i).join(' '));
+      if (i >= words.length) clearInterval(id);
+    }, speedMs);
+    return () => clearInterval(id);
+  }, [text, speedMs]);
+
+  return displayed;
+}
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function formatAge(iso) {
@@ -11,50 +36,54 @@ function formatAge(iso) {
   } catch { return null; }
 }
 
-// ── Voting sub-component (neutral card only) — localStorage only ──────────────
-function VotingButtons({ topicId }) {
-  const voteKey   = `vote:${topicId}`;
-  const countsKey = `votecounts:${topicId}`;
+// ── Voting sub-component (neutral card only) — global counts via API ─────────
+function VotingButtons({ topicTitle }) {
+  const localKey = `vote:${topicTitle}`;
 
-  const [userVote,  setUserVote]  = useState(() => localStorage.getItem(voteKey));
-  const [votes,     setVotes]     = useState(() => {
-    try { return JSON.parse(localStorage.getItem(countsKey)) || { up: 0, down: 0 }; }
-    catch { return { up: 0, down: 0 }; }
-  });
+  const [userVote,  setUserVote]  = useState(() => localStorage.getItem(localKey));
+  const [votes,     setVotes]     = useState({ up: 0, down: 0 });
   const [animating, setAnimating] = useState(null);
+  const [loaded,    setLoaded]    = useState(false);
 
-  function castVote(dir) {
+  // Fetch global counts on mount
+  useEffect(() => {
+    fetch(`/api/votes?topicTitle=${encodeURIComponent(topicTitle)}`)
+      .then(r => r.json())
+      .then(data => { setVotes({ up: data.up || 0, down: data.down || 0 }); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, [topicTitle]);
+
+  const castVote = useCallback(async (dir) => {
     setAnimating(dir);
     setTimeout(() => setAnimating(null), 600);
 
-    let next;
-
+    let direction;
     if (userVote === dir) {
-      next = {
-        up:   votes.up   - (dir === 'up'   ? 1 : 0),
-        down: votes.down - (dir === 'down' ? 1 : 0),
-      };
+      direction = `remove-${dir}`;
       setUserVote(null);
-      localStorage.removeItem(voteKey);
+      localStorage.removeItem(localKey);
     } else if (userVote && userVote !== dir) {
-      next = {
-        up:   votes.up   + (dir === 'up'   ? 1 : -1),
-        down: votes.down + (dir === 'down' ? 1 : -1),
-      };
+      direction = `switch-to-${dir}`;
       setUserVote(dir);
-      localStorage.setItem(voteKey, dir);
+      localStorage.setItem(localKey, dir);
     } else {
-      next = {
-        up:   votes.up   + (dir === 'up'   ? 1 : 0),
-        down: votes.down + (dir === 'down' ? 1 : 0),
-      };
+      direction = dir;
       setUserVote(dir);
-      localStorage.setItem(voteKey, dir);
+      localStorage.setItem(localKey, dir);
     }
 
-    setVotes(next);
-    localStorage.setItem(countsKey, JSON.stringify(next));
-  }
+    try {
+      const res = await fetch('/api/votes', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ topicTitle, direction }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVotes({ up: data.up || 0, down: data.down || 0 });
+      }
+    } catch { /* ignore — vote recorded locally */ }
+  }, [userVote, topicTitle, localKey]);
 
   return (
     <div className="voting-row">
@@ -69,7 +98,7 @@ function VotingButtons({ topicId }) {
           onClick={() => castVote('up')}
           aria-label="Thumbs up"
         >
-          👍 <span className="vote-count">{votes.up}</span>
+          👍 <span className="vote-count">{loaded ? votes.up : '…'}</span>
         </button>
 
         <button
@@ -81,7 +110,7 @@ function VotingButtons({ topicId }) {
           onClick={() => castVote('down')}
           aria-label="Thumbs down"
         >
-          👎 <span className="vote-count">{votes.down}</span>
+          👎 <span className="vote-count">{loaded ? votes.down : '…'}</span>
         </button>
       </div>
     </div>
@@ -126,6 +155,9 @@ export default function SwipeCard({
   const [atBound,         setAtBound]         = useState(null); // 'top' | 'bottom' | null
 
   const cardBodyRef = useRef(null);
+
+  // Word-by-word animation for take text
+  const displayedText = useStreamingText(currentTake?.text ?? '');
 
   // Reset scroll + expand states when topic changes
   useEffect(() => {
@@ -280,7 +312,7 @@ export default function SwipeCard({
               {neutralExpanded && (
                 <div className="neutral-full-take">
                   <div className="take-text">
-                    {currentTake.text.split('\n\n').map((p, i) => (
+                    {displayedText.split('\n\n').map((p, i) => (
                       <p key={i}>{p.trim()}</p>
                     ))}
                   </div>
@@ -290,7 +322,7 @@ export default function SwipeCard({
             </div>
           )}
 
-          <VotingButtons key={topic.id} topicId={topic.id} />
+          <VotingButtons key={topic.id} topicTitle={topic.title} />
         </div>
 
         {navArrows}
@@ -338,7 +370,7 @@ export default function SwipeCard({
           {currentTake.label} Perspective
         </div>
         <div className="take-text">
-          {currentTake.text.split('\n\n').map((p, i) => (
+          {displayedText.split('\n\n').map((p, i) => (
             <p key={i}>{p.trim()}</p>
           ))}
         </div>

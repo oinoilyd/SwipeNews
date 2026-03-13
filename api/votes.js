@@ -1,70 +1,59 @@
-// ── Upstash Redis REST client (no SDK needed — plain fetch) ───────────────────
-const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+import { redis, normKey } from '../lib/redis.js';
 
-async function redisPipe(commands) {
-  const res = await fetch(`${UPSTASH_URL}/pipeline`, {
-    method:  'POST',
-    headers: {
-      Authorization:  `Bearer ${UPSTASH_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(commands),
-  });
-  if (!res.ok) throw new Error(`Upstash pipeline failed: ${res.status}`);
-  const arr = await res.json();
-  return arr.map(item => item.result);
+function getKey(title) {
+  return `sn:votes:${normKey(title)}`;
 }
 
-function int(val) { return Math.max(0, parseInt(val ?? '0', 10) || 0); }
+function int(val) {
+  return Math.max(0, parseInt(val ?? '0', 10) || 0);
+}
 
-// ── Serverless handler ────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Graceful degradation when Redis is not configured
-  if (!UPSTASH_URL || !UPSTASH_TOKEN) {
-    return res.json({ up: 0, down: 0, unavailable: true });
-  }
-
-  // ── GET /api/votes?topicId=... ────────────────────────────────────────────
+  // ── GET /api/votes?topicTitle=xxx ─────────────────────────────────────────
   if (req.method === 'GET') {
-    const { topicId } = req.query || {};
-    if (!topicId) return res.status(400).json({ error: 'topicId query param required' });
+    const { topicTitle } = req.query || {};
+    if (!topicTitle) return res.status(400).json({ error: 'topicTitle required' });
 
     try {
-      const [up, down] = await redisPipe([
-        ['GET', `votes:up:${topicId}`],
-        ['GET', `votes:down:${topicId}`],
-      ]);
-      return res.json({ up: int(up), down: int(down) });
+      const raw = await redis.hgetall(getKey(topicTitle));
+      return res.json({ up: int(raw?.up), down: int(raw?.down) });
     } catch (err) {
       console.error('votes GET error:', err.message);
       return res.json({ up: 0, down: 0 });
     }
   }
 
-  // ── POST /api/votes  { topicId, vote: "up"|"down" } ──────────────────────
+  // ── POST /api/votes { topicTitle, direction } ─────────────────────────────
+  // direction: 'up' | 'down' | 'remove-up' | 'remove-down' | 'switch-to-up' | 'switch-to-down'
   if (req.method === 'POST') {
-    const { topicId, vote } = req.body || {};
-    if (!topicId || !['up', 'down'].includes(vote)) {
-      return res.status(400).json({ error: 'topicId and vote ("up" or "down") required' });
+    const { topicTitle, direction } = req.body || {};
+    if (!topicTitle) return res.status(400).json({ error: 'topicTitle required' });
+
+    const validDirections = ['up', 'down', 'remove-up', 'remove-down', 'switch-to-up', 'switch-to-down'];
+    if (!validDirections.includes(direction)) {
+      return res.status(400).json({ error: 'invalid direction' });
     }
 
     try {
-      // INCR the chosen counter, then GET both for the response
-      const results = await redisPipe([
-        ['INCR', `votes:${vote}:${topicId}`],
-        ['GET',  `votes:up:${topicId}`],
-        ['GET',  `votes:down:${topicId}`],
-      ]);
-      return res.json({ up: int(results[1]), down: int(results[2]) });
+      const key = getKey(topicTitle);
+
+      if (direction === 'up')            await redis.hincrby(key, 'up',    1);
+      else if (direction === 'down')     await redis.hincrby(key, 'down',  1);
+      else if (direction === 'remove-up')   await redis.hincrby(key, 'up',   -1);
+      else if (direction === 'remove-down') await redis.hincrby(key, 'down', -1);
+      else if (direction === 'switch-to-up')   { await redis.hincrby(key, 'up', 1);   await redis.hincrby(key, 'down', -1); }
+      else if (direction === 'switch-to-down') { await redis.hincrby(key, 'down', 1); await redis.hincrby(key, 'up',   -1); }
+
+      const raw  = await redis.hgetall(key);
+      return res.json({ up: int(raw?.up), down: int(raw?.down) });
     } catch (err) {
       console.error('votes POST error:', err.message);
-      return res.status(500).json({ error: 'Vote could not be recorded' });
+      return res.status(500).json({ error: err.message || 'Failed to record vote' });
     }
   }
 

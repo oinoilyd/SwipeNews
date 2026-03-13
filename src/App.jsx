@@ -106,6 +106,54 @@ export default function App() {
     setCurrentTakeIndex(3);
   }, [currentTopicIndex]);
 
+  // ── Store a completed take into state + localStorage cache ───────────────
+  const storeTake = useCallback((topic, position, take) => {
+    saveCachedTake(topic.id, topic.latestPublishedAt, position, take);
+    takesMapRef.current = {
+      ...takesMapRef.current,
+      [topic.id]: {
+        ...(takesMapRef.current[topic.id] || {}),
+        [position]: take,
+      },
+    };
+    setTakesMap({ ...takesMapRef.current });
+  }, []);
+
+  // ── Fetch ONE take via SSE streaming endpoint ─────────────────────────────
+  const fetchStreamTake = useCallback(async (topic, position, key) => {
+    const res = await fetch('/api/stream-take', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ topic, position }),
+    });
+    if (!res.ok) throw new Error(`stream-take HTTP ${res.status}`);
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let   buffer  = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.done && event.take) {
+            return event.take;
+          }
+        } catch { /* partial line */ }
+      }
+    }
+    throw new Error('Stream ended without take');
+  }, []);
+
   // ── Fetch ONE take for ONE topic at ONE position ──────────────────────────
   const prefetchTake = useCallback(async (topic, position) => {
     if (!topic) return;
@@ -130,34 +178,45 @@ export default function App() {
     setLoadingSet(new Set(loadingSetRef.current));
 
     try {
-      const res = await fetch('/api/generate-takes', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ topic, position }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      if (!data.take) throw new Error('No take in response');
+      // Try fast path (returns instantly if Redis-cached, slower if generating)
+      const TIMEOUT_MS = 4000;
+      let take = null;
 
-      // Save to cache before updating state
-      saveCachedTake(topic.id, topic.latestPublishedAt, position, data.take);
+      try {
+        const controller = new AbortController();
+        const timeoutId  = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-      takesMapRef.current = {
-        ...takesMapRef.current,
-        [topic.id]: {
-          ...(takesMapRef.current[topic.id] || {}),
-          [position]: data.take,
-        },
-      };
-      setTakesMap({ ...takesMapRef.current });
+        const res = await fetch('/api/generate-takes', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ topic, position }),
+          signal:  controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.take) take = data.take;
+        }
+      } catch (fastErr) {
+        if (fastErr.name !== 'AbortError') throw fastErr;
+        // Timed out — fall through to streaming
+        console.info(`Falling back to streaming for "${topic.title}" pos ${position}`);
+      }
+
+      // If fast path timed out, use streaming fallback
+      if (!take) {
+        take = await fetchStreamTake(topic, position, key);
+      }
+
+      storeTake(topic, position, take);
     } catch (err) {
       console.warn(`Failed take for "${topic.title}" pos ${position}:`, err.message);
     } finally {
       loadingSetRef.current = new Set([...loadingSetRef.current].filter(k => k !== key));
       setLoadingSet(new Set(loadingSetRef.current));
     }
-  }, []);
+  }, [storeTake, fetchStreamTake]);
 
   // ── On topic change: prefetch neutral for current topic only ─────────────
   useEffect(() => {

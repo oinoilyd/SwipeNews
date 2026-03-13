@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { redis } from '../lib/redis.js';
 
 // ── Media bias database — keyed by newsdata.io source_id or normalized name ──
 const MEDIA_BIAS = {
@@ -230,6 +231,31 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const forceRefresh = req.query?.refresh === '1';
+
+  // ── Redis cache check (shared across all serverless instances) ────────────
+  if (!forceRefresh) {
+    try {
+      const rTopics = await redis.get('sn:topics');
+      const rTs     = await redis.get('sn:topics:ts');
+      if (rTopics) {
+        const age       = rTs ? Date.now() - new Date(rTs).getTime() : Infinity;
+        const TWO_HOURS = 2 * 60 * 60 * 1000;
+        if (age < TWO_HOURS) {
+          return res.json({ topics: rTopics, fromCache: true });
+        }
+        // Stale-while-revalidate: return old immediately, trigger background refresh
+        const baseUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : 'http://localhost:3000';
+        fetch(`${baseUrl}/api/pregenerate`, { method: 'POST' }).catch(() => {});
+        return res.json({ topics: rTopics, fromCache: true, stale: true });
+      }
+    } catch (err) {
+      console.warn('Redis topics read failed, falling back to generation:', err.message);
+    }
+  }
+
+  // ── In-memory cache fallback ──────────────────────────────────────────────
   if (!forceRefresh && cachedTopics && (Date.now() - cacheTimestamp) < CACHE_TTL) {
     return res.json({ topics: cachedTopics, fromCache: true });
   }
@@ -350,6 +376,12 @@ export default async function handler(req, res) {
     console.log(`Final: ${topics.length} topics (${topics.filter(t => t.perspectiveMode === 'full').length} full, ${topics.filter(t => t.perspectiveMode === 'limited').length} limited)`);
     cachedTopics   = topics;
     cacheTimestamp = Date.now();
+    try {
+      await redis.set('sn:topics', topics, { ex: 8400 });
+      await redis.set('sn:topics:ts', new Date().toISOString());
+    } catch (err) {
+      console.warn('Redis topics write failed:', err.message);
+    }
     return res.json({ topics, fromCache: false });
 
   } catch (err) {

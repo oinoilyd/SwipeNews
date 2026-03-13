@@ -1,9 +1,14 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "crons": [
+    { "path": "/api/pregenerate", "schedule": "0 */2 * * *" }
+  ],
   "functions": {
     "api/clustered-news.js": { "maxDuration": 45 },
     "api/generate-takes.js": { "maxDuration": 30 },
+    "api/pregenerate.js":    { "maxDuration": 300 },
+    "api/stream-take.js":    { "maxDuration": 60 },
     "api/votes.js":          { "maxDuration": 10 }
   },
   "rewrites": [

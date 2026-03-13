@@ -17,27 +17,10 @@ const TIER_OUTLETS = {
   right:  'Fox News, NY Post, Washington Times, Breitbart, Daily Caller',
 };
 
-// ── Server-side takes cache (warm Lambda instances share this) ────────────────
-const takesCache = new Map();
-const TAKES_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
-
-function cacheKey(topic, position) {
-  const title = (topic.title || '').toLowerCase().replace(/\s+/g, '_').slice(0, 40);
-  return `${title}:${topic.latestPublishedAt || 'x'}:${position}`;
+function send(res, data) {
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-function getCached(key) {
-  const entry = takesCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.ts > TAKES_CACHE_TTL) { takesCache.delete(key); return null; }
-  return entry.take;
-}
-
-function setCached(key, take) {
-  takesCache.set(key, { take, ts: Date.now() });
-}
-
-// Generates ONE take at ONE position
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -48,33 +31,31 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const { topic, position } = req.body || {};
-
   if (!topic?.title || !Array.isArray(topic?.articles)) {
-    return res.status(400).json({ error: 'Request body must include topic.title and topic.articles[]' });
+    return res.status(400).json({ error: 'topic.title and topic.articles[] required' });
   }
   if (!Number.isInteger(position) || position < -3 || position > 3) {
-    return res.status(400).json({ error: 'position must be an integer from -3 to 3' });
+    return res.status(400).json({ error: 'position must be -3 to 3' });
   }
 
   const meta = TAKE_POSITIONS.find(p => p.position === position);
 
-  // ── Cache check: in-memory → Redis → Claude ──────────────────────────────
-  const key = cacheKey(topic, position);
-  const inMem = getCached(key);
-  if (inMem) return res.json({ take: inMem, fromCache: true });
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
 
-  const rKey = takeKey(topic, position);
   try {
-    const rCached = await redis.get(rKey);
-    if (rCached) {
-      setCached(key, rCached);
-      return res.json({ take: rCached, fromCache: true });
+    // Check Redis cache first — if found, send immediately as a done event
+    const rKey = takeKey(topic, position);
+    const cached = await redis.get(rKey);
+    if (cached) {
+      send(res, { done: true, take: cached });
+      return res.end();
     }
-  } catch (err) {
-    console.warn('Redis read failed, falling back to Claude:', err.message);
-  }
 
-  try {
+    // Stream from Claude
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
@@ -108,26 +89,46 @@ ${fmt(otherArts)}
 Return ONLY valid JSON:
 {"take":{"position":${position},"label":"${meta.label}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
-    const msg = await client.messages.create({
+    let fullText = '';
+
+    const stream = await client.messages.stream({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const text  = msg.content[0]?.text || '';
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('No JSON in Claude response');
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_block_delta' && chunk.delta?.type === 'text_delta') {
+        const token = chunk.delta.text;
+        fullText += token;
+        send(res, { token });
+      }
+    }
 
-    const parsed = JSON.parse(match[0]);
-    if (!parsed.take) throw new Error('No take in response');
+    // Parse and store in Redis
+    const match = fullText.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (parsed.take) {
+          const take = { ...parsed.take, color: meta.color };
+          await redis.set(rKey, take, { ex: 7200 });
+          send(res, { done: true, take });
+        }
+      } catch {
+        send(res, { done: true, take: null, error: 'JSON parse failed' });
+      }
+    } else {
+      send(res, { done: true, take: null, error: 'No JSON in response' });
+    }
 
-    const take = { ...parsed.take, color: meta.color };
-    setCached(key, take);
-    try { await redis.set(rKey, take, { ex: 7200 }); } catch { /* ignore */ }
-    return res.json({ take });
+    return res.end();
 
   } catch (err) {
-    console.error('generate-takes error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to generate take' });
+    console.error('stream-take error:', err);
+    try {
+      send(res, { done: true, take: null, error: err.message });
+      res.end();
+    } catch { /* response already ended */ }
   }
 }
