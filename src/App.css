@@ -92,12 +92,14 @@ body {
   font-size: 0.9rem;
 }
 
-/* Extra-small header button for icons (refresh, info) */
+/* Extra-small header button for icons (refresh) */
 .header-btn-xs {
-  padding: 3px 7px;
-  font-size: 0.78rem;
+  padding: 2px 6px;
+  font-size: 0.72rem;
   color: var(--text-muted);
+  opacity: 0.75;
 }
+.header-btn-xs:hover { opacity: 1; }
 
 /* ── Card stack container ─────────────────────────────────────────────────── */
 .card-stack-container {
@@ -403,36 +405,38 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
+  gap: 4px;
+  padding: 5px 16px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   z-index: 1;
 }
 
-.swipe-nav-btn {
+/* Minimal tap targets for the emoji swipe indicators */
+.swipe-nav-tap {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 0.8rem;
-  padding: 2px 6px;
-  border-radius: 6px;
-  transition: opacity 0.15s, background 0.15s;
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity 0.15s;
+  opacity: 0.55;
+  line-height: 1;
 }
-.swipe-nav-btn:hover:not(.disabled) { background: var(--surface2); }
-.swipe-nav-btn:active:not(.disabled) { opacity: 0.6; }
-.swipe-nav-btn.disabled { opacity: 0.2; pointer-events: none; }
+.swipe-nav-tap:hover:not(:disabled) { opacity: 0.9; }
+.swipe-nav-tap:active:not(:disabled) { opacity: 0.5; }
+.swipe-nav-tap.faded { opacity: 0.15; pointer-events: none; }
 
 .swipe-nav-label {
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   color: var(--text-muted);
-  opacity: 0.5;
+  opacity: 0.35;
   text-transform: uppercase;
   pointer-events: none;
+  user-select: none;
 }
 
 /* ── Topic navigation dots ── */

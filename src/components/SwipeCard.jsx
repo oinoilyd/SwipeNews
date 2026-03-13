@@ -172,14 +172,14 @@ export default function SwipeCard({
   const navArrows = (
     <div className="card-nav-arrows">
       <button
-        className={`swipe-nav-btn swipe-nav-left${!canGoLeft ? ' disabled' : ''}`}
+        className={`swipe-nav-tap${!canGoLeft ? ' faded' : ''}`}
         onClick={onTakeLeft}
         disabled={!canGoLeft}
         aria-label="More liberal perspective"
       >🔵←</button>
       <span className="swipe-nav-label">SWIPE</span>
       <button
-        className={`swipe-nav-btn swipe-nav-right${!canGoRight ? ' disabled' : ''}`}
+        className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
         onClick={onTakeRight}
         disabled={!canGoRight}
         aria-label="More conservative perspective"

@@ -49,8 +49,9 @@ export default function CardStack({
     // Require 80px deliberate swipe, and vertical must dominate
     if (absDy < 80 || absDy < absDx) return;
 
-    // Scrolling always takes priority: only navigate when at absolute boundary
-    const cardBody = savedTarget?.closest?.('.card-body');
+    // Scrolling always takes priority: always check the card body scroll position
+    // regardless of where the touch started (image, spectrum bar, etc.)
+    const cardBody = savedTarget?.closest?.('.card-body') || document.querySelector('.card-body');
     if (cardBody) {
       const atTop    = cardBody.scrollTop === 0;
       const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 1;
@@ -88,38 +89,10 @@ export default function CardStack({
         />
       </div>
 
-      {/* Topic navigation — dots (≤10 topics) or numeric counter (>10) */}
+      {/* Topic navigation — up/down buttons only */}
       <div className="topic-nav">
-        <button
-          className="topic-nav-btn"
-          onClick={onPrevTopic}
-          aria-label="Previous topic"
-        >
-          ↑
-        </button>
-
-        {totalTopics <= 10 ? (
-          <div className="topic-dots">
-            {Array.from({ length: totalTopics }).map((_, i) => (
-              <span
-                key={i}
-                className={`topic-dot ${i === currentTopicIndex ? 'active' : ''}`}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="topic-counter-inline">
-            {currentTopicIndex + 1} <span className="topic-counter-sep">/</span> {totalTopics}
-          </div>
-        )}
-
-        <button
-          className="topic-nav-btn"
-          onClick={onNextTopic}
-          aria-label="Next topic"
-        >
-          ↓
-        </button>
+        <button className="topic-nav-btn" onClick={onPrevTopic} aria-label="Previous topic">↑</button>
+        <button className="topic-nav-btn" onClick={onNextTopic} aria-label="Next topic">↓</button>
       </div>
 
       <p className="keyboard-hint">

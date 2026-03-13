@@ -3,7 +3,7 @@ import HamburgerMenu from './HamburgerMenu';
 
 export default function Header({ onRefresh, onShowTopics, onShowTrending }) {
   const [showMenu, setShowMenu] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
+  const [showInfo, setShowInfo] = useState(false); // triggered from hamburger "About"
 
   return (
     <>
@@ -24,16 +24,9 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending }) {
         <div className="header-controls">
           <button
             className="header-btn header-btn-xs"
-            onClick={() => setShowInfo(true)}
-            title="About bias ratings"
-            aria-label="About bias ratings"
-          >
-            ℹ
-          </button>
-          <button
-            className="header-btn header-btn-xs"
             onClick={onRefresh}
             title="Refresh news"
+            aria-label="Refresh news"
           >
             ↻
           </button>

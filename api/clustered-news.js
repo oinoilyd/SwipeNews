@@ -202,8 +202,9 @@ Rules:
 - Use [fetchCategory hints] shown in brackets when available to guide category assignment
 - Neutral factual titles only — no editorial spin
 - Order topics by descending newsworthiness (highest-priority first):
-  1. National Security  2. Policy & Legislation  3. World  4. Economy
-  5. Elections & Politics  6. US Politics  7. Technology  8. Health  9. Sports & Culture
+  1. National Security  2. World  3. Policy & Legislation  4. Economy
+  5. Elections  6. US Politics  7. Health  8. Technology  9. Sports & Culture
+- Hard news (National Security, World, Policy, Economy, Elections, US Politics, Health) must make up at least 80% of all topics. Sports & Culture and Technology combined must not exceed 20%.
 - Minimum newsworthiness bar: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial topics into broader ones or discard them. EXCEPTION: articles tagged [Sports & Culture] must always produce at least 3-5 Sports & Culture topics regardless of this filter — sports news belongs in the app even if it wouldn't make the front page.
 
 Articles:
@@ -373,15 +374,15 @@ export default async function handler(req, res) {
 
     if (!topics.length) throw new Error('No valid topics passed quality filters');
 
-    // ── Topic balance: hard news priority, Sports+Tech ≤ 20% ─────────────────
-    const HARD_NEWS = new Set(['National Security', 'Politics', 'World', 'Economy', 'Policy', 'US Politics', 'Elections', 'Health']);
-    const SOFT_CATS = new Set(['Sports & Culture', 'Technology']);
-    const hardTopics = topics.filter(t => HARD_NEWS.has(t.category));
-    const softTopics = topics.filter(t => SOFT_CATS.has(t.category));
-    const total      = topics.length;
-    const maxSoft    = Math.max(1, Math.floor(total * 0.20));
+    // ── Topic balance: hard news priority, Sports+Tech ≤ 20% of final total ──
+    // Hard news = everything except Sports & Culture and Technology
+    const SOFT_CATS  = new Set(['Sports & Culture', 'Technology']);
+    const hardTopics = topics.filter(t => !SOFT_CATS.has(t.category));
+    const softTopics = topics.filter(t =>  SOFT_CATS.has(t.category));
+    // maxSoft: keep sports+tech at most 25% of hard count (= 20% of total)
+    const maxSoft    = Math.max(1, Math.round(hardTopics.length * 0.25));
     const cappedSoft = softTopics.slice(0, maxSoft);
-    // Keep all hard topics; capped soft topics come after
+    // Hard topics always come first (priority ordering from Claude is preserved)
     const balancedTopics = [...hardTopics, ...cappedSoft];
     if (balancedTopics.length < topics.length) {
       console.log(`Topic balance: kept ${hardTopics.length} hard + ${cappedSoft.length} soft (dropped ${softTopics.length - cappedSoft.length} soft to stay ≤20%)`);
