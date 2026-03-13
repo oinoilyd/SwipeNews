@@ -34,7 +34,7 @@ export default function LoadingScreen({ stage = 0 }) {
 
         <div className="loading-sources">
           <span className="loading-source-pill left">🔵 Liberal Sources</span>
-          <span className="loading-source-pill center">⚪ Center Sources</span>
+          <span className="loading-source-pill center">⚪ Neutral Sources</span>
           <span className="loading-source-pill right">🔴 Conservative Sources</span>
         </div>
       </div>

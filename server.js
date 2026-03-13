@@ -14,32 +14,32 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Media Bias Database ────────────────────────────────────────────────────────
 const MEDIA_BIAS = {
-  'MSNBC':                   { score: -3, label: 'Left',         color: '#2563eb' },
-  'HuffPost':                { score: -3, label: 'Left',         color: '#2563eb' },
-  'CNN':                     { score: -2, label: 'Left',         color: '#3b82f6' },
-  'The New York Times':      { score: -2, label: 'Left',         color: '#3b82f6' },
-  'The Guardian':            { score: -2, label: 'Left',         color: '#3b82f6' },
-  'NPR':                     { score: -2, label: 'Left',         color: '#3b82f6' },
-  'CBS News':                { score: -1, label: 'Left-Center',  color: '#60a5fa' },
-  'The Washington Post':     { score: -1, label: 'Left-Center',  color: '#60a5fa' },
-  'NBC News':                { score: -1, label: 'Left-Center',  color: '#818cf8' },
-  'Reuters':                 { score: 0,  label: 'Center',       color: '#a78bfa' },
-  'Associated Press':        { score: 0,  label: 'Center',       color: '#a78bfa' },
-  'The Associated Press':    { score: 0,  label: 'Center',       color: '#a78bfa' },
-  'AP':                      { score: 0,  label: 'Center',       color: '#a78bfa' },
-  'BBC News':                { score: 0,  label: 'Center',       color: '#a78bfa' },
-  'BBC':                     { score: 0,  label: 'Center',       color: '#a78bfa' },
-  'The Hill':                { score: 0,  label: 'Center',       color: '#a78bfa' },
+  'MSNBC':                   { score: -3, label: 'Far Left',    color: '#2563eb' },
+  'HuffPost':                { score: -3, label: 'Far Left',    color: '#2563eb' },
+  'CNN':                     { score: -2, label: 'Left',        color: '#3b82f6' },
+  'The New York Times':      { score: -2, label: 'Left',        color: '#3b82f6' },
+  'The Guardian':            { score: -2, label: 'Left',        color: '#3b82f6' },
+  'NPR':                     { score: -2, label: 'Left',        color: '#3b82f6' },
+  'CBS News':                { score: -1, label: 'Left-Center', color: '#60a5fa' },
+  'The Washington Post':     { score: -1, label: 'Left-Center', color: '#60a5fa' },
+  'NBC News':                { score: -1, label: 'Left-Center', color: '#818cf8' },
+  'Reuters':                 { score: 0,  label: 'Neutral',     color: '#a78bfa' },
+  'Associated Press':        { score: 0,  label: 'Neutral',     color: '#a78bfa' },
+  'The Associated Press':    { score: 0,  label: 'Neutral',     color: '#a78bfa' },
+  'AP':                      { score: 0,  label: 'Neutral',     color: '#a78bfa' },
+  'BBC News':                { score: 0,  label: 'Neutral',     color: '#a78bfa' },
+  'BBC':                     { score: 0,  label: 'Neutral',     color: '#a78bfa' },
+  'The Hill':                { score: 0,  label: 'Neutral',     color: '#a78bfa' },
   'The Wall Street Journal': { score: 1,  label: 'Center-Right', color: '#fca5a5' },
   'Wall Street Journal':     { score: 1,  label: 'Center-Right', color: '#fca5a5' },
-  'New York Post':           { score: 2,  label: 'Right',        color: '#f87171' },
-  'The New York Post':       { score: 2,  label: 'Right',        color: '#f87171' },
-  'Newsmax':                 { score: 2,  label: 'Right',        color: '#f87171' },
-  'Fox News':                { score: 3,  label: 'Right',        color: '#ef4444' },
-  'Daily Wire':              { score: 3,  label: 'Right',        color: '#ef4444' },
-  'The Daily Wire':          { score: 3,  label: 'Right',        color: '#ef4444' },
-  'Breitbart News':          { score: 4,  label: 'Far Right',    color: '#dc2626' },
-  'Breitbart':               { score: 4,  label: 'Far Right',    color: '#dc2626' },
+  'New York Post':           { score: 2,  label: 'Right',       color: '#f87171' },
+  'The New York Post':       { score: 2,  label: 'Right',       color: '#f87171' },
+  'Newsmax':                 { score: 2,  label: 'Right',       color: '#f87171' },
+  'Fox News':                { score: 3,  label: 'Right',       color: '#ef4444' },
+  'Daily Wire':              { score: 3,  label: 'Right',       color: '#ef4444' },
+  'The Daily Wire':          { score: 3,  label: 'Right',       color: '#ef4444' },
+  'Breitbart News':          { score: 4,  label: 'Far Right',   color: '#dc2626' },
+  'Breitbart':               { score: 4,  label: 'Far Right',   color: '#dc2626' },
 };
 
 function getBias(sourceName) {
@@ -61,22 +61,27 @@ const SOURCE_GROUPS = {
 
 // ── The 7 take positions ───────────────────────────────────────────────────────
 const TAKE_POSITIONS = [
-  { position: -3, label: 'Far Left',     color: '#1d4ed8' },
-  { position: -2, label: 'Left',         color: '#3b82f6' },
-  { position: -1, label: 'Center-Left',  color: '#818cf8' },
-  { position:  0, label: 'Neutral',      color: '#a78bfa' },
-  { position:  1, label: 'Center-Right', color: '#f97316' },
-  { position:  2, label: 'Right',        color: '#ef4444' },
-  { position:  3, label: 'Far Right',    color: '#dc2626' },
+  { position: -3, label: 'Far Left',     color: '#1d4ed8', tier: 'left'   },
+  { position: -2, label: 'Left',         color: '#3b82f6', tier: 'left'   },
+  { position: -1, label: 'Center-Left',  color: '#818cf8', tier: 'left'   },
+  { position:  0, label: 'Neutral',      color: '#a78bfa', tier: 'center' },
+  { position:  1, label: 'Center-Right', color: '#f97316', tier: 'right'  },
+  { position:  2, label: 'Right',        color: '#ef4444', tier: 'right'  },
+  { position:  3, label: 'Far Right',    color: '#dc2626', tier: 'right'  },
 ];
+
+const TIER_OUTLETS = {
+  left:   'NYT, CNN, MSNBC, NPR, Washington Post, Guardian, CBS News, NBC News',
+  center: 'Reuters, AP, BBC, Axios, The Hill',
+  right:  'Fox News, NY Post, Washington Times, Breitbart, Daily Caller',
+};
 
 // ── Server-side cache (15-min TTL) ─────────────────────────────────────────────
 let cachedTopics = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 
-// In-flight generation lock: prevent concurrent expensive Claude calls
-let generationInFlight = null; // Promise | null
+let generationInFlight = null;
 
 // ── Fetch headlines for one source group ──────────────────────────────────────
 async function fetchSourceGroup(apiKey, sources, pageSize = 12) {
@@ -108,36 +113,39 @@ async function fetchSourceGroup(apiKey, sources, pageSize = 12) {
 // ── Cluster articles into topics using Claude ─────────────────────────────────
 async function clusterArticles(articles) {
   const list = articles
-    .map((a, i) => `[${i}] ${a.source} | ${a.title}`)
+    .map((a, i) => {
+      const tier = a.bias.score <= -1 ? 'L' : a.bias.score >= 1 ? 'R' : 'C';
+      return `[${i}] ${tier}:${a.source} | ${a.title}`;
+    })
     .join('\n');
 
-  const prompt = `You are analyzing news articles from outlets across the political spectrum to identify 6-8 major ongoing world news topics.
-
-Articles (format: [INDEX] SOURCE | HEADLINE):
-${list}
+  const prompt = `Cluster these ${articles.length} news articles into 20-30 major ongoing world news topics.
 
 Return ONLY valid JSON, no markdown:
 {
   "topics": [
     {
-      "title": "Short neutral topic name (max 6 words, e.g. 'US-Iran Military Tensions')",
+      "title": "Short neutral topic name (max 6 words)",
       "summary": "One neutral sentence describing what this story is about",
+      "category": "Top US|World|Politics|Economy|Technology|Health|Military|Climate|Crime|Sports & Culture",
       "articleIndices": [0, 3, 7, 12]
     }
   ]
 }
 
 Rules:
-- Create exactly 6-8 topics
-- Prefer big ongoing stories covered by multiple outlets across the spectrum
-- Title: short, factual, no editorializing (think newspaper section header)
+- 20-30 topics total
+- Each topic needs at least 1 article
+- Topics with 3+ articles from multiple bias tiers get the full 7-perspective treatment
+- Topics with only 1-2 articles are still valuable — include them
+- Merge near-duplicate topics into one
+- Title: short, factual, no editorializing
 - Summary: one factual sentence only
-- Each article index may appear in at most one topic
-- Prioritize stories where left AND right outlets are both covering the event`;
+- Neutral factual titles only — no editorial spin`;
 
   const msg = await anthropic.messages.create({
-    model: 'claude-opus-4-5',
-    max_tokens: 1024,
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 3000,
     messages: [{ role: 'user', content: prompt }],
   });
 
@@ -148,131 +156,54 @@ Rules:
   return Array.isArray(parsed.topics) ? parsed.topics : [];
 }
 
-// ── Generate all 7 takes for one topic ────────────────────────────────────────
-async function generateTakesForTopic(topic, articles) {
-  // Group source articles by bias tier for the prompt
-  const leftArticles   = articles.filter(a => a.bias.score <= -1);
-  const centerArticles = articles.filter(a => a.bias.score === 0);
-  const rightArticles  = articles.filter(a => a.bias.score >= 1);
+// ── Build topic shells (no takes — generated on demand) ───────────────────────
+async function buildTopicShells(clusters, allArticles) {
+  const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
-  const formatArticles = (arr) => arr.length === 0
-    ? '(no articles from this tier)'
-    : arr.map(a => `  - ${a.source}: "${a.title}" — ${a.description}`).join('\n');
-
-  const prompt = `You are generating 7 different political takes on the same news topic. Each take synthesizes multiple news sources into a coherent perspective — do NOT copy any article verbatim.
-
-TOPIC: ${topic.title}
-TOPIC SUMMARY: ${topic.summary}
-
-SOURCE ARTICLES:
-
-[LEFT-LEANING OUTLETS]
-${formatArticles(leftArticles)}
-
-[CENTER/NEUTRAL OUTLETS]
-${formatArticles(centerArticles)}
-
-[RIGHT-LEANING OUTLETS]
-${formatArticles(rightArticles)}
-
-Write 7 takes on this topic. Each take is a 2-3 paragraph synthesized opinion piece (150-200 words) written from that political perspective. The writing should feel authentic to that viewpoint — use language, framing, and emphasis that genuinely reflects that political stance.
-
-For each take, also identify which of the source articles above most informed that perspective (list 1-3 sources with a one-line description of how they framed it).
-
-Return ONLY valid JSON:
-{
-  "takes": [
-    {
-      "position": -3,
-      "label": "Far Left",
-      "text": "2-3 paragraphs synthesized from a far-left perspective...",
-      "sources": [
-        {
-          "name": "CNN",
-          "framing": "One sentence describing how CNN framed this story",
-          "url": "https://..."
-        }
-      ]
-    },
-    { "position": -2, "label": "Left", "text": "...", "sources": [...] },
-    { "position": -1, "label": "Center-Left", "text": "...", "sources": [...] },
-    { "position": 0,  "label": "Neutral", "text": "...", "sources": [...] },
-    { "position": 1,  "label": "Center-Right", "text": "...", "sources": [...] },
-    { "position": 2,  "label": "Right", "text": "...", "sources": [...] },
-    { "position": 3,  "label": "Far Right", "text": "...", "sources": [...] }
-  ]
-}
-
-Use only URLs from the source articles listed above (or omit url if uncertain). Do not invent URLs.`;
-
-  const msg = await anthropic.messages.create({
-    model: 'claude-opus-4-5',
-    max_tokens: 4096,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const text = msg.content[0]?.text?.trim() || '';
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error(`No JSON in takes response for topic: ${topic.title}`);
-  const parsed = JSON.parse(jsonMatch[0]);
-
-  if (!Array.isArray(parsed.takes) || parsed.takes.length !== 7) {
-    throw new Error(`Expected 7 takes, got ${parsed.takes?.length} for: ${topic.title}`);
-  }
-
-  // Merge position metadata from TAKE_POSITIONS
-  return parsed.takes.map(t => {
-    const meta = TAKE_POSITIONS.find(p => p.position === t.position) || TAKE_POSITIONS[3];
-    return { ...t, color: meta.color };
-  });
-}
-
-// ── Build full topic objects with takes ────────────────────────────────────────
-async function buildTopicsWithTakes(clusters, allArticles) {
-  // First build raw topic objects (same as before)
-  const rawTopics = clusters
+  return clusters
     .map((cluster, i) => {
       const clusterArticles = (cluster.articleIndices || [])
         .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < allArticles.length)
         .map(idx => allArticles[idx]);
 
-      if (clusterArticles.length < 2) return null;
+      if (clusterArticles.length < 1) return null;
+
+      // Find the most recently published article date
+      const latestPublishedAt = clusterArticles.reduce((max, a) =>
+        a.publishedAt && a.publishedAt > max ? a.publishedAt : max, '');
+
+      // Skip topics older than 30 days
+      if (latestPublishedAt) {
+        const latestMs = new Date(latestPublishedAt).getTime();
+        if (latestMs > 0 && latestMs < thirtyDaysAgoMs) return null;
+      }
+
+      // Determine perspective mode
+      const tiers = new Set(clusterArticles.map(a =>
+        a.bias.score <= -1 ? 'left' : a.bias.score >= 1 ? 'right' : 'center'
+      ));
+      const perspectiveMode = (clusterArticles.length >= 3 && tiers.size >= 2) ? 'full' : 'limited';
 
       const imgArticle = clusterArticles.find(a => a.urlToImage);
 
       return {
-        id:         `topic-${i}`,
-        title:      cluster.title || 'Untitled Story',
-        summary:    cluster.summary || '',
-        urlToImage: imgArticle?.urlToImage || null,
-        articles:   clusterArticles, // keep for takes generation
+        id:               `topic-${i}`,
+        title:            cluster.title    || 'Untitled Story',
+        summary:          cluster.summary  || '',
+        category:         cluster.category || 'Top US',
+        urlToImage:       imgArticle?.urlToImage || null,
+        latestPublishedAt: latestPublishedAt || null,
+        perspectiveMode,
+        articles: clusterArticles.map(a => ({
+          title:       a.title,
+          description: a.description,
+          source:      a.source,
+          url:         a.url,
+          bias:        a.bias,
+        })),
       };
     })
     .filter(Boolean);
-
-  console.log(`Generating takes for ${rawTopics.length} topics…`);
-
-  // Generate takes for each topic sequentially (avoid rate limits)
-  const topicsWithTakes = [];
-  for (let i = 0; i < rawTopics.length; i++) {
-    const topic = rawTopics[i];
-    console.log(`  [${i + 1}/${rawTopics.length}] Generating 7 takes for: ${topic.title}`);
-    try {
-      const takes = await generateTakesForTopic(topic, topic.articles);
-      topicsWithTakes.push({
-        id:         topic.id,
-        title:      topic.title,
-        summary:    topic.summary,
-        urlToImage: topic.urlToImage,
-        takes,
-      });
-    } catch (err) {
-      console.warn(`  Failed to generate takes for "${topic.title}":`, err.message);
-      // Skip topics where takes generation fails
-    }
-  }
-
-  return topicsWithTakes;
 }
 
 // ── /api/clustered-news ────────────────────────────────────────────────────────
@@ -288,7 +219,6 @@ app.get('/api/clustered-news', async (req, res) => {
     return res.json({ topics: cachedTopics, fromCache: true });
   }
 
-  // If a generation is already in flight, wait for it instead of starting another
   if (generationInFlight) {
     console.log('Generation in progress — waiting for existing request…');
     try {
@@ -302,9 +232,9 @@ app.get('/api/clustered-news', async (req, res) => {
   const doGenerate = async () => {
     console.log('Fetching fresh articles from all source groups…');
     const [left, center, right] = await Promise.all([
-      fetchSourceGroup(apiKey, SOURCE_GROUPS.left,   12),
-      fetchSourceGroup(apiKey, SOURCE_GROUPS.center, 10),
-      fetchSourceGroup(apiKey, SOURCE_GROUPS.right,  10),
+      fetchSourceGroup(apiKey, SOURCE_GROUPS.left,   15),
+      fetchSourceGroup(apiKey, SOURCE_GROUPS.center, 12),
+      fetchSourceGroup(apiKey, SOURCE_GROUPS.right,  12),
     ]);
 
     const all = [...left, ...center, ...right];
@@ -312,14 +242,22 @@ app.get('/api/clustered-news', async (req, res) => {
 
     if (all.length < 6) throw new Error('Too few articles returned from NewsAPI');
 
+    // Deduplicate by URL
+    const seen = new Set();
+    const deduped = all.filter(a => {
+      if (!a.url || seen.has(a.url)) return false;
+      seen.add(a.url);
+      return true;
+    });
+
     console.log('Clustering articles with AI…');
-    const clusters = await clusterArticles(all);
+    const clusters = await clusterArticles(deduped);
     console.log(`Identified ${clusters.length} topic clusters`);
 
-    const topics = await buildTopicsWithTakes(clusters, all);
-    console.log(`Built ${topics.length} topics with full takes`);
+    const topics = await buildTopicShells(clusters, deduped);
+    console.log(`Built ${topics.length} topic shells (${topics.filter(t=>t.perspectiveMode==='full').length} full, ${topics.filter(t=>t.perspectiveMode==='limited').length} limited)`);
 
-    if (!topics.length) throw new Error('No topics with takes could be generated');
+    if (!topics.length) throw new Error('No topics could be generated');
 
     cachedTopics = topics;
     cacheTimestamp = Date.now();
@@ -340,6 +278,88 @@ app.get('/api/clustered-news', async (req, res) => {
     res.status(500).json({ error: err.message || 'Failed to load news topics' });
   } finally {
     generationInFlight = null;
+  }
+});
+
+// ── /api/generate-takes ────────────────────────────────────────────────────────
+app.post('/api/generate-takes', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+  }
+
+  const { topic, position } = req.body || {};
+
+  if (!topic?.title || !Array.isArray(topic?.articles)) {
+    return res.status(400).json({ error: 'Request body must include topic.title and topic.articles[]' });
+  }
+  if (!Number.isInteger(position) || position < -3 || position > 3) {
+    return res.status(400).json({ error: 'position must be an integer from -3 to 3' });
+  }
+
+  const meta = TAKE_POSITIONS.find(p => p.position === position);
+
+  try {
+    const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
+    const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
+    const rightArts  = topic.articles.filter(a => (a.bias?.score ?? 0) >= 1);
+
+    const fmt = (arr) => arr.length === 0
+      ? '(none available)'
+      : arr.map(a => `  • ${a.source}: "${a.title}" — ${a.description}`).join('\n');
+
+    const primaryTier  = meta.tier;
+    const tierOutlets  = TIER_OUTLETS[primaryTier];
+    const tierInstruct =
+      primaryTier === 'left'   ? `Draw primarily from the LEFT-LEANING sources (${tierOutlets}). Emphasize systemic causes, social impact, equity, and progressive solutions.`
+    : primaryTier === 'right'  ? `Draw primarily from the RIGHT-LEANING sources (${tierOutlets}). Emphasize individual liberty, traditional values, free markets, national security, and limited government.`
+    :                            `Draw from CENTER/NEUTRAL sources (${tierOutlets}). Present factual, balanced analysis without ideological spin.`;
+
+    const prompt = `You are writing a ${meta.label} opinion piece on the news topic below.
+
+${tierInstruct}
+
+TOPIC: ${topic.title}
+CONTEXT: ${topic.summary || '(no summary)'}
+
+─── SOURCE ARTICLES BY BIAS TIER ───
+
+[LEFT-LEANING] (NYT, CNN, MSNBC, NPR, Washington Post, Guardian, CBS, NBC):
+${fmt(leftArts)}
+
+[CENTER/NEUTRAL] (Reuters, AP, BBC, Axios, The Hill):
+${fmt(centerArts)}
+
+[RIGHT-LEANING] (Fox News, NY Post, Washington Times, Breitbart, Daily Caller):
+${fmt(rightArts)}
+
+─── TASK ───
+Write 2 paragraphs (~150-180 words total) that sound authentically ${meta.label}.
+- Synthesize from the sources — do NOT copy sentences verbatim
+- Use the framing, language, and emphasis of that political viewpoint
+- Cite 1-3 source articles that most inform this perspective
+
+Return ONLY valid JSON (no markdown, no commentary):
+{"take":{"position":${position},"label":"${meta.label}","text":"paragraph one\\n\\nparagraph two","sources":[{"name":"Source Name","framing":"One sentence on their framing","url":"https://..."}]}}
+
+Only include URLs that appear verbatim in the articles above. Omit the url field if uncertain.`;
+
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 900,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = msg.content[0]?.text || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON in Claude response');
+
+    const parsed = JSON.parse(match[0]);
+    if (!parsed.take) throw new Error('No take in response');
+
+    return res.json({ take: { ...parsed.take, color: meta.color } });
+  } catch (err) {
+    console.error('generate-takes error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to generate take' });
   }
 });
 

@@ -9,6 +9,52 @@ import './App.css';
 // Map take index (0-6) → position (-3 to 3)
 const indexToPosition = (i) => i - 3;
 
+// ── Limited-mode indices (Left=1, Neutral=3, Right=5) ─────────────────────────
+const LIMITED_INDICES = [1, 3, 5];
+
+// ── localStorage take cache helpers ──────────────────────────────────────────
+const CACHE_PREFIX    = 'sw_take';
+const CACHE_MAX_AGE   = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function buildCacheKey(topicId, publishedAt, position) {
+  return `${CACHE_PREFIX}:${topicId}:${publishedAt ?? 'x'}:${position}`;
+}
+
+function loadCachedTake(topicId, publishedAt, position) {
+  try {
+    const raw = localStorage.getItem(buildCacheKey(topicId, publishedAt, position));
+    if (!raw) return null;
+    const { take, ts } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_MAX_AGE) {
+      localStorage.removeItem(buildCacheKey(topicId, publishedAt, position));
+      return null;
+    }
+    return take;
+  } catch { return null; }
+}
+
+function saveCachedTake(topicId, publishedAt, position, take) {
+  try {
+    const key = buildCacheKey(topicId, publishedAt, position);
+    localStorage.setItem(key, JSON.stringify({ take, ts: Date.now() }));
+  } catch { /* ignore quota errors */ }
+}
+
+function pruneOldCache(topics) {
+  const validKeys = new Set();
+  for (const t of topics) {
+    for (let p = -3; p <= 3; p++) {
+      validKeys.add(buildCacheKey(t.id, t.latestPublishedAt, p));
+    }
+  }
+  const toRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k?.startsWith(CACHE_PREFIX) && !validKeys.has(k)) toRemove.push(k);
+  }
+  toRemove.forEach(k => localStorage.removeItem(k));
+}
+
 export default function App() {
   const [topicShells, setTopicShells]           = useState([]);
   // { [topicId]: { [position]: take } }  — lazy per-position
@@ -43,6 +89,7 @@ export default function App() {
   const currentTakeLoading = currentTopic
     ? loadingSet.has(`${currentTopic.id}:${currentPosition}`)
     : false;
+  const perspectiveMode    = currentTopic?.perspectiveMode ?? 'full';
 
   // ── Reset topic & take index when category changes ────────────────────────
   useEffect(() => {
@@ -56,13 +103,23 @@ export default function App() {
   }, [currentTopicIndex]);
 
   // ── Fetch ONE take for ONE topic at ONE position ──────────────────────────
-  // Takes a topic object directly — works regardless of current filter state
   const prefetchTake = useCallback(async (topic, position) => {
     if (!topic) return;
     const key = `${topic.id}:${position}`;
 
     if (takesMapRef.current[topic.id]?.[position] !== undefined) return;
     if (loadingSetRef.current.has(key)) return;
+
+    // Check localStorage cache first
+    const cached = loadCachedTake(topic.id, topic.latestPublishedAt, position);
+    if (cached) {
+      takesMapRef.current = {
+        ...takesMapRef.current,
+        [topic.id]: { ...(takesMapRef.current[topic.id] || {}), [position]: cached },
+      };
+      setTakesMap({ ...takesMapRef.current });
+      return;
+    }
 
     loadingSetRef.current = new Set([...loadingSetRef.current, key]);
     setLoadingSet(new Set(loadingSetRef.current));
@@ -77,6 +134,9 @@ export default function App() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       if (!data.take) throw new Error('No take in response');
+
+      // Save to cache before updating state
+      saveCachedTake(topic.id, topic.latestPublishedAt, position, data.take);
 
       takesMapRef.current = {
         ...takesMapRef.current,
@@ -106,13 +166,21 @@ export default function App() {
     if (prev && prev !== cur)  prefetchTake(prev, 0);
   }, [currentTopicIndex, filteredTopics, prefetchTake]);
 
-  // ── On take index change: fetch that position + prefetch one step each way ─
+  // ── On take index change: fetch that position + prefetch neighbors ─────────
   useEffect(() => {
     if (!currentTopic) return;
     const pos = indexToPosition(currentTakeIndex);
     prefetchTake(currentTopic, pos);
-    if (pos > -3) prefetchTake(currentTopic, pos - 1);
-    if (pos <  3) prefetchTake(currentTopic, pos + 1);
+
+    if (currentTopic.perspectiveMode === 'limited') {
+      // Only prefetch adjacent available limited positions
+      const idx = LIMITED_INDICES.indexOf(currentTakeIndex);
+      if (idx > 0)                       prefetchTake(currentTopic, indexToPosition(LIMITED_INDICES[idx - 1]));
+      if (idx < LIMITED_INDICES.length - 1) prefetchTake(currentTopic, indexToPosition(LIMITED_INDICES[idx + 1]));
+    } else {
+      if (pos > -3) prefetchTake(currentTopic, pos - 1);
+      if (pos <  3) prefetchTake(currentTopic, pos + 1);
+    }
   }, [currentTakeIndex, currentTopic, prefetchTake]);
 
   // ── Fetch topic shells ────────────────────────────────────────────────────
@@ -143,6 +211,9 @@ export default function App() {
       setCurrentTakeIndex(3);
       setActiveCategory('All');
       setLoadingStage(2);
+
+      // Clean up stale cache entries
+      pruneOldCache(data.topics);
     } catch (err) {
       clearTimeout(timer1);
       setError(err.message || 'Failed to load news');
@@ -154,10 +225,29 @@ export default function App() {
   // Initial load
   useEffect(() => { fetchTopicShells(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Navigate takes ────────────────────────────────────────────────────────
-  const handleTakeLeft  = useCallback(() => setCurrentTakeIndex(i => Math.max(0, i - 1)), []);
-  const handleTakeRight = useCallback(() => setCurrentTakeIndex(i => Math.min(6, i + 1)), []);
-  const handleTakeJump  = useCallback((index) => setCurrentTakeIndex(index), []);
+  // ── Navigate takes — respect limited mode ─────────────────────────────────
+  const handleTakeLeft = useCallback(() => {
+    if (perspectiveMode === 'limited') {
+      const prev = LIMITED_INDICES.filter(i => i < currentTakeIndex);
+      if (prev.length) setCurrentTakeIndex(prev[prev.length - 1]);
+    } else {
+      setCurrentTakeIndex(i => Math.max(0, i - 1));
+    }
+  }, [perspectiveMode, currentTakeIndex]);
+
+  const handleTakeRight = useCallback(() => {
+    if (perspectiveMode === 'limited') {
+      const next = LIMITED_INDICES.filter(i => i > currentTakeIndex);
+      if (next.length) setCurrentTakeIndex(next[0]);
+    } else {
+      setCurrentTakeIndex(i => Math.min(6, i + 1));
+    }
+  }, [perspectiveMode, currentTakeIndex]);
+
+  const handleTakeJump = useCallback((index) => {
+    if (perspectiveMode === 'limited' && !LIMITED_INDICES.includes(index)) return;
+    setCurrentTakeIndex(index);
+  }, [perspectiveMode]);
 
   // ── Navigate topics ───────────────────────────────────────────────────────
   const handleNextTopic = useCallback(() => {
@@ -254,6 +344,7 @@ export default function App() {
             onPrevTopic={handlePrevTopic}
             currentTopicIndex={currentTopicIndex}
             totalTopics={filteredTopics.length}
+            perspectiveMode={perspectiveMode}
           />
         )}
       </main>

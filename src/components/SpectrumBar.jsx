@@ -8,22 +8,32 @@ const POSITIONS = [
   { index: 6, label: 'Far Right',    short: 'FR', color: '#dc2626' },
 ];
 
-export default function SpectrumBar({ currentTakeIndex, onTakeJump }) {
+const LIMITED_INDICES = new Set([1, 3, 5]); // Left, Neutral, Right
+
+export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveMode }) {
+  const isLimited = perspectiveMode === 'limited';
+  const visiblePositions = isLimited
+    ? POSITIONS.filter(p => LIMITED_INDICES.has(p.index))
+    : POSITIONS;
   const current = POSITIONS[currentTakeIndex] || POSITIONS[3];
 
   return (
     <div className="spectrum-bar-wrapper">
-      {/* Track with 7 clickable position buttons */}
+      {/* Track with clickable position buttons */}
       <div className="spectrum-track">
         <div className="spectrum-gradient" />
-        {POSITIONS.map((pos) => {
+        {visiblePositions.map((pos) => {
           const isActive = pos.index === currentTakeIndex;
+          // For limited mode, remap position to 0, 50%, 100% of track
+          const leftPct = isLimited
+            ? ([1, 3, 5].indexOf(pos.index) / 2) * 100
+            : (pos.index / 6) * 100;
           return (
             <button
               key={pos.index}
               className={`spectrum-pip ${isActive ? 'active' : ''}`}
               style={{
-                left: `${(pos.index / 6) * 100}%`,
+                left: `${leftPct}%`,
                 background: isActive ? pos.color : `${pos.color}55`,
                 boxShadow: isActive ? `0 0 0 4px ${pos.color}44, 0 0 12px ${pos.color}66` : 'none',
               }}
@@ -49,7 +59,7 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump }) {
 
       {/* Quick-jump pill row */}
       <div className="spectrum-pills-row">
-        {POSITIONS.map((pos) => {
+        {visiblePositions.map((pos) => {
           const isActive = pos.index === currentTakeIndex;
           return (
             <button
@@ -67,6 +77,13 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump }) {
           );
         })}
       </div>
+
+      {/* Limited coverage note */}
+      {isLimited && (
+        <p className="spectrum-limited-note">
+          ⚠ Limited source coverage — only Left, Neutral &amp; Right available
+        </p>
+      )}
     </div>
   );
 }

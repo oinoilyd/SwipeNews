@@ -14,6 +14,7 @@ export default function CardStack({
   onPrevTopic,
   currentTopicIndex,
   totalTopics,
+  perspectiveMode,
 }) {
   // Touch tracking for vertical swipe (topic navigation)
   const touchStartY = useRef(null);
@@ -40,10 +41,11 @@ export default function CardStack({
 
   return (
     <div className="card-stack-container">
-      {/* Spectrum bar — 7 fixed positions */}
+      {/* Spectrum bar — fixed positions (or 3 for limited topics) */}
       <SpectrumBar
         currentTakeIndex={currentTakeIndex}
         onTakeJump={onTakeJump}
+        perspectiveMode={perspectiveMode}
       />
 
       {/* Card area with touch handlers for vertical swipe */}
@@ -59,6 +61,7 @@ export default function CardStack({
           takesLoading={takesLoading}
           onTakeLeft={onTakeLeft}
           onTakeRight={onTakeRight}
+          perspectiveMode={perspectiveMode}
         />
       </div>
 

@@ -12,13 +12,13 @@ const MEDIA_BIAS = {
   'NPR':                   { score: -1, label: 'Left-Center', color: '#60a5fa' },
   'NBC News':              { score: -1, label: 'Left-Center', color: '#60a5fa' },
   'CBS News':              { score: -1, label: 'Left-Center', color: '#60a5fa' },
-  // Center
-  'Reuters':               { score:  0, label: 'Center',      color: '#a78bfa' },
-  'Associated Press':      { score:  0, label: 'Center',      color: '#a78bfa' },
-  'The Associated Press':  { score:  0, label: 'Center',      color: '#a78bfa' },
-  'BBC News':              { score:  0, label: 'Center',      color: '#a78bfa' },
-  'The Hill':              { score:  0, label: 'Center',      color: '#a78bfa' },
-  'Axios':                 { score:  0, label: 'Center',      color: '#a78bfa' },
+  // Neutral
+  'Reuters':               { score:  0, label: 'Neutral',     color: '#a78bfa' },
+  'Associated Press':      { score:  0, label: 'Neutral',     color: '#a78bfa' },
+  'The Associated Press':  { score:  0, label: 'Neutral',     color: '#a78bfa' },
+  'BBC News':              { score:  0, label: 'Neutral',     color: '#a78bfa' },
+  'The Hill':              { score:  0, label: 'Neutral',     color: '#a78bfa' },
+  'Axios':                 { score:  0, label: 'Neutral',     color: '#a78bfa' },
   // Right
   'Fox News':              { score:  3, label: 'Right',       color: '#ef4444' },
   'New York Post':         { score:  2, label: 'Right',       color: '#f87171' },
@@ -78,7 +78,7 @@ async function fetchArticles(url, tagCategory = null) {
   }
 }
 
-// ── Cluster articles into 15-25 categorized topics with Claude Haiku ─────────
+// ── Cluster articles into 20-30 categorized topics with Claude Haiku ─────────
 async function clusterArticles(articles) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -93,22 +93,22 @@ async function clusterArticles(articles) {
 
   const msg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 3000,
+    max_tokens: 4000,
     messages: [{
       role: 'user',
-      content: `Cluster these ${articles.length} news articles into 15-25 major ongoing topics.
+      content: `Cluster these ${articles.length} news articles into 20-30 major ongoing topics.
 
 Return ONLY valid JSON, no markdown:
 {"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"Top US|World|Politics|Economy|Technology|Health|Military|Climate|Crime|Sports & Culture","articleIndices":[0,1,2,3]}]}
 
 Rules:
-- 15-25 topics total
-- Each topic MUST have at least 3 articles from at least 2 DIFFERENT sources
-- Skip topics with only 1-2 articles or from a single outlet
+- 20-30 topics total
+- Each topic needs at least 1 article
+- Prefer topics with 3+ articles from multiple bias tiers — these get the full 7-perspective treatment
+- Topics with only 1-2 articles are still valuable — include them
 - Merge near-duplicate topics into one
 - "category" must be exactly one of: Top US, World, Politics, Economy, Technology, Health, Military, Climate, Crime, Sports & Culture
 - Use [fetchCategory hints] shown in brackets when available to guide category assignment
-- Prefer topics with coverage from BOTH L (left) and R (right) sources
 - Neutral factual titles only — no editorial spin
 
 Articles:
@@ -140,10 +140,12 @@ export default async function handler(req, res) {
 
   try {
     const BASE = 'https://newsapi.org/v2';
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0];
 
-    // Fire all NewsAPI requests in parallel — source groups + category endpoints
+    // Fire all NewsAPI requests in parallel — source groups + category endpoints + 30-day window
     const results = await Promise.allSettled([
-      // Bias-grouped source fetches
+      // Bias-grouped source fetches (top-headlines — current)
       fetchArticles(`${BASE}/top-headlines?sources=${SOURCE_GROUPS.left}&pageSize=20&apiKey=${apiKey}`),
       fetchArticles(`${BASE}/top-headlines?sources=${SOURCE_GROUPS.center}&pageSize=15&apiKey=${apiKey}`),
       fetchArticles(`${BASE}/top-headlines?sources=${SOURCE_GROUPS.right}&pageSize=15&apiKey=${apiKey}`),
@@ -155,6 +157,10 @@ export default async function handler(req, res) {
       fetchArticles(`${BASE}/top-headlines?country=us&category=science&pageSize=10&apiKey=${apiKey}`,     'Health'),
       fetchArticles(`${BASE}/top-headlines?country=us&category=sports&pageSize=12&apiKey=${apiKey}`,      'Sports & Culture'),
       fetchArticles(`${BASE}/top-headlines?country=us&category=entertainment&pageSize=10&apiKey=${apiKey}`, 'Sports & Culture'),
+      // 30-day window via everything endpoint (may fail on free tier — silently ignored)
+      fetchArticles(`${BASE}/everything?sources=${SOURCE_GROUPS.left}&from=${thirtyDaysAgo}&sortBy=publishedAt&pageSize=15&apiKey=${apiKey}`),
+      fetchArticles(`${BASE}/everything?sources=${SOURCE_GROUPS.center}&from=${thirtyDaysAgo}&sortBy=publishedAt&pageSize=10&apiKey=${apiKey}`),
+      fetchArticles(`${BASE}/everything?sources=${SOURCE_GROUPS.right}&from=${thirtyDaysAgo}&sortBy=publishedAt&pageSize=10&apiKey=${apiKey}`),
     ]);
 
     const batches = results.map(r => r.status === 'fulfilled' ? r.value : []);
@@ -173,11 +179,13 @@ export default async function handler(req, res) {
 
     if (all.length < 10) throw new Error('Too few articles returned from NewsAPI');
 
-    // Cap at 100 to keep the clustering prompt manageable
-    const trimmed = all.slice(0, 100);
+    // Cap at 120 to keep the clustering prompt manageable
+    const trimmed = all.slice(0, 120);
 
     const clusters = await clusterArticles(trimmed);
     console.log(`Claude identified ${clusters.length} clusters`);
+
+    const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
     // Build and validate topics
     const topics = clusters
@@ -186,21 +194,27 @@ export default async function handler(req, res) {
           .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < trimmed.length);
         const articles = indices.map(idx => trimmed[idx]);
 
-        // Require ≥3 articles from ≥2 different sources
-        const uniqueSources = new Set(articles.map(a => a.source));
-        if (articles.length < 3 || uniqueSources.size < 2) return null;
-
-        // Require coverage from at least 2 bias tiers
-        const tiers = new Set(articles.map(a =>
-          a.bias.score <= -1 ? 'left' : a.bias.score >= 1 ? 'right' : 'center'
-        ));
-        if (tiers.size < 2) return null;
-
-        const img = articles.find(a => a.urlToImage);
+        // Require at least 1 article
+        if (articles.length < 1) return null;
 
         // Find the most recently published article date
         const latestPublishedAt = articles.reduce((max, a) =>
           a.publishedAt && a.publishedAt > max ? a.publishedAt : max, '');
+
+        // Skip topics where the most recent article is older than 30 days
+        if (latestPublishedAt) {
+          const latestMs = new Date(latestPublishedAt).getTime();
+          if (latestMs > 0 && latestMs < thirtyDaysAgoMs) return null;
+        }
+
+        // Determine perspective mode based on source diversity
+        const uniqueSources = new Set(articles.map(a => a.source));
+        const tiers = new Set(articles.map(a =>
+          a.bias.score <= -1 ? 'left' : a.bias.score >= 1 ? 'right' : 'center'
+        ));
+        const perspectiveMode = (articles.length >= 3 && tiers.size >= 2) ? 'full' : 'limited';
+
+        const img = articles.find(a => a.urlToImage);
 
         return {
           id:               `topic-${i}`,
@@ -209,6 +223,7 @@ export default async function handler(req, res) {
           category:         cluster.category || 'Top US',
           urlToImage:       img?.urlToImage  || null,
           latestPublishedAt: latestPublishedAt || null,
+          perspectiveMode,
           // Articles kept lean — only what generate-takes needs
           articles: articles.map(a => ({
             title:       a.title,
@@ -223,7 +238,7 @@ export default async function handler(req, res) {
 
     if (!topics.length) throw new Error('No valid topics passed quality filters');
 
-    console.log(`Final: ${topics.length} quality topics`);
+    console.log(`Final: ${topics.length} topics (${topics.filter(t=>t.perspectiveMode==='full').length} full, ${topics.filter(t=>t.perspectiveMode==='limited').length} limited)`);
     cachedTopics   = topics;
     cacheTimestamp = Date.now();
     return res.json({ topics, fromCache: false });

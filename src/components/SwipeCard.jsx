@@ -5,15 +5,9 @@ function formatAge(iso) {
   if (!iso) return null;
   try {
     const d     = new Date(iso);
-    const mins  = Math.floor((Date.now() - d.getTime()) / 60000);
-    const hours = Math.floor(mins  / 60);
-    const days  = Math.floor(hours / 24);
-    if (mins  < 1)   return 'Just updated';
-    if (mins  < 60)  return `Updated ${mins}m ago`;
-    if (hours < 24)  return `Updated ${hours}h ago`;
-    if (days  === 1) return 'Updated yesterday';
-    if (days  < 7)   return `Updated ${days}d ago`;
-    return `Updated ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    const month = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const time  = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${month}, ${time}`;
   } catch { return null; }
 }
 
@@ -30,21 +24,40 @@ function VotingButtons({ topicId }) {
   const [animating, setAnimating] = useState(null);
 
   function castVote(dir) {
-    if (userVote) return;
     setAnimating(dir);
     setTimeout(() => setAnimating(null), 600);
-    const next = {
-      up:   votes.up   + (dir === 'up'   ? 1 : 0),
-      down: votes.down + (dir === 'down' ? 1 : 0),
-    };
+
+    let next;
+
+    if (userVote === dir) {
+      // Tap same button → remove vote
+      next = {
+        up:   votes.up   - (dir === 'up'   ? 1 : 0),
+        down: votes.down - (dir === 'down' ? 1 : 0),
+      };
+      setUserVote(null);
+      localStorage.removeItem(voteKey);
+    } else if (userVote && userVote !== dir) {
+      // Tap opposite → switch vote
+      next = {
+        up:   votes.up   + (dir === 'up'   ? 1 : -1),
+        down: votes.down + (dir === 'down' ? 1 : -1),
+      };
+      setUserVote(dir);
+      localStorage.setItem(voteKey, dir);
+    } else {
+      // No vote yet → cast
+      next = {
+        up:   votes.up   + (dir === 'up'   ? 1 : 0),
+        down: votes.down + (dir === 'down' ? 1 : 0),
+      };
+      setUserVote(dir);
+      localStorage.setItem(voteKey, dir);
+    }
+
     setVotes(next);
-    setUserVote(dir);
-    localStorage.setItem(voteKey,   dir);
     localStorage.setItem(countsKey, JSON.stringify(next));
   }
-
-  const upCount   = votes.up;
-  const downCount = votes.down;
 
   return (
     <div className="voting-row">
@@ -53,29 +66,25 @@ function VotingButtons({ topicId }) {
         <button
           className={[
             'vote-btn',
-            userVote === 'up'   ? 'voted'       : '',
-            animating === 'up'  ? 'vote-anim'   : '',
-            userVote && userVote !== 'up' ? 'other-voted' : '',
+            userVote === 'up'   ? 'voted'     : '',
+            animating === 'up'  ? 'vote-anim' : '',
           ].filter(Boolean).join(' ')}
           onClick={() => castVote('up')}
-          disabled={!!userVote}
           aria-label="Thumbs up"
         >
-          👍 <span className="vote-count">{upCount}</span>
+          👍 <span className="vote-count">{votes.up}</span>
         </button>
 
         <button
           className={[
             'vote-btn',
-            userVote === 'down'  ? 'voted'       : '',
-            animating === 'down' ? 'vote-anim'   : '',
-            userVote && userVote !== 'down' ? 'other-voted' : '',
+            userVote === 'down'  ? 'voted'     : '',
+            animating === 'down' ? 'vote-anim' : '',
           ].filter(Boolean).join(' ')}
           onClick={() => castVote('down')}
-          disabled={!!userVote}
           aria-label="Thumbs down"
         >
-          👎 <span className="vote-count">{downCount}</span>
+          👎 <span className="vote-count">{votes.down}</span>
         </button>
       </div>
     </div>
@@ -93,6 +102,8 @@ const CARD_TINTS = [
   'rgba(220, 38,  38, 0.13)',  // 6 Far Right
 ];
 
+const LIMITED_INDICES = [1, 3, 5]; // Left, Neutral, Right
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SwipeCard({
   topic,
@@ -101,6 +112,7 @@ export default function SwipeCard({
   takesLoading,
   onTakeLeft,
   onTakeRight,
+  perspectiveMode,
 }) {
   const [sourcesOpen,      setSourcesOpen]      = useState(false);
   const [neutralExpanded,  setNeutralExpanded]  = useState(false);
@@ -112,10 +124,15 @@ export default function SwipeCard({
   }, [topic.id]);
 
   const isNeutral  = currentTakeIndex === 3;
+  const isLimited  = perspectiveMode === 'limited';
   const tint       = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
   const accent     = currentTake?.color || '#a78bfa';
-  const canGoLeft  = currentTakeIndex > 0;
-  const canGoRight = currentTakeIndex < 6;
+  const canGoLeft  = isLimited
+    ? LIMITED_INDICES.some(i => i < currentTakeIndex)
+    : currentTakeIndex > 0;
+  const canGoRight = isLimited
+    ? LIMITED_INDICES.some(i => i > currentTakeIndex)
+    : currentTakeIndex < 6;
   const timestamp  = formatAge(topic.latestPublishedAt);
 
   // ── Shared: nav arrows ────────────────────────────────────────────────────
@@ -217,7 +234,7 @@ export default function SwipeCard({
         {renderImage('neutral')}
 
         <div className="card-body">
-          {timestamp && <p className="card-timestamp">{timestamp}</p>}
+          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
 
           {topic.summary && <p className="neutral-blurb">{topic.summary}</p>}
 
@@ -265,7 +282,7 @@ export default function SwipeCard({
       <div className="swipe-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
         {renderImage()}
         <div className="card-body">
-          {timestamp && <p className="card-timestamp">{timestamp}</p>}
+          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
           <div className="takes-loading-state">
             <div className="spinner-ring" />
             <p className="takes-loading-label">
@@ -282,7 +299,7 @@ export default function SwipeCard({
     <div className="swipe-card" style={{ '--card-tint': tint, '--accent': accent }}>
       {renderImage()}
       <div className="card-body">
-        {timestamp && <p className="card-timestamp">{timestamp}</p>}
+        {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
         <div
           className="perspective-badge"
           style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
