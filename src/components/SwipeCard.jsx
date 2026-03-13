@@ -104,6 +104,16 @@ const CARD_TINTS = [
 
 const LIMITED_INDICES = [1, 3, 5]; // Left, Neutral, Right
 
+const TAKE_META = [
+  { label: 'Far Left',     color: '#1d4ed8' },
+  { label: 'Left',         color: '#3b82f6' },
+  { label: 'Center-Left',  color: '#818cf8' },
+  { label: 'Neutral',      color: '#a78bfa' },
+  { label: 'Center-Right', color: '#f97316' },
+  { label: 'Right',        color: '#ef4444' },
+  { label: 'Far Right',    color: '#dc2626' },
+];
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SwipeCard({
   topic,
@@ -278,18 +288,26 @@ export default function SwipeCard({
 
   // ── PERSPECTIVE CARD — loading ────────────────────────────────────────────
   if (!currentTake) {
+    const meta = TAKE_META[currentTakeIndex] ?? TAKE_META[3];
     return (
-      <div className="swipe-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
+      <div className="swipe-card" style={{ '--card-tint': tint, '--accent': meta.color }}>
         {renderImage()}
         <div className="card-body">
           {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
-          <div className="takes-loading-state">
-            <div className="spinner-ring" />
-            <p className="takes-loading-label">
-              {takesLoading ? 'Generating perspective…' : 'Loading…'}
-            </p>
+          <div
+            className="perspective-badge"
+            style={{ color: meta.color, borderLeftColor: meta.color, background: `${meta.color}18` }}
+          >
+            {meta.label} Perspective
+          </div>
+          <div className="take-skeleton">
+            <div className="skeleton-line" />
+            <div className="skeleton-line" />
+            <div className="skeleton-line medium" />
+            <div className="skeleton-line short" />
           </div>
         </div>
+        {navArrows}
       </div>
     );
   }

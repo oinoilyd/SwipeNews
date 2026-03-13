@@ -488,7 +488,9 @@ Return ONLY valid JSON:
     const parsed = JSON.parse(match[0]);
     if (!parsed.take) throw new Error('No take in response');
 
-    return res.json({ take: { ...parsed.take, color: meta.color } });
+    const take = { ...parsed.take, color: meta.color };
+    setsCached(key, take);
+    return res.json({ take });
   } catch (err) {
     console.error('generate-takes error:', err);
     return res.status(500).json({ error: err.message || 'Failed to generate take' });

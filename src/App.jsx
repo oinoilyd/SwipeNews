@@ -14,7 +14,7 @@ const LIMITED_INDICES = [1, 3, 5];
 
 // ── localStorage take cache helpers ──────────────────────────────────────────
 const CACHE_PREFIX    = 'sw_take';
-const CACHE_MAX_AGE   = 7 * 24 * 60 * 60 * 1000; // 7 days
+const CACHE_MAX_AGE   = 6 * 60 * 60 * 1000; // 6 hours
 
 function buildCacheKey(topicId, publishedAt, position) {
   return `${CACHE_PREFIX}:${topicId}:${publishedAt ?? 'x'}:${position}`;
@@ -109,6 +109,7 @@ export default function App() {
 
     if (takesMapRef.current[topic.id]?.[position] !== undefined) return;
     if (loadingSetRef.current.has(key)) return;
+    if (loadingSetRef.current.size >= 2) return;
 
     // Check localStorage cache first
     const cached = loadCachedTake(topic.id, topic.latestPublishedAt, position);
@@ -154,16 +155,11 @@ export default function App() {
     }
   }, []);
 
-  // ── On topic change: prefetch neutral for current + adjacent topics ───────
+  // ── On topic change: prefetch neutral for current topic only ─────────────
   useEffect(() => {
     if (!filteredTopics.length) return;
-    const total = filteredTopics.length;
-    const cur  = filteredTopics[currentTopicIndex];
-    const next = filteredTopics[(currentTopicIndex + 1) % total];
-    const prev = filteredTopics[currentTopicIndex > 0 ? currentTopicIndex - 1 : 0];
-    if (cur)  prefetchTake(cur,  0);
-    if (next && next !== cur)  prefetchTake(next, 0);
-    if (prev && prev !== cur)  prefetchTake(prev, 0);
+    const cur = filteredTopics[currentTopicIndex];
+    if (cur) prefetchTake(cur, 0);
   }, [currentTopicIndex, filteredTopics, prefetchTake]);
 
   // ── On take index change: fetch that position + prefetch neighbors ─────────
