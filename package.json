@@ -9,8 +9,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npx vercel --prod",
-    "deploy:preview": "npx vercel"
+    "deploy": "npx vercel build --prod && npx vercel deploy --prebuilt --prod",
+    "deploy:preview": "npx vercel build && npx vercel deploy --prebuilt"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
