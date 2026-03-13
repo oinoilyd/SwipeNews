@@ -373,16 +373,31 @@ export default async function handler(req, res) {
 
     if (!topics.length) throw new Error('No valid topics passed quality filters');
 
-    console.log(`Final: ${topics.length} topics (${topics.filter(t => t.perspectiveMode === 'full').length} full, ${topics.filter(t => t.perspectiveMode === 'limited').length} limited)`);
-    cachedTopics   = topics;
+    // ── Topic balance: hard news priority, Sports+Tech ≤ 20% ─────────────────
+    const HARD_NEWS = new Set(['National Security', 'Politics', 'World', 'Economy', 'Policy', 'US Politics', 'Elections', 'Health']);
+    const SOFT_CATS = new Set(['Sports & Culture', 'Technology']);
+    const hardTopics = topics.filter(t => HARD_NEWS.has(t.category));
+    const softTopics = topics.filter(t => SOFT_CATS.has(t.category));
+    const total      = topics.length;
+    const maxSoft    = Math.max(1, Math.floor(total * 0.20));
+    const cappedSoft = softTopics.slice(0, maxSoft);
+    // Keep all hard topics; capped soft topics come after
+    const balancedTopics = [...hardTopics, ...cappedSoft];
+    if (balancedTopics.length < topics.length) {
+      console.log(`Topic balance: kept ${hardTopics.length} hard + ${cappedSoft.length} soft (dropped ${softTopics.length - cappedSoft.length} soft to stay ≤20%)`);
+    }
+    const finalTopics = balancedTopics.length > 0 ? balancedTopics : topics;
+
+    console.log(`Final: ${finalTopics.length} topics (${finalTopics.filter(t => t.perspectiveMode === 'full').length} full, ${finalTopics.filter(t => t.perspectiveMode === 'limited').length} limited)`);
+    cachedTopics   = finalTopics;
     cacheTimestamp = Date.now();
     try {
-      await redis.set('sn:topics', topics, { ex: 8400 });
+      await redis.set('sn:topics', finalTopics, { ex: 8400 });
       await redis.set('sn:topics:ts', new Date().toISOString());
     } catch (err) {
       console.warn('Redis topics write failed:', err.message);
     }
-    return res.json({ topics, fromCache: false });
+    return res.json({ topics: finalTopics, fromCache: false });
 
   } catch (err) {
     console.error('clustered-news error:', err);

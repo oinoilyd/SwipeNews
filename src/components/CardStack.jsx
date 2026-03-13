@@ -30,6 +30,7 @@ export default function CardStack({
     if (touchStartY.current === null) return;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const savedTarget = touchStartTarget.current;
     touchStartY.current      = null;
     touchStartX.current      = null;
     touchStartTarget.current = null;
@@ -45,14 +46,14 @@ export default function CardStack({
     }
 
     // ── Vertical swipe → navigate topics ─────────────────────────────────────
-    if (absDy < 60 || absDy < absDx) return;
+    // Require 80px deliberate swipe, and vertical must dominate
+    if (absDy < 80 || absDy < absDx) return;
 
-    // Scroll-awareness: if touch started inside a scrollable card-body,
-    // only navigate when the user is already at the scroll boundary
-    const cardBody = touchStartTarget.current?.closest?.('.card-body');
+    // Scrolling always takes priority: only navigate when at absolute boundary
+    const cardBody = savedTarget?.closest?.('.card-body');
     if (cardBody) {
-      const atTop    = cardBody.scrollTop <= 5;
-      const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 5;
+      const atTop    = cardBody.scrollTop === 0;
+      const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 1;
       if (dy < 0 && !atBottom) return;   // swipe up, but not at bottom yet
       if (dy > 0 && !atTop)    return;   // swipe down, but not at top yet
     }

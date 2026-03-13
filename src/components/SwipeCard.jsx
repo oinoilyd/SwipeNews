@@ -36,54 +36,31 @@ function formatAge(iso) {
   } catch { return null; }
 }
 
-// ── Voting sub-component (neutral card only) — global counts via API ─────────
-function VotingButtons({ topicTitle }) {
-  const localKey = `vote:${topicTitle}`;
+// ── Voting sub-component (neutral card only) — localStorage only ──────────────
+function VotingButtons({ topicId }) {
+  const voteKey   = `vote:${topicId}`;
+  const countsKey = `votecounts:${topicId}`;
 
-  const [userVote,  setUserVote]  = useState(() => localStorage.getItem(localKey));
-  const [votes,     setVotes]     = useState({ up: 0, down: 0 });
+  const [userVote,  setUserVote]  = useState(() => localStorage.getItem(voteKey));
+  const [votes,     setVotes]     = useState(() => {
+    try { return JSON.parse(localStorage.getItem(countsKey)) || { up: 0, down: 0 }; }
+    catch { return { up: 0, down: 0 }; }
+  });
   const [animating, setAnimating] = useState(null);
-  const [loaded,    setLoaded]    = useState(false);
 
-  // Fetch global counts on mount
-  useEffect(() => {
-    fetch(`/api/votes?topicTitle=${encodeURIComponent(topicTitle)}`)
-      .then(r => r.json())
-      .then(data => { setVotes({ up: data.up || 0, down: data.down || 0 }); setLoaded(true); })
-      .catch(() => setLoaded(true));
-  }, [topicTitle]);
-
-  const castVote = useCallback(async (dir) => {
+  const castVote = useCallback((dir) => {
+    if (userVote) return; // already voted — no changes
     setAnimating(dir);
     setTimeout(() => setAnimating(null), 600);
-
-    let direction;
-    if (userVote === dir) {
-      direction = `remove-${dir}`;
-      setUserVote(null);
-      localStorage.removeItem(localKey);
-    } else if (userVote && userVote !== dir) {
-      direction = `switch-to-${dir}`;
-      setUserVote(dir);
-      localStorage.setItem(localKey, dir);
-    } else {
-      direction = dir;
-      setUserVote(dir);
-      localStorage.setItem(localKey, dir);
-    }
-
-    try {
-      const res = await fetch('/api/votes', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ topicTitle, direction }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setVotes({ up: data.up || 0, down: data.down || 0 });
-      }
-    } catch { /* ignore — vote recorded locally */ }
-  }, [userVote, topicTitle, localKey]);
+    const next = {
+      up:   votes.up   + (dir === 'up'   ? 1 : 0),
+      down: votes.down + (dir === 'down' ? 1 : 0),
+    };
+    setVotes(next);
+    setUserVote(dir);
+    localStorage.setItem(voteKey,   dir);
+    localStorage.setItem(countsKey, JSON.stringify(next));
+  }, [userVote, votes, voteKey, countsKey]);
 
   return (
     <div className="voting-row">
@@ -97,8 +74,9 @@ function VotingButtons({ topicTitle }) {
           ].filter(Boolean).join(' ')}
           onClick={() => castVote('up')}
           aria-label="Thumbs up"
+          disabled={!!userVote}
         >
-          👍 <span className="vote-count">{loaded ? votes.up : '…'}</span>
+          👍 <span className="vote-count">{votes.up}</span>
         </button>
 
         <button
@@ -109,8 +87,9 @@ function VotingButtons({ topicTitle }) {
           ].filter(Boolean).join(' ')}
           onClick={() => castVote('down')}
           aria-label="Thumbs down"
+          disabled={!!userVote}
         >
-          👎 <span className="vote-count">{loaded ? votes.down : '…'}</span>
+          👎 <span className="vote-count">{votes.down}</span>
         </button>
       </div>
     </div>
@@ -189,21 +168,22 @@ export default function SwipeCard({
     : currentTakeIndex < 6;
   const timestamp  = formatAge(topic.latestPublishedAt);
 
-  // ── Shared: nav buttons (blue + / red +) ─────────────────────────────────
+  // ── Shared: swipe indicator row ──────────────────────────────────────────
   const navArrows = (
     <div className="card-nav-arrows">
       <button
-        className={`perspective-btn perspective-btn-left${!canGoLeft ? ' disabled' : ''}`}
+        className={`swipe-nav-btn swipe-nav-left${!canGoLeft ? ' disabled' : ''}`}
         onClick={onTakeLeft}
         disabled={!canGoLeft}
         aria-label="More liberal perspective"
-      >+</button>
+      >🔵←</button>
+      <span className="swipe-nav-label">SWIPE</span>
       <button
-        className={`perspective-btn perspective-btn-right${!canGoRight ? ' disabled' : ''}`}
+        className={`swipe-nav-btn swipe-nav-right${!canGoRight ? ' disabled' : ''}`}
         onClick={onTakeRight}
         disabled={!canGoRight}
         aria-label="More conservative perspective"
-      >+</button>
+      >→🔴</button>
     </div>
   );
 
@@ -322,7 +302,7 @@ export default function SwipeCard({
             </div>
           )}
 
-          <VotingButtons key={topic.id} topicTitle={topic.title} />
+          <VotingButtons topicId={topic.id} />
         </div>
 
         {navArrows}

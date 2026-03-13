@@ -266,7 +266,9 @@ export default function App() {
       setLoadingSet(new Set());
 
       const processedTopics = data.topics.map(t =>
-        FORCE_LIMITED_CATEGORIES.has(t.category) ? { ...t, perspectiveMode: 'limited' } : t
+        FORCE_LIMITED_CATEGORIES.has(t.category)
+          ? { ...t, perspectiveMode: 'limited' }
+          : { ...t, perspectiveMode: 'full' }
       );
       setTopicShells(processedTopics);
       setCurrentTopicIndex(0);
@@ -383,8 +385,6 @@ export default function App() {
     <div className="app">
       <Header
         onRefresh={() => fetchTopicShells(true)}
-        topicNumber={filteredTopics.length > 0 ? currentTopicIndex + 1 : 0}
-        totalTopics={filteredTopics.length}
         onShowTopics={() => setShowTopicDrawer(true)}
         onShowTrending={() => setShowTrendingDrawer(true)}
       />

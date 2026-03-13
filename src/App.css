@@ -86,6 +86,19 @@ body {
 }
 .header-btn:hover { background: var(--border); }
 
+/* Small header button variant for left hamburger */
+.header-btn-sm {
+  padding: 4px 7px;
+  font-size: 0.9rem;
+}
+
+/* Extra-small header button for icons (refresh, info) */
+.header-btn-xs {
+  padding: 3px 7px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 /* ── Card stack container ─────────────────────────────────────────────────── */
 .card-stack-container {
   display: flex;
@@ -385,38 +398,42 @@ body {
 }
 .source-link:hover { text-decoration: underline; }
 
-/* ── Card nav buttons (blue + / red +) ── */
+/* ── Card nav swipe indicator ── */
 .card-nav-arrows {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding: 10px 20px;
+  gap: 6px;
+  padding: 6px 16px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   z-index: 1;
 }
 
-.perspective-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1;
+.swipe-nav-btn {
+  background: none;
   border: none;
-  color: white;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s, opacity 0.15s, box-shadow 0.15s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: opacity 0.15s, background 0.15s;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
-.perspective-btn:active:not(.disabled) { transform: scale(0.88); }
-.perspective-btn:hover:not(.disabled)  { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-.perspective-btn-left  { background: #3b82f6; }
-.perspective-btn-right { background: #ef4444; }
-.perspective-btn.disabled { opacity: 0.2; pointer-events: none; box-shadow: none; }
+.swipe-nav-btn:hover:not(.disabled) { background: var(--surface2); }
+.swipe-nav-btn:active:not(.disabled) { opacity: 0.6; }
+.swipe-nav-btn.disabled { opacity: 0.2; pointer-events: none; }
+
+.swipe-nav-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  opacity: 0.5;
+  text-transform: uppercase;
+  pointer-events: none;
+}
 
 /* ── Topic navigation dots ── */
 .topic-nav {
