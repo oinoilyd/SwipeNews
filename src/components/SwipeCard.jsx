@@ -189,14 +189,14 @@ export default function SwipeCard({
         onClick={onTakeLeft}
         disabled={!canGoLeft}
         aria-label="More liberal perspective"
-      >🔵←</button>
+      ><span style={{color:'#2563eb'}}>●</span>←</button>
       <span className="swipe-nav-label">SWIPE</span>
       <button
         className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
         onClick={onTakeRight}
         disabled={!canGoRight}
         aria-label="More conservative perspective"
-      >→🔴</button>
+      >→<span style={{color:'#dc2626'}}>●</span></button>
     </div>
   );
 

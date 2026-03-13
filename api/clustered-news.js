@@ -374,20 +374,16 @@ export default async function handler(req, res) {
 
     if (!topics.length) throw new Error('No valid topics passed quality filters');
 
-    // ── Topic balance: hard news priority, Sports+Tech ≤ 20% of final total ──
-    // Hard news = everything except Sports & Culture and Technology
-    const SOFT_CATS  = new Set(['Sports & Culture', 'Technology']);
-    const hardTopics = topics.filter(t => !SOFT_CATS.has(t.category));
-    const softTopics = topics.filter(t =>  SOFT_CATS.has(t.category));
-    // maxSoft: keep sports+tech at most 25% of hard count (= 20% of total)
-    const maxSoft    = Math.max(1, Math.round(hardTopics.length * 0.25));
-    const cappedSoft = softTopics.slice(0, maxSoft);
-    // Hard topics always come first (priority ordering from Claude is preserved)
-    const balancedTopics = [...hardTopics, ...cappedSoft];
-    if (balancedTopics.length < topics.length) {
-      console.log(`Topic balance: kept ${hardTopics.length} hard + ${cappedSoft.length} soft (dropped ${softTopics.length - cappedSoft.length} soft to stay ≤20%)`);
-    }
-    const finalTopics = balancedTopics.length > 0 ? balancedTopics : topics;
+    // ── Topic ordering: hard news first, Sports+Tech at the bottom ───────────
+    // No filtering or capping — all topics are kept, just sorted by priority
+    const PRIORITY_ORDER = ['National Security','World','Policy','Economy','Elections','US Politics','Health','Technology','Sports & Culture'];
+    const finalTopics = [...topics].sort((a, b) => {
+      const ai = PRIORITY_ORDER.indexOf(a.category);
+      const bi = PRIORITY_ORDER.indexOf(b.category);
+      const ap = ai === -1 ? PRIORITY_ORDER.length : ai;
+      const bp = bi === -1 ? PRIORITY_ORDER.length : bi;
+      return ap - bp;
+    });
 
     console.log(`Final: ${finalTopics.length} topics (${finalTopics.filter(t => t.perspectiveMode === 'full').length} full, ${finalTopics.filter(t => t.perspectiveMode === 'limited').length} limited)`);
     cachedTopics   = finalTopics;
