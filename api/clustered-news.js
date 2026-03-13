@@ -175,7 +175,7 @@ async function clusterArticles(articles) {
 
   const msg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 4096,
+    max_tokens: 6000,
     messages: [{
       role: 'user',
       content: `Cluster these ${articles.length} news articles into 20-35 major ongoing topics.
@@ -186,7 +186,7 @@ Return ONLY valid JSON, no markdown:
 Rules:
 - 20-35 topics total
 - Each topic needs at least 1 article
-- Prefer topics with 3+ articles from multiple bias tiers — these get the full 7-perspective treatment
+- Prefer topics with 3+ articles from multiple bias tiers
 - Topics with only 1-2 articles are still valuable — include them
 - Merge near-duplicate topics into one
 - "category" must be exactly one of: US Politics, World, Policy, Economy, National Security, Elections, Technology, Health, Sports & Culture
@@ -201,11 +201,9 @@ Rules:
   - Sports & Culture: sports, entertainment — only assign if article is tagged [Sports & Culture]
 - Use [fetchCategory hints] shown in brackets when available to guide category assignment
 - Neutral factual titles only — no editorial spin
-- Order topics by descending newsworthiness (highest-priority first):
-  1. National Security  2. World  3. Policy & Legislation  4. Economy
-  5. Elections  6. US Politics  7. Health  8. Technology  9. Sports & Culture
-- Hard news (National Security, World, Policy, Economy, Elections, US Politics, Health) must make up at least 80% of all topics. Sports & Culture and Technology combined must not exceed 20%.
-- Minimum newsworthiness bar: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial topics into broader ones or discard them. EXCEPTION: articles tagged [Sports & Culture] must always produce at least 3-5 Sports & Culture topics regardless of this filter — sports news belongs in the app even if it wouldn't make the front page.
+- SPORTS RULE (mandatory): You MUST include 3-5 separate Sports & Culture topics from articles tagged [Sports & Culture]. Do NOT merge all sports into one topic. Each major sport/game/event gets its own topic. This is non-negotiable regardless of any other rule.
+- For non-sports topics: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial hard-news topics into broader ones or discard them.
+- Hard news categories (National Security, World, Policy, Economy, Elections, US Politics, Health) should dominate the feed — aim for 15-25 hard news topics alongside the 3-5 sports and 1-3 tech topics.
 
 Articles:
 ${list}`,

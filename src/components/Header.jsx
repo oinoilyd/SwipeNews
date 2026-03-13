@@ -24,6 +24,14 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending }) {
         <div className="header-controls">
           <button
             className="header-btn header-btn-xs"
+            onClick={() => setShowInfo(true)}
+            title="About / Disclaimer"
+            aria-label="About and disclaimer"
+          >
+            ℹ
+          </button>
+          <button
+            className="header-btn header-btn-xs"
             onClick={onRefresh}
             title="Refresh news"
             aria-label="Refresh news"
