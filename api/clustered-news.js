@@ -175,7 +175,7 @@ async function clusterArticles(articles) {
 
   const msg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 6000,
+    max_tokens: 4096,
     messages: [{
       role: 'user',
       content: `Cluster these ${articles.length} news articles into 20-35 major ongoing topics.
@@ -186,7 +186,7 @@ Return ONLY valid JSON, no markdown:
 Rules:
 - 20-35 topics total
 - Each topic needs at least 1 article
-- Prefer topics with 3+ articles from multiple bias tiers
+- Prefer topics with 3+ articles from multiple bias tiers — these get the full 7-perspective treatment
 - Topics with only 1-2 articles are still valuable — include them
 - Merge near-duplicate topics into one
 - "category" must be exactly one of: US Politics, World, Policy, Economy, National Security, Elections, Technology, Health, Sports & Culture
@@ -201,9 +201,10 @@ Rules:
   - Sports & Culture: sports, entertainment — only assign if article is tagged [Sports & Culture]
 - Use [fetchCategory hints] shown in brackets when available to guide category assignment
 - Neutral factual titles only — no editorial spin
-- SPORTS RULE (mandatory): You MUST include 3-5 separate Sports & Culture topics from articles tagged [Sports & Culture]. Do NOT merge all sports into one topic. Each major sport/game/event gets its own topic. This is non-negotiable regardless of any other rule.
-- For non-sports topics: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial hard-news topics into broader ones or discard them.
-- Hard news categories (National Security, World, Policy, Economy, Elections, US Politics, Health) should dominate the feed — aim for 15-25 hard news topics alongside the 3-5 sports and 1-3 tech topics.
+- Order topics by descending newsworthiness (highest-priority first):
+  1. National Security  2. Policy & Legislation  3. World  4. Economy
+  5. Elections & Politics  6. US Politics  7. Technology  8. Health  9. Sports & Culture
+- Minimum newsworthiness bar: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial topics into broader ones or discard them. EXCEPTION: articles tagged [Sports & Culture] must always produce at least 3-5 Sports & Culture topics regardless of this filter — sports news belongs in the app even if it wouldn't make the front page.
 
 Articles:
 ${list}`,
@@ -372,27 +373,16 @@ export default async function handler(req, res) {
 
     if (!topics.length) throw new Error('No valid topics passed quality filters');
 
-    // ── Topic ordering: hard news first, Sports+Tech at the bottom ───────────
-    // No filtering or capping — all topics are kept, just sorted by priority
-    const PRIORITY_ORDER = ['National Security','World','Policy','Economy','Elections','US Politics','Health','Technology','Sports & Culture'];
-    const finalTopics = [...topics].sort((a, b) => {
-      const ai = PRIORITY_ORDER.indexOf(a.category);
-      const bi = PRIORITY_ORDER.indexOf(b.category);
-      const ap = ai === -1 ? PRIORITY_ORDER.length : ai;
-      const bp = bi === -1 ? PRIORITY_ORDER.length : bi;
-      return ap - bp;
-    });
-
-    console.log(`Final: ${finalTopics.length} topics (${finalTopics.filter(t => t.perspectiveMode === 'full').length} full, ${finalTopics.filter(t => t.perspectiveMode === 'limited').length} limited)`);
-    cachedTopics   = finalTopics;
+    console.log(`Final: ${topics.length} topics (${topics.filter(t => t.perspectiveMode === 'full').length} full, ${topics.filter(t => t.perspectiveMode === 'limited').length} limited)`);
+    cachedTopics   = topics;
     cacheTimestamp = Date.now();
     try {
-      await redis.set('sn:topics', finalTopics, { ex: 8400 });
+      await redis.set('sn:topics', topics, { ex: 8400 });
       await redis.set('sn:topics:ts', new Date().toISOString());
     } catch (err) {
       console.warn('Redis topics write failed:', err.message);
     }
-    return res.json({ topics: finalTopics, fromCache: false });
+    return res.json({ topics, fromCache: false });
 
   } catch (err) {
     console.error('clustered-news error:', err);
