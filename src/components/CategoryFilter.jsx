@@ -1,21 +1,20 @@
 export const CATEGORIES = [
   'All',
-  'Top US',
+  'US Politics',
   'World',
-  'Politics',
+  'Policy',
   'Economy',
+  'National Security',
+  'Elections',
   'Technology',
   'Health',
-  'Military',
-  'Climate',
-  'Crime',
   'Sports & Culture',
 ];
 
 export default function CategoryFilter({ activeCategory, onSelect, topicShells }) {
   // Count topics per category
   const counts = topicShells.reduce((acc, t) => {
-    const cat = t.category || 'Top US';
+    const cat = t.category || 'US Politics';
     acc[cat] = (acc[cat] || 0) + 1;
     return acc;
   }, {});

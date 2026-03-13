@@ -12,7 +12,7 @@ app.use(express.json());
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── Media Bias Database — keyed by newsdata.io source_id ──────────────────────
+// ── Media Bias Database — keyed by newsdata.io source_id or normalized name ───
 const MEDIA_BIAS = {
   'msnbc':           { score: -3, label: 'Far Left',    color: '#2563eb', name: 'MSNBC' },
   'cnn':             { score: -2, label: 'Left',        color: '#3b82f6', name: 'CNN' },
@@ -38,9 +38,16 @@ const MEDIA_BIAS = {
 function getBias(sourceId) {
   if (!sourceId) return { score: 0, label: 'Unknown', color: '#6b7280', name: 'Unknown' };
   const id = sourceId.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // 1. Exact key match
   if (MEDIA_BIAS[id]) return MEDIA_BIAS[id];
+  // 2. Substring match on keys
   for (const [k, v] of Object.entries(MEDIA_BIAS)) {
     if (id.includes(k) || k.includes(id)) return v;
+  }
+  // 3. Substring match on display names (catches GNews source names like "The New York Times")
+  for (const v of Object.values(MEDIA_BIAS)) {
+    const normalizedName = v.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (normalizedName.includes(id) || id.includes(normalizedName)) return v;
   }
   return { score: 0, label: 'Unknown', color: '#6b7280', name: sourceId };
 }
@@ -76,6 +83,23 @@ let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 let generationInFlight = null;
 
+// ── Title-similarity deduplication helpers ────────────────────────────────────
+const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','are','were']);
+
+function titleWords(title) {
+  return new Set(
+    title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/)
+      .filter(w => w.length > 2 && !STOP_WORDS.has(w))
+  );
+}
+
+function titleSimilarity(a, b) {
+  const sa = titleWords(a), sb = titleWords(b);
+  const intersection = [...sa].filter(w => sb.has(w)).length;
+  const union = new Set([...sa, ...sb]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+
 // ── Fetch articles from NewsData.io ───────────────────────────────────────────
 async function fetchArticles(url, tagCategory = null) {
   try {
@@ -109,6 +133,60 @@ async function fetchArticles(url, tagCategory = null) {
   }
 }
 
+// ── Fetch articles from GNews ─────────────────────────────────────────────────
+async function fetchGNews(topic, apiKey, tagCategory = null) {
+  try {
+    const url = `https://gnews.io/api/v4/top-headlines?token=${apiKey}&lang=en&country=us&max=10&topic=${topic}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (!data.articles) {
+      console.warn('GNews warning:', JSON.stringify(data).slice(0, 120));
+      return [];
+    }
+    return data.articles
+      .filter(a => a.title && a.description)
+      .map(a => {
+        const bias = getBias(a.source?.name || '');
+        return {
+          title:         a.title,
+          description:   a.description || '',
+          source:        bias.name !== 'Unknown' ? bias.name : (a.source?.name || 'Unknown'),
+          url:           a.url,
+          urlToImage:    a.image || null,
+          publishedAt:   a.publishedAt || null,
+          bias:          { score: bias.score, label: bias.label, color: bias.color },
+          fetchCategory: tagCategory,
+        };
+      });
+  } catch (err) {
+    console.warn('fetchGNews failed:', err.message);
+    return [];
+  }
+}
+
+// ── Fetch sports articles from ESPN (no API key required) ─────────────────────
+async function fetchESPN(url) {
+  try {
+    const res  = await fetch(url);
+    const data = await res.json();
+    return (data.articles || [])
+      .filter(a => a.headline)
+      .map(a => ({
+        title:         a.headline,
+        description:   a.description || a.headline,
+        source:        'ESPN',
+        url:           a.links?.web?.href || '',
+        urlToImage:    a.images?.[0]?.url || null,
+        publishedAt:   a.published || null,
+        bias:          { score: 0, label: 'Neutral', color: '#a78bfa' },
+        fetchCategory: 'Sports & Culture',
+      }));
+  } catch (err) {
+    console.warn('fetchESPN failed:', err.message);
+    return [];
+  }
+}
+
 // ── Cluster articles into topics using Claude ─────────────────────────────────
 async function clusterArticles(articles) {
   const list = articles
@@ -121,30 +199,36 @@ async function clusterArticles(articles) {
 
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 3000,
+    max_tokens: 4096,
     messages: [{
       role: 'user',
-      content: `Cluster these ${articles.length} news articles into 20-30 major ongoing world news topics.
+      content: `Cluster these ${articles.length} news articles into 20-35 major ongoing topics.
 
 Return ONLY valid JSON, no markdown:
-{
-  "topics": [
-    {
-      "title": "Short neutral topic name (max 6 words)",
-      "summary": "One neutral sentence describing what this story is about",
-      "category": "Top US|World|Politics|Economy|Technology|Health|Military|Climate|Crime|Sports & Culture",
-      "articleIndices": [0, 3, 7, 12]
-    }
-  ]
-}
+{"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"US Politics|World|Policy|Economy|National Security|Elections|Technology|Health|Sports & Culture","articleIndices":[0,1,2,3]}]}
 
 Rules:
-- 20-30 topics total
+- 20-35 topics total
 - Each topic needs at least 1 article
-- Topics with 3+ articles from multiple bias tiers get full 7-perspective treatment
-- Topics with 1-2 articles are still valuable — include them
+- Prefer topics with 3+ articles from multiple bias tiers — these get the full 7-perspective treatment
+- Topics with only 1-2 articles are still valuable — include them
 - Merge near-duplicate topics into one
-- Neutral factual titles only — no editorial spin`,
+- "category" must be exactly one of: US Politics, World, Policy, Economy, National Security, Elections, Technology, Health, Sports & Culture
+  - US Politics: domestic government, Congress, White House, political conflicts
+  - World: international news, foreign affairs
+  - Policy: legislation, regulations, climate/environment law, domestic policy debates
+  - Economy: markets, jobs, trade, inflation, corporate news
+  - National Security: military, intelligence, terrorism, border, defense
+  - Elections: campaigns, voting, candidates, electoral politics
+  - Technology: tech companies, AI, science, space, cyber
+  - Health: public health, medicine, FDA, healthcare
+  - Sports & Culture: sports, entertainment — only assign if article is tagged [Sports & Culture]
+- Use [fetchCategory hints] shown in brackets when available to guide category assignment
+- Neutral factual titles only — no editorial spin
+- Order topics by descending newsworthiness (highest-priority first):
+  1. National Security  2. Policy & Legislation  3. World  4. Economy
+  5. Elections & Politics  6. US Politics  7. Technology  8. Health  9. Sports & Culture
+- Minimum newsworthiness bar: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial topics into broader ones or discard them. EXCEPTION: articles tagged [Sports & Culture] must always produce at least 3-5 Sports & Culture topics regardless of this filter — sports news belongs in the app even if it wouldn't make the front page.`,
     }],
   });
 
@@ -186,7 +270,7 @@ async function buildTopicShells(clusters, allArticles) {
         id:               `topic-${i}`,
         title:            cluster.title    || 'Untitled Story',
         summary:          cluster.summary  || '',
-        category:         cluster.category || 'Top US',
+        category:         cluster.category || 'US Politics',
         urlToImage:       imgArticle?.urlToImage || null,
         latestPublishedAt: latestPublishedAt || null,
         perspectiveMode,
@@ -204,7 +288,8 @@ async function buildTopicShells(clusters, allArticles) {
 
 // ── /api/clustered-news ────────────────────────────────────────────────────────
 app.get('/api/clustered-news', async (req, res) => {
-  const apiKey = process.env.NEWSDATA_API_KEY;
+  const apiKey    = process.env.NEWSDATA_API_KEY;
+  const gnewsKey  = process.env.GNEWS_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'NEWSDATA_API_KEY not set' });
 
   const forceRefresh = req.query.refresh === '1';
@@ -230,43 +315,70 @@ app.get('/api/clustered-news', async (req, res) => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       .toISOString().split('T')[0];
 
-    console.log('Fetching fresh articles from NewsData.io…');
+    console.log('Fetching fresh articles from NewsData.io, GNews, and ESPN…');
     const results = await Promise.allSettled([
+      // ── NewsData.io — bias-grouped domain fetches ──────────────────────────
       fetchArticles(`${BASE}/latest?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.left_a}&size=10`),
       fetchArticles(`${BASE}/latest?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.left_b}&size=10`),
       fetchArticles(`${BASE}/latest?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.center}&size=10`),
       fetchArticles(`${BASE}/latest?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.right}&size=10`),
-      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=politics&language=en&size=10`,   'Politics'),
-      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=business&language=en&size=10`,   'Economy'),
-      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=technology&language=en&size=10`, 'Technology'),
-      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=health&language=en&size=10`,     'Health'),
-      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=sports&language=en&size=10`,     'Sports & Culture'),
-      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=world&language=en&size=10`,      'World'),
-      // 30-day archive (may fail on free tier — silently ignored)
+      // ── NewsData.io — category-specific fetches ────────────────────────────
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=politics&language=en&size=10`,    'US Politics'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=business&language=en&size=10`,    'Economy'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=technology&language=en&size=10`,  'Technology'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=health&language=en&size=10`,      'Health'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=sports&language=en&size=10`,      'Sports & Culture'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=world&language=en&size=10`,       'World'),
+      // ── NewsData.io — 30-day archive (may fail on free tier) ───────────────
       fetchArticles(`${BASE}/archive?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.left_a}&from_date=${thirtyDaysAgo}&size=10`),
       fetchArticles(`${BASE}/archive?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.center}&from_date=${thirtyDaysAgo}&size=10`),
       fetchArticles(`${BASE}/archive?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.right}&from_date=${thirtyDaysAgo}&size=10`),
+      // ── GNews — conditional on key presence ───────────────────────────────
+      ...(gnewsKey ? [
+        fetchGNews('nation',     gnewsKey, 'US Politics'),
+        fetchGNews('world',      gnewsKey, 'World'),
+        fetchGNews('business',   gnewsKey, 'Economy'),
+        fetchGNews('technology', gnewsKey, 'Technology'),
+        fetchGNews('health',     gnewsKey, 'Health'),
+        fetchGNews('sports',     gnewsKey, 'Sports & Culture'),
+      ] : []),
+      // ── ESPN — no API key required ─────────────────────────────────────────
+      fetchESPN('https://site.api.espn.com/apis/site/v2/sports/football/nfl/news'),
+      fetchESPN('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news'),
+      fetchESPN('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/news'),
+      fetchESPN('https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/news'),
+      fetchESPN('https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/news'),
     ]);
 
     const batches = results.map(r => r.status === 'fulfilled' ? r.value : []);
 
-    // Deduplicate by URL
-    const seen = new Set();
-    const deduped = batches.flat().filter(a => {
-      if (!a.url || seen.has(a.url)) return false;
-      seen.add(a.url);
+    // Pass 1 — deduplicate by URL
+    const urlSeen = new Set();
+    const urlDeduped = batches.flat().filter(a => {
+      if (!a.url || urlSeen.has(a.url)) return false;
+      urlSeen.add(a.url);
       return true;
     });
 
-    console.log(`Fetched ${deduped.length} unique articles (${batches.map(b=>b.length).join('+')})`);
+    // Pass 2 — deduplicate by title similarity (Jaccard > 0.6)
+    const titleSeenArr = [];
+    const deduped = urlDeduped.filter(a => {
+      if (titleSeenArr.some(t => titleSimilarity(t, a.title) > 0.6)) return false;
+      titleSeenArr.push(a.title);
+      return true;
+    });
 
-    if (deduped.length < 5) throw new Error('Too few articles returned from NewsData.io');
+    console.log(`Fetched ${deduped.length} unique articles (${batches.map(b => b.length).join('+')})`);
+
+    if (deduped.length < 5) throw new Error('Too few articles returned from news sources');
 
     console.log('Clustering articles with AI…');
-    const clusters = await clusterArticles(deduped);
+    // Cap at 150 for clustering prompt
+    const trimmed = deduped.slice(0, 150);
+    const clusters = await clusterArticles(trimmed);
     console.log(`Identified ${clusters.length} clusters`);
 
-    const topics = await buildTopicShells(clusters, deduped);
+    const topics = await buildTopicShells(clusters, trimmed);
     console.log(`Built ${topics.length} topic shells (${topics.filter(t=>t.perspectiveMode==='full').length} full, ${topics.filter(t=>t.perspectiveMode==='limited').length} limited)`);
 
     if (!topics.length) throw new Error('No topics could be generated');
