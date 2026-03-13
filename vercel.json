@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "crons": [
-    { "path": "/api/pregenerate", "schedule": "0 */2 * * *" }
+    { "path": "/api/pregenerate", "schedule": "0 6 * * *" }
   ],
   "functions": {
     "api/clustered-news.js": { "maxDuration": 45 },

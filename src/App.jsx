@@ -294,6 +294,14 @@ export default function App() {
     }
   }, []);
 
+  // ── Manual refresh: fire pregenerate in background, then reload topics ──────
+  const handleManualRefresh = useCallback(() => {
+    // Kick off full cache regeneration in the background (takes up to 5 min, fire-and-forget)
+    fetch('/api/pregenerate', { method: 'POST' }).catch(() => {/* ignore */});
+    // Immediately reload topic shells bypassing the news cache
+    fetchTopicShells(true);
+  }, [fetchTopicShells]);
+
   // Initial load
   useEffect(() => { fetchTopicShells(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -392,7 +400,7 @@ export default function App() {
   return (
     <div className="app">
       <Header
-        onRefresh={() => fetchTopicShells(true)}
+        onRefresh={handleManualRefresh}
         onShowTopics={() => setShowTopicDrawer(true)}
         onShowTrending={() => setShowTrendingDrawer(true)}
       />
