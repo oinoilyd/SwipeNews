@@ -119,6 +119,19 @@ const TAKE_META = [
   { label: 'Far Right',    color: '#dc2626' },
 ];
 
+// ── Sports / Tech label overrides for loading state ───────────────────────────
+// These map take index → {label, color} for non-political perspectives
+const SPORTS_META_OVERRIDE = {
+  1: { label: 'Fan',      color: '#f97316' },
+  3: { label: 'Analyst',  color: '#a78bfa' },
+  5: { label: 'Business', color: '#22d3ee' },
+};
+const TECH_META_OVERRIDE = {
+  1: { label: 'Optimist', color: '#3b82f6' },
+  3: { label: 'Skeptic',  color: '#f59e0b' },
+  5: { label: 'Industry', color: '#10b981' },
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SwipeCard({
   topic,
@@ -157,13 +170,13 @@ export default function SwipeCard({
   };
 
   const isNeutral  = currentTakeIndex === 3;
-  const isLimited  = perspectiveMode === 'limited';
+  const isNonFull  = perspectiveMode !== 'full'; // sports, tech, limited all use 3 positions
   const tint       = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
   const accent     = currentTake?.color || '#a78bfa';
-  const canGoLeft  = isLimited
+  const canGoLeft  = isNonFull
     ? LIMITED_INDICES.some(i => i < currentTakeIndex)
     : currentTakeIndex > 0;
-  const canGoRight = isLimited
+  const canGoRight = isNonFull
     ? LIMITED_INDICES.some(i => i > currentTakeIndex)
     : currentTakeIndex < 6;
   const timestamp  = formatAge(topic.latestPublishedAt);
@@ -312,7 +325,11 @@ export default function SwipeCard({
 
   // ── PERSPECTIVE CARD — loading ────────────────────────────────────────────
   if (!currentTake) {
-    const meta = TAKE_META[currentTakeIndex] ?? TAKE_META[3];
+    const baseMeta = TAKE_META[currentTakeIndex] ?? TAKE_META[3];
+    const override =
+      perspectiveMode === 'sports' ? SPORTS_META_OVERRIDE[currentTakeIndex] :
+      perspectiveMode === 'tech'   ? TECH_META_OVERRIDE[currentTakeIndex]   : null;
+    const meta = override ? { ...baseMeta, ...override } : baseMeta;
     return (
       <div className="swipe-card" style={{ '--card-tint': tint, '--accent': meta.color }}>
         {renderImage()}

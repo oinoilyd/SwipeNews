@@ -7,7 +7,16 @@ import TrendingDrawer from './components/TrendingDrawer';
 import CategoryFilter from './components/CategoryFilter';
 import './App.css';
 
-const FORCE_LIMITED_CATEGORIES = new Set(['Sports & Culture', 'Technology']);
+// Category → perspectiveMode mapping
+// 'full' = 7 political positions, 'limited' = Left/Neutral/Right only,
+// 'sports' = Fan/Analyst/Business, 'tech' = Optimist/Skeptic/Industry
+function getPerspectiveMode(category) {
+  if (category === 'Sports & Culture') return 'sports';
+  if (category === 'Technology')       return 'tech';
+  return 'full';
+}
+// All non-full modes use the same 3 LIMITED_INDICES [1,3,5] for navigation
+const IS_LIMITED = (pm) => pm !== 'full';
 
 // Map take index (0-6) → position (-3 to 3)
 const indexToPosition = (i) => i - 3;
@@ -231,7 +240,7 @@ export default function App() {
     const pos = indexToPosition(currentTakeIndex);
     prefetchTake(currentTopic, pos);
 
-    if (currentTopic.perspectiveMode === 'limited') {
+    if (IS_LIMITED(currentTopic.perspectiveMode)) {
       // Only prefetch adjacent available limited positions
       const idx = LIMITED_INDICES.indexOf(currentTakeIndex);
       if (idx > 0)                       prefetchTake(currentTopic, indexToPosition(LIMITED_INDICES[idx - 1]));
@@ -265,11 +274,10 @@ export default function App() {
       setTakesMap({});
       setLoadingSet(new Set());
 
-      const processedTopics = data.topics.map(t =>
-        FORCE_LIMITED_CATEGORIES.has(t.category)
-          ? { ...t, perspectiveMode: 'limited' }
-          : { ...t, perspectiveMode: 'full' }
-      );
+      const processedTopics = data.topics.map(t => ({
+        ...t,
+        perspectiveMode: getPerspectiveMode(t.category),
+      }));
       setTopicShells(processedTopics);
       setCurrentTopicIndex(0);
       setCurrentTakeIndex(3);
@@ -291,7 +299,7 @@ export default function App() {
 
   // ── Navigate takes — respect limited mode ─────────────────────────────────
   const handleTakeLeft = useCallback(() => {
-    if (perspectiveMode === 'limited') {
+    if (IS_LIMITED(perspectiveMode)) {
       const prev = LIMITED_INDICES.filter(i => i < currentTakeIndex);
       if (prev.length) setCurrentTakeIndex(prev[prev.length - 1]);
     } else {
@@ -300,7 +308,7 @@ export default function App() {
   }, [perspectiveMode, currentTakeIndex]);
 
   const handleTakeRight = useCallback(() => {
-    if (perspectiveMode === 'limited') {
+    if (IS_LIMITED(perspectiveMode)) {
       const next = LIMITED_INDICES.filter(i => i > currentTakeIndex);
       if (next.length) setCurrentTakeIndex(next[0]);
     } else {
@@ -309,7 +317,7 @@ export default function App() {
   }, [perspectiveMode, currentTakeIndex]);
 
   const handleTakeJump = useCallback((index) => {
-    if (perspectiveMode === 'limited' && !LIMITED_INDICES.includes(index)) return;
+    if (IS_LIMITED(perspectiveMode) && !LIMITED_INDICES.includes(index)) return;
     setCurrentTakeIndex(index);
   }, [perspectiveMode]);
 

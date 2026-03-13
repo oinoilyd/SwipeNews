@@ -11,6 +11,16 @@ const TAKE_POSITIONS = [
   { position:  3, label: 'Far Right',    color: '#dc2626', tier: 'right'  },
 ];
 
+const SPORTS_VOICE = {
+  '-2': { label: 'Fan',      voice: `You are writing from a FAN perspective. This is about passion, team loyalty, emotional investment, player storylines, and the experience of following a sport. What would a lifelong fan who lives and dies by their team actually care about here? Capture the energy, the stakes, the heartbreak or joy of the moment.` },
+   '0': { label: 'Analyst',  voice: `You are writing from an ANALYST perspective. Focus on statistics, strategy, performance metrics, historical context, coaching decisions, and what the numbers actually show. No hype, no business talk — just cold analysis of what's happening on the field/court/ice and why.` },
+   '2': { label: 'Business', voice: `You are writing from a BUSINESS perspective. Focus on contracts, salaries, cap space, revenue, ownership decisions, league policy, sponsorship impact, and the financial machinery behind the sport. What are the business and organizational implications here?` },
+};
+const TECH_VOICE = {
+  '-2': { label: 'Optimist', voice: `You are writing from a TECH OPTIMIST perspective. Focus on innovation potential, new capabilities unlocked, democratization of access, scientific progress, and the transformative upside. What's the best-case path this technology enables? Sound like a researcher or entrepreneur genuinely excited about where this leads.` },
+   '0': { label: 'Skeptic',  voice: `You are writing from a TECH SKEPTIC perspective. Focus on privacy risks, surveillance concerns, job displacement, algorithmic bias, ethical blind spots, unintended consequences, and why the hype may be outpacing reality. What are the legitimate concerns being glossed over by optimists and industry alike?` },
+   '2': { label: 'Industry', voice: `You are writing from an INDUSTRY/BUSINESS perspective. Focus on market impact, competitive dynamics, investment implications, enterprise adoption, vendor landscapes, and what this means for tech companies and the broader business ecosystem. Sound like a tech analyst or VC.` },
+};
 const POSITION_VOICE = {
   '-3': `You are writing from a FAR LEFT worldview. Center your analysis on class struggle, systemic oppression, corporate power, and anti-imperialism. On immigration: migrants are displaced by US foreign policy and corporate exploitation — enforcement is state violence against the vulnerable. On economy: inequality is a feature, not a bug, of capitalism. On national security: the military-industrial complex profits from endless war. Sound like a democratic socialist who reads Jacobin and The Intercept.`,
   '-2': `You are writing from a LEFT-LIBERAL worldview. Emphasize systemic racism, climate urgency, healthcare and housing as human rights, and immigration as both a humanitarian obligation and economic asset. On immigration: highlight family separation, DACA, economic contributions. On economy: the rich aren't paying their fair share; invest in people. Sound like a mainstream progressive Democrat — think AOC or a New York Times opinion columnist.`,
@@ -76,21 +86,34 @@ export default async function handler(req, res) {
                       : primaryTier === 'right' ? [...centerArts, ...leftArts]
                       : [...leftArts, ...rightArts];
 
-    const positionVoice = POSITION_VOICE[String(position)] || `Write a ${meta.label} perspective on this topic.`;
+    const category = topic.category || '';
+    let positionVoice, effectiveLabel;
+    if (category === 'Sports & Culture' && SPORTS_VOICE[String(position)]) {
+      const sv = SPORTS_VOICE[String(position)];
+      effectiveLabel = sv.label;
+      positionVoice  = sv.voice;
+    } else if (category === 'Technology' && TECH_VOICE[String(position)]) {
+      const tv = TECH_VOICE[String(position)];
+      effectiveLabel = tv.label;
+      positionVoice  = tv.voice;
+    } else {
+      effectiveLabel = meta.label;
+      positionVoice  = POSITION_VOICE[String(position)] || `Write a ${meta.label} perspective on this topic.`;
+    }
 
     const prompt = `${positionVoice}
 
-Do NOT just rephrase the same facts with different adjectives. Ask yourself: what would a thoughtful person from this political tradition ACTUALLY focus on, worry about, and argue here? Write 3-4 punchy sentences (50-80 words) from that authentic place.
+Do NOT just rephrase the same facts with different adjectives. Ask yourself: what would a thoughtful person from this perspective ACTUALLY focus on, worry about, and argue here? Write 3-4 punchy sentences (50-80 words) from that authentic place.
 
 TOPIC: ${topic.title}${topic.summary ? `\nCONTEXT: ${topic.summary}` : ''}
 
-PRIMARY SOURCES (${meta.label}-leaning):
+PRIMARY SOURCES:
 ${fmt(primaryArts)}
 OTHER SOURCES:
 ${fmt(otherArts)}
 
 Return ONLY valid JSON:
-{"take":{"position":${position},"label":"${meta.label}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
+{"take":{"position":${position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
     let fullText = '';
 
