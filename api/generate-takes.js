@@ -10,14 +10,33 @@ const TAKE_POSITIONS = [
   { position:  3, label: 'Far Right',    color: '#dc2626', tier: 'right'  },
 ];
 
-// Example outlets per tier — injected into prompt for guidance
 const TIER_OUTLETS = {
   left:   'NYT, CNN, MSNBC, NPR, Washington Post, Guardian, CBS News, NBC News',
   center: 'Reuters, AP, BBC, Axios, The Hill',
   right:  'Fox News, NY Post, Washington Times, Breitbart, Daily Caller',
 };
 
-// Generates ONE take at ONE position — stays well under 10s Vercel timeout
+// ── Server-side takes cache (warm Lambda instances share this) ────────────────
+const takesCache = new Map();
+const TAKES_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+function cacheKey(topic, position) {
+  const title = (topic.title || '').toLowerCase().replace(/\s+/g, '_').slice(0, 40);
+  return `${title}:${topic.latestPublishedAt || 'x'}:${position}`;
+}
+
+function getCached(key) {
+  const entry = takesCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > TAKES_CACHE_TTL) { takesCache.delete(key); return null; }
+  return entry.take;
+}
+
+function setCached(key, take) {
+  takesCache.set(key, { take, ts: Date.now() });
+}
+
+// Generates ONE take at ONE position
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -38,69 +57,61 @@ export default async function handler(req, res) {
 
   const meta = TAKE_POSITIONS.find(p => p.position === position);
 
+  // ── Cache hit — return immediately ───────────────────────────────────────
+  const key = cacheKey(topic, position);
+  const cached = getCached(key);
+  if (cached) return res.json({ take: cached, fromCache: true });
+
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    // Group articles by bias tier
     const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
     const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
     const rightArts  = topic.articles.filter(a => (a.bias?.score ?? 0) >= 1);
 
     const fmt = (arr) => arr.length === 0
-      ? '(none available)'
-      : arr.map(a => `  • ${a.source}: "${a.title}" — ${a.description}`).join('\n');
+      ? '(none)'
+      : arr.map(a => `  • ${a.source}: "${a.title}"`).join('\n');
 
-    // Which source tier to draw from for this perspective
-    const primaryTier   = meta.tier;
-    const tierOutlets   = TIER_OUTLETS[primaryTier];
-    const tierInstruct  =
-      primaryTier === 'left'   ? `Draw primarily from the LEFT-LEANING sources (${tierOutlets}). Emphasize systemic causes, social impact, equity, and progressive solutions. Be skeptical of corporate/government power.`
-    : primaryTier === 'right'  ? `Draw primarily from the RIGHT-LEANING sources (${tierOutlets}). Emphasize individual liberty, traditional values, free markets, national security, and limited government.`
-    :                            `Draw from CENTER/NEUTRAL sources (${tierOutlets}). Present factual, balanced analysis without ideological spin.`;
+    const primaryTier  = meta.tier;
+    const tierInstruct =
+      primaryTier === 'left'   ? `Emphasize systemic causes, equity, and progressive framing. Draw from ${TIER_OUTLETS.left}.`
+    : primaryTier === 'right'  ? `Emphasize individual liberty, free markets, and conservative framing. Draw from ${TIER_OUTLETS.right}.`
+    :                            `Present balanced, factual analysis without spin. Draw from ${TIER_OUTLETS.center}.`;
 
-    const prompt = `You are writing a ${meta.label} opinion piece on the news topic below.
+    const primaryArts = primaryTier === 'left' ? leftArts : primaryTier === 'right' ? rightArts : centerArts;
+    const otherArts   = primaryTier === 'left' ? [...centerArts, ...rightArts]
+                      : primaryTier === 'right' ? [...centerArts, ...leftArts]
+                      : [...leftArts, ...rightArts];
 
-${tierInstruct}
+    const prompt = `Write a ${meta.label} perspective on this news topic in exactly 3-4 sentences (50-80 words). Be direct and punchy. ${tierInstruct}
 
-TOPIC: ${topic.title}
-CONTEXT: ${topic.summary || '(no summary)'}
+TOPIC: ${topic.title}${topic.summary ? `\nCONTEXT: ${topic.summary}` : ''}
 
-─── SOURCE ARTICLES BY BIAS TIER ───
+PRIMARY SOURCES:
+${fmt(primaryArts)}
+OTHER SOURCES:
+${fmt(otherArts)}
 
-[LEFT-LEANING] (NYT, CNN, MSNBC, NPR, Washington Post, Guardian, CBS, NBC):
-${fmt(leftArts)}
-
-[CENTER/NEUTRAL] (Reuters, AP, BBC, Axios, The Hill):
-${fmt(centerArts)}
-
-[RIGHT-LEANING] (Fox News, NY Post, Washington Times, Breitbart, Daily Caller):
-${fmt(rightArts)}
-
-─── TASK ───
-Write 2 paragraphs (~150-180 words total) that sound authentically ${meta.label}.
-- Synthesize from the sources — do NOT copy sentences verbatim
-- Use the framing, language, and emphasis of that political viewpoint
-- Cite 1-3 source articles that most inform this perspective
-
-Return ONLY valid JSON (no markdown, no commentary):
-{"take":{"position":${position},"label":"${meta.label}","text":"paragraph one\\n\\nparagraph two","sources":[{"name":"Source Name","framing":"One sentence on their framing","url":"https://..."}]}}
-
-Only include URLs that appear verbatim in the articles above. Omit the url field if uncertain.`;
+Return ONLY valid JSON:
+{"take":{"position":${position},"label":"${meta.label}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 900,
+      max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const text = msg.content[0]?.text || '';
+    const text  = msg.content[0]?.text || '';
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('No JSON in Claude response');
 
     const parsed = JSON.parse(match[0]);
     if (!parsed.take) throw new Error('No take in response');
 
-    return res.json({ take: { ...parsed.take, color: meta.color } });
+    const take = { ...parsed.take, color: meta.color };
+    setCached(key, take);
+    return res.json({ take });
 
   } catch (err) {
     console.error('generate-takes error:', err);
