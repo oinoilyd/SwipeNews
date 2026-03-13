@@ -12,51 +12,45 @@ app.use(express.json());
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── Media Bias Database ────────────────────────────────────────────────────────
+// ── Media Bias Database — keyed by newsdata.io source_id ──────────────────────
 const MEDIA_BIAS = {
-  'MSNBC':                   { score: -3, label: 'Far Left',    color: '#2563eb' },
-  'HuffPost':                { score: -3, label: 'Far Left',    color: '#2563eb' },
-  'CNN':                     { score: -2, label: 'Left',        color: '#3b82f6' },
-  'The New York Times':      { score: -2, label: 'Left',        color: '#3b82f6' },
-  'The Guardian':            { score: -2, label: 'Left',        color: '#3b82f6' },
-  'NPR':                     { score: -2, label: 'Left',        color: '#3b82f6' },
-  'CBS News':                { score: -1, label: 'Left-Center', color: '#60a5fa' },
-  'The Washington Post':     { score: -1, label: 'Left-Center', color: '#60a5fa' },
-  'NBC News':                { score: -1, label: 'Left-Center', color: '#818cf8' },
-  'Reuters':                 { score: 0,  label: 'Neutral',     color: '#a78bfa' },
-  'Associated Press':        { score: 0,  label: 'Neutral',     color: '#a78bfa' },
-  'The Associated Press':    { score: 0,  label: 'Neutral',     color: '#a78bfa' },
-  'AP':                      { score: 0,  label: 'Neutral',     color: '#a78bfa' },
-  'BBC News':                { score: 0,  label: 'Neutral',     color: '#a78bfa' },
-  'BBC':                     { score: 0,  label: 'Neutral',     color: '#a78bfa' },
-  'The Hill':                { score: 0,  label: 'Neutral',     color: '#a78bfa' },
-  'The Wall Street Journal': { score: 1,  label: 'Center-Right', color: '#fca5a5' },
-  'Wall Street Journal':     { score: 1,  label: 'Center-Right', color: '#fca5a5' },
-  'New York Post':           { score: 2,  label: 'Right',       color: '#f87171' },
-  'The New York Post':       { score: 2,  label: 'Right',       color: '#f87171' },
-  'Newsmax':                 { score: 2,  label: 'Right',       color: '#f87171' },
-  'Fox News':                { score: 3,  label: 'Right',       color: '#ef4444' },
-  'Daily Wire':              { score: 3,  label: 'Right',       color: '#ef4444' },
-  'The Daily Wire':          { score: 3,  label: 'Right',       color: '#ef4444' },
-  'Breitbart News':          { score: 4,  label: 'Far Right',   color: '#dc2626' },
-  'Breitbart':               { score: 4,  label: 'Far Right',   color: '#dc2626' },
+  'msnbc':           { score: -3, label: 'Far Left',    color: '#2563eb', name: 'MSNBC' },
+  'cnn':             { score: -2, label: 'Left',        color: '#3b82f6', name: 'CNN' },
+  'theguardian':     { score: -2, label: 'Left',        color: '#3b82f6', name: 'The Guardian' },
+  'nytimes':         { score: -2, label: 'Left',        color: '#3b82f6', name: 'The New York Times' },
+  'washingtonpost':  { score: -1, label: 'Left-Center', color: '#60a5fa', name: 'The Washington Post' },
+  'npr':             { score: -1, label: 'Left-Center', color: '#60a5fa', name: 'NPR' },
+  'nbcnews':         { score: -1, label: 'Left-Center', color: '#60a5fa', name: 'NBC News' },
+  'cbsnews':         { score: -1, label: 'Left-Center', color: '#60a5fa', name: 'CBS News' },
+  'reuters':         { score:  0, label: 'Neutral',     color: '#a78bfa', name: 'Reuters' },
+  'apnews':          { score:  0, label: 'Neutral',     color: '#a78bfa', name: 'Associated Press' },
+  'bbc':             { score:  0, label: 'Neutral',     color: '#a78bfa', name: 'BBC News' },
+  'bbcnews':         { score:  0, label: 'Neutral',     color: '#a78bfa', name: 'BBC News' },
+  'thehill':         { score:  0, label: 'Neutral',     color: '#a78bfa', name: 'The Hill' },
+  'axios':           { score:  0, label: 'Neutral',     color: '#a78bfa', name: 'Axios' },
+  'foxnews':         { score:  3, label: 'Right',       color: '#ef4444', name: 'Fox News' },
+  'nypost':          { score:  2, label: 'Right',       color: '#f87171', name: 'New York Post' },
+  'breitbart':       { score:  4, label: 'Far Right',   color: '#dc2626', name: 'Breitbart News' },
+  'washingtontimes': { score:  2, label: 'Right',       color: '#f87171', name: 'Washington Times' },
+  'dailycaller':     { score:  3, label: 'Right',       color: '#ef4444', name: 'The Daily Caller' },
 };
 
-function getBias(sourceName) {
-  if (!sourceName) return { score: 0, label: 'Unknown', color: '#6b7280' };
-  if (MEDIA_BIAS[sourceName]) return MEDIA_BIAS[sourceName];
-  for (const [key, val] of Object.entries(MEDIA_BIAS)) {
-    if (sourceName.toLowerCase().includes(key.toLowerCase()) ||
-        key.toLowerCase().includes(sourceName.toLowerCase())) return val;
+function getBias(sourceId) {
+  if (!sourceId) return { score: 0, label: 'Unknown', color: '#6b7280', name: 'Unknown' };
+  const id = sourceId.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (MEDIA_BIAS[id]) return MEDIA_BIAS[id];
+  for (const [k, v] of Object.entries(MEDIA_BIAS)) {
+    if (id.includes(k) || k.includes(id)) return v;
   }
-  return { score: 0, label: 'Unknown', color: '#6b7280' };
+  return { score: 0, label: 'Unknown', color: '#6b7280', name: sourceId };
 }
 
-// ── NewsAPI source groups ──────────────────────────────────────────────────────
-const SOURCE_GROUPS = {
-  left:   'cnn,msnbc,the-guardian-us,nbc-news,cbs-news',
-  center: 'reuters,associated-press,bbc-news,the-hill',
-  right:  'fox-news,the-new-york-post,breitbart-news',
+// ── NewsData.io domain groups (max 5 per request on free/basic plans) ─────────
+const DOMAIN_GROUPS = {
+  left_a:  'edition.cnn.com,msnbc.com,theguardian.com,nbcnews.com,cbsnews.com',
+  left_b:  'nytimes.com,washingtonpost.com,npr.org',
+  center:  'reuters.com,apnews.com,bbc.com,thehill.com,axios.com',
+  right:   'foxnews.com,nypost.com,breitbart.com,washingtontimes.com',
 };
 
 // ── The 7 take positions ───────────────────────────────────────────────────────
@@ -80,32 +74,37 @@ const TIER_OUTLETS = {
 let cachedTopics = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
-
 let generationInFlight = null;
 
-// ── Fetch headlines for one source group ──────────────────────────────────────
-async function fetchSourceGroup(apiKey, sources, pageSize = 12) {
-  const url = `https://newsapi.org/v2/top-headlines?sources=${sources}&pageSize=${pageSize}&apiKey=${apiKey}`;
+// ── Fetch articles from NewsData.io ───────────────────────────────────────────
+async function fetchArticles(url, tagCategory = null) {
   try {
     const res = await fetch(url);
     const data = await res.json();
-    if (data.status !== 'ok') {
-      console.warn(`NewsAPI error for sources ${sources}:`, data.message);
+    if (data.status !== 'success') {
+      console.warn('NewsData.io warning:', data.results?.message || JSON.stringify(data).slice(0, 120), url.split('?')[0]);
       return [];
     }
-    return data.articles
-      .filter(a => a.title && a.title !== '[Removed]' && a.description)
-      .map(a => ({
-        title:       a.title,
-        description: a.description,
-        source:      a.source?.name || 'Unknown',
-        publishedAt: a.publishedAt,
-        url:         a.url,
-        urlToImage:  a.urlToImage,
-        bias:        getBias(a.source?.name),
-      }));
+    return (data.results || [])
+      .filter(a => a.title && a.description)
+      .map(a => {
+        const bias = getBias(a.source_id);
+        const publishedAt = a.pubDate
+          ? a.pubDate.replace(' ', 'T') + 'Z'
+          : null;
+        return {
+          title:         a.title,
+          description:   a.description || '',
+          source:        bias.name || a.source_id || 'Unknown',
+          url:           a.link,
+          urlToImage:    a.image_url || null,
+          publishedAt,
+          bias:          { score: bias.score, label: bias.label, color: bias.color },
+          fetchCategory: tagCategory,
+        };
+      });
   } catch (err) {
-    console.warn(`Failed to fetch source group ${sources}:`, err.message);
+    console.warn(`fetchArticles failed:`, err.message);
     return [];
   }
 }
@@ -115,11 +114,17 @@ async function clusterArticles(articles) {
   const list = articles
     .map((a, i) => {
       const tier = a.bias.score <= -1 ? 'L' : a.bias.score >= 1 ? 'R' : 'C';
-      return `[${i}] ${tier}:${a.source} | ${a.title}`;
+      const hint = a.fetchCategory ? ` [${a.fetchCategory}]` : '';
+      return `[${i}] ${tier}:${a.source}${hint} | ${a.title}`;
     })
     .join('\n');
 
-  const prompt = `Cluster these ${articles.length} news articles into 20-30 major ongoing world news topics.
+  const msg = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 3000,
+    messages: [{
+      role: 'user',
+      content: `Cluster these ${articles.length} news articles into 20-30 major ongoing world news topics.
 
 Return ONLY valid JSON, no markdown:
 {
@@ -136,17 +141,11 @@ Return ONLY valid JSON, no markdown:
 Rules:
 - 20-30 topics total
 - Each topic needs at least 1 article
-- Topics with 3+ articles from multiple bias tiers get the full 7-perspective treatment
-- Topics with only 1-2 articles are still valuable — include them
+- Topics with 3+ articles from multiple bias tiers get full 7-perspective treatment
+- Topics with 1-2 articles are still valuable — include them
 - Merge near-duplicate topics into one
-- Title: short, factual, no editorializing
-- Summary: one factual sentence only
-- Neutral factual titles only — no editorial spin`;
-
-  const msg = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 3000,
-    messages: [{ role: 'user', content: prompt }],
+- Neutral factual titles only — no editorial spin`,
+    }],
   });
 
   const text = msg.content[0]?.text?.trim() || '';
@@ -156,7 +155,7 @@ Rules:
   return Array.isArray(parsed.topics) ? parsed.topics : [];
 }
 
-// ── Build topic shells (no takes — generated on demand) ───────────────────────
+// ── Build topic shells (takes generated on-demand) ────────────────────────────
 async function buildTopicShells(clusters, allArticles) {
   const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
@@ -168,17 +167,14 @@ async function buildTopicShells(clusters, allArticles) {
 
       if (clusterArticles.length < 1) return null;
 
-      // Find the most recently published article date
       const latestPublishedAt = clusterArticles.reduce((max, a) =>
         a.publishedAt && a.publishedAt > max ? a.publishedAt : max, '');
 
-      // Skip topics older than 30 days
       if (latestPublishedAt) {
         const latestMs = new Date(latestPublishedAt).getTime();
-        if (latestMs > 0 && latestMs < thirtyDaysAgoMs) return null;
+        if (!isNaN(latestMs) && latestMs < thirtyDaysAgoMs) return null;
       }
 
-      // Determine perspective mode
       const tiers = new Set(clusterArticles.map(a =>
         a.bias.score <= -1 ? 'left' : a.bias.score >= 1 ? 'right' : 'center'
       ));
@@ -208,8 +204,8 @@ async function buildTopicShells(clusters, allArticles) {
 
 // ── /api/clustered-news ────────────────────────────────────────────────────────
 app.get('/api/clustered-news', async (req, res) => {
-  const apiKey = process.env.NEWS_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'NEWS_API_KEY not set' });
+  const apiKey = process.env.NEWSDATA_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'NEWSDATA_API_KEY not set' });
 
   const forceRefresh = req.query.refresh === '1';
   const now = Date.now();
@@ -220,7 +216,7 @@ app.get('/api/clustered-news', async (req, res) => {
   }
 
   if (generationInFlight) {
-    console.log('Generation in progress — waiting for existing request…');
+    console.log('Generation in progress — waiting…');
     try {
       const topics = await generationInFlight;
       return res.json({ topics, fromCache: true });
@@ -230,29 +226,45 @@ app.get('/api/clustered-news', async (req, res) => {
   }
 
   const doGenerate = async () => {
-    console.log('Fetching fresh articles from all source groups…');
-    const [left, center, right] = await Promise.all([
-      fetchSourceGroup(apiKey, SOURCE_GROUPS.left,   15),
-      fetchSourceGroup(apiKey, SOURCE_GROUPS.center, 12),
-      fetchSourceGroup(apiKey, SOURCE_GROUPS.right,  12),
+    const BASE = 'https://newsdata.io/api/1';
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0];
+
+    console.log('Fetching fresh articles from NewsData.io…');
+    const results = await Promise.allSettled([
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.left_a}&size=10`),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.left_b}&size=10`),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.center}&size=10`),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.right}&size=10`),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=politics&language=en&size=10`,   'Politics'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=business&language=en&size=10`,   'Economy'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=technology&language=en&size=10`, 'Technology'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=health&language=en&size=10`,     'Health'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=sports&language=en&size=10`,     'Sports & Culture'),
+      fetchArticles(`${BASE}/latest?apikey=${apiKey}&country=us&category=world&language=en&size=10`,      'World'),
+      // 30-day archive (may fail on free tier — silently ignored)
+      fetchArticles(`${BASE}/archive?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.left_a}&from_date=${thirtyDaysAgo}&size=10`),
+      fetchArticles(`${BASE}/archive?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.center}&from_date=${thirtyDaysAgo}&size=10`),
+      fetchArticles(`${BASE}/archive?apikey=${apiKey}&language=en&domainurl=${DOMAIN_GROUPS.right}&from_date=${thirtyDaysAgo}&size=10`),
     ]);
 
-    const all = [...left, ...center, ...right];
-    console.log(`Fetched ${all.length} articles  (${left.length} left · ${center.length} center · ${right.length} right)`);
-
-    if (all.length < 6) throw new Error('Too few articles returned from NewsAPI');
+    const batches = results.map(r => r.status === 'fulfilled' ? r.value : []);
 
     // Deduplicate by URL
     const seen = new Set();
-    const deduped = all.filter(a => {
+    const deduped = batches.flat().filter(a => {
       if (!a.url || seen.has(a.url)) return false;
       seen.add(a.url);
       return true;
     });
 
+    console.log(`Fetched ${deduped.length} unique articles (${batches.map(b=>b.length).join('+')})`);
+
+    if (deduped.length < 5) throw new Error('Too few articles returned from NewsData.io');
+
     console.log('Clustering articles with AI…');
     const clusters = await clusterArticles(deduped);
-    console.log(`Identified ${clusters.length} topic clusters`);
+    console.log(`Identified ${clusters.length} clusters`);
 
     const topics = await buildTopicShells(clusters, deduped);
     console.log(`Built ${topics.length} topic shells (${topics.filter(t=>t.perspectiveMode==='full').length} full, ${topics.filter(t=>t.perspectiveMode==='limited').length} limited)`);
@@ -310,8 +322,8 @@ app.post('/api/generate-takes', async (req, res) => {
     const primaryTier  = meta.tier;
     const tierOutlets  = TIER_OUTLETS[primaryTier];
     const tierInstruct =
-      primaryTier === 'left'   ? `Draw primarily from the LEFT-LEANING sources (${tierOutlets}). Emphasize systemic causes, social impact, equity, and progressive solutions.`
-    : primaryTier === 'right'  ? `Draw primarily from the RIGHT-LEANING sources (${tierOutlets}). Emphasize individual liberty, traditional values, free markets, national security, and limited government.`
+      primaryTier === 'left'   ? `Draw primarily from LEFT-LEANING sources (${tierOutlets}). Emphasize systemic causes, social impact, equity, and progressive solutions.`
+    : primaryTier === 'right'  ? `Draw primarily from RIGHT-LEANING sources (${tierOutlets}). Emphasize individual liberty, traditional values, free markets, national security, and limited government.`
     :                            `Draw from CENTER/NEUTRAL sources (${tierOutlets}). Present factual, balanced analysis without ideological spin.`;
 
     const prompt = `You are writing a ${meta.label} opinion piece on the news topic below.
