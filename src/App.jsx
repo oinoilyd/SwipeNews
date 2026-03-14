@@ -5,6 +5,7 @@ import LoadingScreen from './components/LoadingScreen';
 import TopicDrawer from './components/TopicDrawer';
 import TrendingDrawer from './components/TrendingDrawer';
 import CategoryFilter from './components/CategoryFilter';
+import TimeFilter from './components/TimeFilter';
 import './App.css';
 
 // Category → perspectiveMode mapping
@@ -76,6 +77,7 @@ export default function App() {
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
   const [currentTakeIndex, setCurrentTakeIndex]   = useState(3); // 3 = Neutral
   const [activeCategory, setActiveCategory]     = useState('All');
+  const [timeFilter, setTimeFilter]             = useState('48h');
   const [isLoading, setIsLoading]               = useState(true);
   const [loadingStage, setLoadingStage]         = useState(0);
   const [error, setError]                       = useState(null);
@@ -86,15 +88,25 @@ export default function App() {
   const takesMapRef   = useRef({});
   const loadingSetRef = useRef(new Set());
 
-  // ── Filtered topic list ───────────────────────────────────────────────────
+  // ── Filtered topic list (by category) ────────────────────────────────────
   const filteredTopics = useMemo(() =>
     activeCategory === 'All'
       ? topicShells
       : topicShells.filter(t => t.category === activeCategory),
   [topicShells, activeCategory]);
 
+  // ── Time-filtered topic list (by recency window) ──────────────────────────
+  const timeFilteredTopics = useMemo(() => {
+    const hours  = { '24h': 24, '48h': 48, '72h': 72 }[timeFilter] ?? 48;
+    const cutoff = Date.now() - hours * 60 * 60 * 1000;
+    return filteredTopics.filter(t => {
+      if (!t.latestPublishedAt) return true; // undated topics always included
+      return new Date(t.latestPublishedAt).getTime() >= cutoff;
+    });
+  }, [filteredTopics, timeFilter]);
+
   // ── Derived values ────────────────────────────────────────────────────────
-  const currentTopic       = filteredTopics[currentTopicIndex] ?? null;
+  const currentTopic       = timeFilteredTopics[currentTopicIndex] ?? null;
   const currentPosition    = indexToPosition(currentTakeIndex);
   const currentTake        = currentTopic
     ? (takesMap[currentTopic.id]?.[currentPosition] ?? null)
@@ -104,11 +116,11 @@ export default function App() {
     : false;
   const perspectiveMode    = currentTopic?.perspectiveMode ?? 'full';
 
-  // ── Reset topic & take index when category changes ────────────────────────
+  // ── Reset topic & take index when category or time filter changes ────────
   useEffect(() => {
     setCurrentTopicIndex(0);
     setCurrentTakeIndex(3);
-  }, [activeCategory]);
+  }, [activeCategory, timeFilter]);
 
   // ── Reset take to neutral when topic changes ──────────────────────────────
   useEffect(() => {
@@ -229,10 +241,10 @@ export default function App() {
 
   // ── On topic change: prefetch neutral for current topic only ─────────────
   useEffect(() => {
-    if (!filteredTopics.length) return;
-    const cur = filteredTopics[currentTopicIndex];
+    if (!timeFilteredTopics.length) return;
+    const cur = timeFilteredTopics[currentTopicIndex];
     if (cur) prefetchTake(cur, 0);
-  }, [currentTopicIndex, filteredTopics, prefetchTake]);
+  }, [currentTopicIndex, timeFilteredTopics, prefetchTake]);
 
   // ── On take index change: fetch that position + prefetch neighbors ─────────
   useEffect(() => {
@@ -331,12 +343,12 @@ export default function App() {
 
   // ── Navigate topics ───────────────────────────────────────────────────────
   const handleNextTopic = useCallback(() => {
-    setCurrentTopicIndex(i => (i + 1) % filteredTopics.length);
-  }, [filteredTopics.length]);
+    setCurrentTopicIndex(i => (i + 1) % timeFilteredTopics.length);
+  }, [timeFilteredTopics.length]);
 
   const handlePrevTopic = useCallback(() => {
-    setCurrentTopicIndex(i => (i - 1 + filteredTopics.length) % filteredTopics.length);
-  }, [filteredTopics.length]);
+    setCurrentTopicIndex(i => (i - 1 + timeFilteredTopics.length) % timeFilteredTopics.length);
+  }, [timeFilteredTopics.length]);
 
   const handleJumpToTopic = useCallback((index) => {
     setShowTopicDrawer(false);
@@ -411,12 +423,14 @@ export default function App() {
         topicShells={topicShells}
       />
 
+      <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
+
       <main className="main">
-        {filteredTopics.length === 0 ? (
+        {timeFilteredTopics.length === 0 ? (
           <div className="empty-category">
-            <p className="empty-category-msg">No topics in this category yet.</p>
-            <button className="btn-secondary" onClick={() => setActiveCategory('All')}>
-              Show All Topics
+            <p className="empty-category-msg">No topics in this window yet.</p>
+            <button className="btn-secondary" onClick={() => setTimeFilter('72h')}>
+              Expand to 72 Hours
             </button>
           </div>
         ) : currentTopic && (
@@ -431,7 +445,7 @@ export default function App() {
             onNextTopic={handleNextTopic}
             onPrevTopic={handlePrevTopic}
             currentTopicIndex={currentTopicIndex}
-            totalTopics={filteredTopics.length}
+            totalTopics={timeFilteredTopics.length}
             perspectiveMode={perspectiveMode}
           />
         )}
@@ -439,7 +453,7 @@ export default function App() {
 
       {showTopicDrawer && (
         <TopicDrawer
-          topics={filteredTopics}
+          topics={timeFilteredTopics}
           takesMap={takesMap}
           currentIndex={currentTopicIndex}
           onSelect={handleJumpToTopic}

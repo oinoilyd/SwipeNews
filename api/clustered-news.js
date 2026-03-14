@@ -58,7 +58,7 @@ let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 
 // ── Cache version — bump to auto-invalidate stale Redis data ─────────────────
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 
 // ── Title-similarity deduplication helpers ────────────────────────────────────
 const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','are','were']);
@@ -166,7 +166,7 @@ async function fetchESPN(url, max = 5) {
   }
 }
 
-// ── Cluster articles into 20-35 categorized topics with Claude Haiku ──────────
+// ── Cluster articles into ~45-50 categorized topics with Claude Haiku ─────────
 async function clusterArticles(articles) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -174,13 +174,14 @@ async function clusterArticles(articles) {
     .map((a, i) => {
       const tier = a.bias.score <= -1 ? 'L' : a.bias.score >= 1 ? 'R' : 'C';
       const hint = a.fetchCategory ? ` [${a.fetchCategory}]` : '';
-      return `[${i}] ${tier}:${a.source}${hint} | ${a.title}`;
+      const age  = a.publishedAt ? ` {${a.publishedAt.slice(0, 10)}}` : '';
+      return `[${i}] ${tier}:${a.source}${hint}${age} | ${a.title}`;
     })
     .join('\n');
 
   const msg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 4096,
+    max_tokens: 6000,
     messages: [{
       role: 'user',
       content: `Cluster these ${articles.length} news articles into topics for a news app.
@@ -188,21 +189,23 @@ async function clusterArticles(articles) {
 Return ONLY valid JSON, no markdown:
 {"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"US Politics|World|Policy|Economy|National Security|Elections|Technology|Health|Sports & Culture","articleIndices":[0,1,2,3]}]}
 
-TARGET TOPIC COUNTS (these are firm targets, not suggestions):
-- Hard news total (all categories below combined): 15-25 topics
-  - National Security: 2-4 topics
-  - World: 3-5 topics
-  - US Politics: 3-5 topics
-  - Economy: 2-4 topics
-  - Policy: 1-3 topics
-  - Elections: 1-3 topics (if relevant articles exist)
-  - Health: 1-3 topics
-  - Technology: 1-3 topics
+TARGET TOPIC COUNTS (firm targets — hit as many as possible given available articles):
+- Hard news total: 35-45 topics
+  - National Security: 4-7 topics
+  - World: 6-9 topics
+  - US Politics: 6-9 topics
+  - Economy: 5-8 topics
+  - Policy: 3-5 topics
+  - Elections: 2-4 topics (if relevant articles exist)
+  - Health: 3-5 topics
+  - Technology: 3-5 topics
 - Sports & Culture: exactly 3-5 topics — no more, no fewer
+- TOTAL TARGET: 40-50 topics
 
 Rules:
 - Each topic needs at least 1 article; single-article topics are fine for hard news
-- Merge near-duplicate topics into one
+- Do NOT over-merge — keep related but distinct stories separate (e.g. two different bills = two topics)
+- Merge only near-identical duplicate stories
 - "category" must be exactly one of: US Politics, World, Policy, Economy, National Security, Elections, Technology, Health, Sports & Culture
   - US Politics: domestic government, Congress, White House, political conflicts
   - World: international news, foreign affairs
@@ -215,7 +218,7 @@ Rules:
   - Sports & Culture: sports — only assign if article is tagged [Sports & Culture]
 - Use [fetchCategory hints] shown in brackets when available
 - Neutral factual titles only — no editorial spin
-- For hard news: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle fluff, product reviews. Merge trivial topics into broader ones.
+- For hard news: include any topic that plausibly belongs on the front page of NYT, WSJ, or BBC. Prefer more granular topics over merged mega-topics. Skip celebrity gossip, lifestyle fluff, product reviews.
 - For sports: pick the 3-5 most significant games/events/stories from tagged articles. Do NOT list every single game.
 
 Articles:
@@ -281,7 +284,7 @@ export default async function handler(req, res) {
 
   try {
     const BASE = 'https://newsdata.io/api/1';
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000)
       .toISOString().split('T')[0];
 
     const results = await Promise.allSettled([
@@ -352,6 +355,14 @@ export default async function handler(req, res) {
       return true;
     });
 
+    // Pass 3 — sort by recency (newest first), articles without dates go last
+    all.sort((a, b) => {
+      if (!a.publishedAt && !b.publishedAt) return 0;
+      if (!a.publishedAt) return 1;
+      if (!b.publishedAt) return -1;
+      return b.publishedAt.localeCompare(a.publishedAt);
+    });
+
     // ── Diagnostic: count articles by fetchCategory before clustering ─────────
     const byCat = {};
     all.forEach(a => { const c = a.fetchCategory || '(none)'; byCat[c] = (byCat[c] || 0) + 1; });
@@ -359,15 +370,16 @@ export default async function handler(req, res) {
 
     if (all.length < 5) throw new Error('Too few articles returned from news sources');
 
-    // Cap at 150 to keep clustering prompt manageable
-    const trimmed = all.slice(0, 150);
+    // Cap at 200 to keep clustering prompt manageable (increased for richer pool)
+    const trimmed = all.slice(0, 200);
 
     const clusters = await clusterArticles(trimmed);
     const clusterCats = {};
     clusters.forEach(c => { clusterCats[c.category || '?'] = (clusterCats[c.category || '?'] || 0) + 1; });
     console.log(`Claude returned ${clusters.length} clusters by category:`, clusterCats);
 
-    const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    // Drop topics whose newest article is older than 72 hours (stale content)
+    const seventyTwoHoursAgoMs = Date.now() - 72 * 60 * 60 * 1000;
 
     const topics = clusters
       .map((cluster, i) => {
@@ -382,7 +394,8 @@ export default async function handler(req, res) {
 
         if (latestPublishedAt) {
           const latestMs = new Date(latestPublishedAt).getTime();
-          if (!isNaN(latestMs) && latestMs < thirtyDaysAgoMs) return null;
+          // Drop topics where even the freshest article is older than 72 hours
+          if (!isNaN(latestMs) && latestMs < seventyTwoHoursAgoMs) return null;
         }
 
         const tiers = new Set(articles.map(a =>
@@ -412,6 +425,14 @@ export default async function handler(req, res) {
       .filter(Boolean);
 
     if (!topics.length) throw new Error('No valid topics passed quality filters');
+
+    // Sort topics by recency — newest latestPublishedAt first, undated topics last
+    topics.sort((a, b) => {
+      if (!a.latestPublishedAt && !b.latestPublishedAt) return 0;
+      if (!a.latestPublishedAt) return 1;
+      if (!b.latestPublishedAt) return -1;
+      return b.latestPublishedAt.localeCompare(a.latestPublishedAt);
+    });
 
     const finalCats = {};
     topics.forEach(t => { finalCats[t.category] = (finalCats[t.category] || 0) + 1; });

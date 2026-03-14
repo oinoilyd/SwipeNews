@@ -781,6 +781,48 @@ body {
   color: #c4b5fd;
 }
 
+/* ── Time filter bar ── */
+.time-filter {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-shrink: 0;
+  background: var(--surface-bg, #0f1117);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.time-filter::-webkit-scrollbar { display: none; }
+
+.time-filter-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+.time-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #9ca3af;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.time-filter-btn.active {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: #a78bfa88;
+  color: #c4b5fd;
+  font-weight: 600;
+}
+
 /* ── Empty category state ── */
 .empty-category {
   display: flex;
