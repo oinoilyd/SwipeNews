@@ -242,8 +242,8 @@ export default async function handler(req, res) {
   const newsdataKey = process.env.NEWSDATA_API_KEY;
   const gnewsKey    = process.env.GNEWS_API_KEY;
 
-  if (!newsdataKey)                   return res.status(500).json({ error: 'NEWSDATA_API_KEY not configured' });
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  if (!newsdataKey)                   return res.json({ error: 'NEWSDATA_API_KEY not configured' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const forceRefresh = req.query?.refresh === '1';
 
@@ -450,7 +450,17 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('clustered-news error:', err);
+    // Try in-memory cache first
     if (cachedTopics) return res.json({ topics: cachedTopics, fromCache: true, stale: true });
-    return res.status(500).json({ error: err.message || 'Failed to load news' });
+    // Try Redis stale data as last resort — never let a 500 reach the user
+    try {
+      const staleRedis = await redis.get(REDIS_KEY);
+      if (staleRedis?.length) {
+        console.log(`Error fallback: serving ${staleRedis.length} stale topics from Redis`);
+        return res.json({ topics: staleRedis, fromCache: true, stale: true });
+      }
+    } catch { /* ignore Redis errors in fallback */ }
+    // Nothing available — return 200 with error so the client shows its own error screen
+    return res.json({ error: err.message || 'Failed to load news' });
   }
 }

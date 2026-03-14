@@ -332,20 +332,22 @@ export default function SwipeCard({
     const meta = override ? { ...baseMeta, ...override } : baseMeta;
     return (
       <div className="swipe-card" style={{ '--card-tint': tint, '--accent': meta.color }}>
-        {renderImage()}
-        <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
-          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
-          <div
-            className="perspective-badge"
-            style={{ color: meta.color, borderLeftColor: meta.color, background: `${meta.color}18` }}
-          >
-            {meta.label} Perspective
-          </div>
-          <div className="take-skeleton">
-            <div className="skeleton-line" />
-            <div className="skeleton-line" />
-            <div className="skeleton-line medium" />
-            <div className="skeleton-line short" />
+        <div className="card-body card-body-with-image" ref={cardBodyRef} onScroll={handleScroll}>
+          {renderImage()}
+          <div className="card-body-content">
+            {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
+            <div
+              className="perspective-badge"
+              style={{ color: meta.color, borderLeftColor: meta.color, background: `${meta.color}18` }}
+            >
+              {meta.label} Perspective
+            </div>
+            <div className="take-skeleton">
+              <div className="skeleton-line" />
+              <div className="skeleton-line" />
+              <div className="skeleton-line medium" />
+              <div className="skeleton-line short" />
+            </div>
           </div>
         </div>
         {navArrows}
@@ -356,22 +358,24 @@ export default function SwipeCard({
   // ── PERSPECTIVE CARD — loaded ─────────────────────────────────────────────
   return (
     <div className="swipe-card" style={{ '--card-tint': tint, '--accent': accent }}>
-      {renderImage()}
-      <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
-        {scrollHint}
-        {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
-        <div
-          className="perspective-badge"
-          style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
-        >
-          {currentTake.label} Perspective
+      <div className="card-body card-body-with-image" ref={cardBodyRef} onScroll={handleScroll}>
+        {renderImage()}
+        <div className="card-body-content">
+          {scrollHint}
+          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
+          <div
+            className="perspective-badge"
+            style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
+          >
+            {currentTake.label} Perspective
+          </div>
+          <div className="take-text">
+            {displayedText.split('\n\n').map((p, i) => (
+              <p key={i}>{p.trim()}</p>
+            ))}
+          </div>
+          {renderSources(currentTake.sources)}
         </div>
-        <div className="take-text">
-          {displayedText.split('\n\n').map((p, i) => (
-            <p key={i}>{p.trim()}</p>
-          ))}
-        </div>
-        {renderSources(currentTake.sources)}
       </div>
       {navArrows}
     </div>

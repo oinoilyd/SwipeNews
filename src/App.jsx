@@ -112,13 +112,6 @@ export default function App() {
     return filterByWindow(filteredTopics, hours);
   }, [filteredTopics, timeFilter, filterByWindow]);
 
-  // ── Topic counts per time window (shown on filter buttons) ───────────────
-  const timeFilterCounts = useMemo(() => ({
-    '24h': filterByWindow(filteredTopics, 24).length,
-    '48h': filterByWindow(filteredTopics, 48).length,
-    '72h': filterByWindow(filteredTopics, 72).length,
-  }), [filteredTopics, filterByWindow]);
-
   // ── Derived values ────────────────────────────────────────────────────────
   const currentTopic       = timeFilteredTopics[currentTopicIndex] ?? null;
   const currentPosition    = indexToPosition(currentTakeIndex);
@@ -437,7 +430,7 @@ export default function App() {
         topicShells={topicShells}
       />
 
-      <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} counts={timeFilterCounts} />
+      <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
 
       <main className="main">
         {timeFilteredTopics.length === 0 ? (
