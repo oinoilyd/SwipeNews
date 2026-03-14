@@ -458,6 +458,11 @@ export default function App() {
         )}
       </main>
 
+      <footer className="app-footer">
+        <a href="mailto:swipenews@test.com" className="footer-link">swipenews@test.com</a>
+        <span>© {new Date().getFullYear()} SwipeNews</span>
+      </footer>
+
       {showTopicDrawer && (
         <TopicDrawer
           topics={timeFilteredTopics}

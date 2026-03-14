@@ -36,7 +36,7 @@ function formatAge(iso) {
   } catch { return null; }
 }
 
-// ── Voting sub-component (neutral card only) — localStorage only ──────────────
+// ── Voting sub-component — corner mode (bottom-left 👎, bottom-right 👍) ─────
 function VotingButtons({ topicId }) {
   const voteKey   = `vote:${topicId}`;
   const countsKey = `votecounts:${topicId}`;
@@ -49,7 +49,7 @@ function VotingButtons({ topicId }) {
   const [animating, setAnimating] = useState(null);
 
   const castVote = useCallback((dir) => {
-    if (userVote) return; // already voted — no changes
+    if (userVote) return;
     setAnimating(dir);
     setTimeout(() => setAnimating(null), 600);
     const next = {
@@ -63,36 +63,37 @@ function VotingButtons({ topicId }) {
   }, [userVote, votes, voteKey, countsKey]);
 
   return (
-    <div className="voting-row">
-      <span className="voting-label">Was this coverage balanced?</span>
-      <div className="voting-btns">
-        <button
-          className={[
-            'vote-btn',
-            userVote === 'up'   ? 'voted'     : '',
-            animating === 'up'  ? 'vote-anim' : '',
-          ].filter(Boolean).join(' ')}
-          onClick={() => castVote('up')}
-          aria-label="Thumbs up"
-          disabled={!!userVote}
-        >
-          👍 <span className="vote-count">{votes.up}</span>
-        </button>
+    <>
+      {/* Bottom-left: thumbs down */}
+      <button
+        className={[
+          'vote-btn',
+          userVote === 'down'  ? 'voted'     : '',
+          userVote === 'up'    ? 'other-voted': '',
+          animating === 'down' ? 'vote-anim'  : '',
+        ].filter(Boolean).join(' ')}
+        onClick={() => castVote('down')}
+        aria-label="Thumbs down"
+        disabled={!!userVote}
+      >
+        👎 <span className="vote-count">{votes.down}</span>
+      </button>
 
-        <button
-          className={[
-            'vote-btn',
-            userVote === 'down'  ? 'voted'     : '',
-            animating === 'down' ? 'vote-anim' : '',
-          ].filter(Boolean).join(' ')}
-          onClick={() => castVote('down')}
-          aria-label="Thumbs down"
-          disabled={!!userVote}
-        >
-          👎 <span className="vote-count">{votes.down}</span>
-        </button>
-      </div>
-    </div>
+      {/* Bottom-right: thumbs up */}
+      <button
+        className={[
+          'vote-btn',
+          userVote === 'up'   ? 'voted'     : '',
+          userVote === 'down' ? 'other-voted': '',
+          animating === 'up'  ? 'vote-anim'  : '',
+        ].filter(Boolean).join(' ')}
+        onClick={() => castVote('up')}
+        aria-label="Thumbs up"
+        disabled={!!userVote}
+      >
+        👍 <span className="vote-count">{votes.up}</span>
+      </button>
+    </>
   );
 }
 
@@ -178,6 +179,13 @@ export default function SwipeCard({
     ? LIMITED_INDICES.some(i => i > currentTakeIndex)
     : currentTakeIndex < 6;
   const timestamp  = formatAge(topic.latestPublishedAt);
+
+  // ── Shared: vote strip (bottom-left 👎, bottom-right 👍) ─────────────────
+  const voteStrip = (
+    <div className="card-vote-strip">
+      <VotingButtons topicId={topic.id} />
+    </div>
+  );
 
   // ── Shared: swipe indicator row ──────────────────────────────────────────
   const navArrows = (
@@ -301,11 +309,10 @@ export default function SwipeCard({
             )}
 
             {currentTake && renderSources(currentTake.sources)}
-
-            <VotingButtons topicId={topic.id} />
           </div>
         </div>
 
+        {voteStrip}
         {navArrows}
       </div>
     );
@@ -338,6 +345,7 @@ export default function SwipeCard({
             </div>
           </div>
         </div>
+        {voteStrip}
         {navArrows}
       </div>
     );
@@ -365,6 +373,7 @@ export default function SwipeCard({
           {renderSources(currentTake.sources)}
         </div>
       </div>
+      {voteStrip}
       {navArrows}
     </div>
   );

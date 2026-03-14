@@ -49,9 +49,10 @@ export default function CardStack({
     // Require 80px deliberate swipe, and vertical must dominate
     if (absDy < 80 || absDy < absDx) return;
 
-    // Scrolling always takes priority: always check the card body scroll position
-    // regardless of where the touch started (image, spectrum bar, etc.)
-    const cardBody = savedTarget?.closest?.('.card-body') || document.querySelector('.card-body');
+    // Only check card scroll position when the swipe STARTED inside the card body.
+    // Swipes that start outside the card body (spectrum bar, margins, etc.)
+    // navigate topics immediately without needing the card to be at its scroll boundary.
+    const cardBody = savedTarget?.closest?.('.card-body');
     if (cardBody) {
       const atTop    = cardBody.scrollTop === 0;
       const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 1;
@@ -64,7 +65,11 @@ export default function CardStack({
   };
 
   return (
-    <div className="card-stack-container">
+    <div
+      className="card-stack-container"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Spectrum bar — fixed positions (or 3 for limited topics) */}
       <SpectrumBar
         currentTakeIndex={currentTakeIndex}
@@ -72,12 +77,8 @@ export default function CardStack({
         perspectiveMode={perspectiveMode}
       />
 
-      {/* Card area with touch handlers */}
-      <div
-        className="card-area"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
+      {/* Card area */}
+      <div className="card-area">
         <SwipeCard
           topic={topic}
           currentTake={currentTake}
