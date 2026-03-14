@@ -1158,9 +1158,6 @@ body {
 .vote-btn.other-voted {
   opacity: 0.35;
 }
-.vote-btn:disabled {
-  cursor: default;
-}
 
 .vote-count {
   font-size: 0.82rem;

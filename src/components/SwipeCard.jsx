@@ -49,16 +49,35 @@ function VotingButtons({ topicId }) {
   const [animating, setAnimating] = useState(null);
 
   const castVote = useCallback((dir) => {
-    if (userVote) return;
     setAnimating(dir);
     setTimeout(() => setAnimating(null), 600);
-    const next = {
-      up:   votes.up   + (dir === 'up'   ? 1 : 0),
-      down: votes.down + (dir === 'down' ? 1 : 0),
-    };
+
+    let newVote;
+    let next;
+
+    if (userVote === dir) {
+      // Tap same button → unvote
+      newVote = null;
+      next = {
+        up:   votes.up   - (dir === 'up'   ? 1 : 0),
+        down: votes.down - (dir === 'down' ? 1 : 0),
+      };
+    } else {
+      // New vote or switch vote
+      newVote = dir;
+      next = {
+        up:   votes.up   + (dir === 'up'   ? 1 : 0) - (userVote === 'up'   ? 1 : 0),
+        down: votes.down + (dir === 'down' ? 1 : 0) - (userVote === 'down' ? 1 : 0),
+      };
+    }
+
     setVotes(next);
-    setUserVote(dir);
-    localStorage.setItem(voteKey,   dir);
+    setUserVote(newVote);
+    if (newVote) {
+      localStorage.setItem(voteKey, newVote);
+    } else {
+      localStorage.removeItem(voteKey);
+    }
     localStorage.setItem(countsKey, JSON.stringify(next));
   }, [userVote, votes, voteKey, countsKey]);
 
@@ -74,7 +93,6 @@ function VotingButtons({ topicId }) {
         ].filter(Boolean).join(' ')}
         onClick={() => castVote('down')}
         aria-label="Thumbs down"
-        disabled={!!userVote}
       >
         👎 <span className="vote-count">{votes.down}</span>
       </button>
@@ -89,7 +107,6 @@ function VotingButtons({ topicId }) {
         ].filter(Boolean).join(' ')}
         onClick={() => castVote('up')}
         aria-label="Thumbs up"
-        disabled={!!userVote}
       >
         👍 <span className="vote-count">{votes.up}</span>
       </button>
