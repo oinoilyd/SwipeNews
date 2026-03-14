@@ -57,6 +57,9 @@ let cachedTopics = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 
+// ── Cache version — bump to auto-invalidate stale Redis data ─────────────────
+const CACHE_VERSION = 'v4';
+
 // ── Title-similarity deduplication helpers ────────────────────────────────────
 const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','are','were']);
 
@@ -232,14 +235,20 @@ export default async function handler(req, res) {
 
   const forceRefresh = req.query?.refresh === '1';
 
-  // ── Redis cache check (shared across all serverless instances) ────────────
+  // ── Redis cache check (versioned — bump CACHE_VERSION to invalidate) ────────
+  const REDIS_KEY    = `sn:topics:${CACHE_VERSION}`;
+  const REDIS_TS_KEY = `sn:topics:ts:${CACHE_VERSION}`;
+
   if (!forceRefresh) {
     try {
-      const rTopics = await redis.get('sn:topics');
-      const rTs     = await redis.get('sn:topics:ts');
+      const rTopics = await redis.get(REDIS_KEY);
+      const rTs     = await redis.get(REDIS_TS_KEY);
       if (rTopics) {
         const age       = rTs ? Date.now() - new Date(rTs).getTime() : Infinity;
         const TWO_HOURS = 2 * 60 * 60 * 1000;
+        const catCounts = {};
+        rTopics.forEach(t => { catCounts[t.category] = (catCounts[t.category] || 0) + 1; });
+        console.log(`Redis cache hit (age ${Math.round(age/60000)}min, ${rTopics.length} topics):`, catCounts);
         if (age < TWO_HOURS) {
           return res.json({ topics: rTopics, fromCache: true });
         }
@@ -250,6 +259,7 @@ export default async function handler(req, res) {
         fetch(`${baseUrl}/api/pregenerate`, { method: 'POST' }).catch(() => {});
         return res.json({ topics: rTopics, fromCache: true, stale: true });
       }
+      console.log('Redis cache miss — fetching fresh data');
     } catch (err) {
       console.warn('Redis topics read failed, falling back to generation:', err.message);
     }
@@ -299,7 +309,23 @@ export default async function handler(req, res) {
       fetchESPN('https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/news'),
     ]);
 
-    const batches = results.map(r => r.status === 'fulfilled' ? r.value : []);
+    const BATCH_LABELS = [
+      'ND:left_a','ND:left_b','ND:center','ND:right',
+      'ND:politics','ND:business','ND:tech','ND:health','ND:sports','ND:world',
+      'ND:arch_left','ND:arch_center','ND:arch_right',
+      ...(gnewsKey ? ['GN:nation','GN:world','GN:business','GN:tech','GN:health','GN:sports'] : []),
+      'ESPN:nfl','ESPN:nba','ESPN:mlb','ESPN:nhl','ESPN:soccer',
+    ];
+
+    const batches = results.map((r, i) => {
+      const label = BATCH_LABELS[i] || `batch${i}`;
+      if (r.status === 'rejected') {
+        console.warn(`FETCH FAILED [${label}]:`, r.reason?.message || r.reason);
+        return [];
+      }
+      console.log(`FETCH OK [${label}]: ${r.value.length} articles`);
+      return r.value;
+    });
 
     // Pass 1 — deduplicate by URL
     const urlSeen = new Set();
@@ -317,7 +343,10 @@ export default async function handler(req, res) {
       return true;
     });
 
-    console.log(`Fetched ${all.length} unique articles (${batches.map(b => b.length).join('+')})`);
+    // ── Diagnostic: count articles by fetchCategory before clustering ─────────
+    const byCat = {};
+    all.forEach(a => { const c = a.fetchCategory || '(none)'; byCat[c] = (byCat[c] || 0) + 1; });
+    console.log(`Pre-clustering: ${all.length} unique articles by category:`, byCat);
 
     if (all.length < 5) throw new Error('Too few articles returned from news sources');
 
@@ -325,7 +354,9 @@ export default async function handler(req, res) {
     const trimmed = all.slice(0, 150);
 
     const clusters = await clusterArticles(trimmed);
-    console.log(`Claude identified ${clusters.length} clusters`);
+    const clusterCats = {};
+    clusters.forEach(c => { clusterCats[c.category || '?'] = (clusterCats[c.category || '?'] || 0) + 1; });
+    console.log(`Claude returned ${clusters.length} clusters by category:`, clusterCats);
 
     const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
@@ -373,12 +404,15 @@ export default async function handler(req, res) {
 
     if (!topics.length) throw new Error('No valid topics passed quality filters');
 
-    console.log(`Final: ${topics.length} topics (${topics.filter(t => t.perspectiveMode === 'full').length} full, ${topics.filter(t => t.perspectiveMode === 'limited').length} limited)`);
+    const finalCats = {};
+    topics.forEach(t => { finalCats[t.category] = (finalCats[t.category] || 0) + 1; });
+    console.log(`Final: ${topics.length} topics by category:`, finalCats);
+
     cachedTopics   = topics;
     cacheTimestamp = Date.now();
     try {
-      await redis.set('sn:topics', topics, { ex: 8400 });
-      await redis.set('sn:topics:ts', new Date().toISOString());
+      await redis.set(REDIS_KEY,    topics,                  { ex: 8400 });
+      await redis.set(REDIS_TS_KEY, new Date().toISOString());
     } catch (err) {
       console.warn('Redis topics write failed:', err.message);
     }
