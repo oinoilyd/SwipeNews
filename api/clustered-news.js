@@ -58,7 +58,7 @@ let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 
 // ── Cache version — bump to auto-invalidate stale Redis data ─────────────────
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 
 // ── Title-similarity deduplication helpers ────────────────────────────────────
 const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','are','were']);
@@ -142,12 +142,14 @@ async function fetchGNews(topic, apiKey, tagCategory = null) {
 }
 
 // ── Fetch sports articles from ESPN (no API key required) ─────────────────────
-async function fetchESPN(url) {
+// max: cap articles per feed so ESPN doesn't flood the input and dominate clustering
+async function fetchESPN(url, max = 5) {
   try {
     const res  = await fetch(url);
     const data = await res.json();
     return (data.articles || [])
       .filter(a => a.headline)
+      .slice(0, max)
       .map(a => ({
         title:         a.headline,
         description:   a.description || a.headline,
@@ -181,16 +183,25 @@ async function clusterArticles(articles) {
     max_tokens: 4096,
     messages: [{
       role: 'user',
-      content: `Cluster these ${articles.length} news articles into 20-35 major ongoing topics.
+      content: `Cluster these ${articles.length} news articles into topics for a news app.
 
 Return ONLY valid JSON, no markdown:
 {"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"US Politics|World|Policy|Economy|National Security|Elections|Technology|Health|Sports & Culture","articleIndices":[0,1,2,3]}]}
 
+TARGET TOPIC COUNTS (these are firm targets, not suggestions):
+- Hard news total (all categories below combined): 15-25 topics
+  - National Security: 2-4 topics
+  - World: 3-5 topics
+  - US Politics: 3-5 topics
+  - Economy: 2-4 topics
+  - Policy: 1-3 topics
+  - Elections: 1-3 topics (if relevant articles exist)
+  - Health: 1-3 topics
+  - Technology: 1-3 topics
+- Sports & Culture: exactly 3-5 topics — no more, no fewer
+
 Rules:
-- 20-35 topics total
-- Each topic needs at least 1 article
-- Prefer topics with 3+ articles from multiple bias tiers — these get the full 7-perspective treatment
-- Topics with only 1-2 articles are still valuable — include them
+- Each topic needs at least 1 article; single-article topics are fine for hard news
 - Merge near-duplicate topics into one
 - "category" must be exactly one of: US Politics, World, Policy, Economy, National Security, Elections, Technology, Health, Sports & Culture
   - US Politics: domestic government, Congress, White House, political conflicts
@@ -201,13 +212,11 @@ Rules:
   - Elections: campaigns, voting, candidates, electoral politics
   - Technology: tech companies, AI, science, space, cyber
   - Health: public health, medicine, FDA, healthcare
-  - Sports & Culture: sports, entertainment — only assign if article is tagged [Sports & Culture]
-- Use [fetchCategory hints] shown in brackets when available to guide category assignment
+  - Sports & Culture: sports — only assign if article is tagged [Sports & Culture]
+- Use [fetchCategory hints] shown in brackets when available
 - Neutral factual titles only — no editorial spin
-- Order topics by descending newsworthiness (highest-priority first):
-  1. National Security  2. Policy & Legislation  3. World  4. Economy
-  5. Elections & Politics  6. US Politics  7. Technology  8. Health  9. Sports & Culture
-- Minimum newsworthiness bar: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial topics into broader ones or discard them. EXCEPTION: articles tagged [Sports & Culture] must always produce at least 3-5 Sports & Culture topics regardless of this filter — sports news belongs in the app even if it wouldn't make the front page.
+- For hard news: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle fluff, product reviews. Merge trivial topics into broader ones.
+- For sports: pick the 3-5 most significant games/events/stories from tagged articles. Do NOT list every single game.
 
 Articles:
 ${list}`,
@@ -288,10 +297,10 @@ export default async function handler(req, res) {
       fetchArticles(`${BASE}/latest?apikey=${newsdataKey}&country=us&category=health&language=en&size=10`,      'Health'),
       fetchArticles(`${BASE}/latest?apikey=${newsdataKey}&country=us&category=sports&language=en&size=10`,      'Sports & Culture'),
       fetchArticles(`${BASE}/latest?apikey=${newsdataKey}&country=us&category=world&language=en&size=10`,       'World'),
-      // ── NewsData.io — 30-day archive (may fail on free tier) ─────────────────
-      fetchArticles(`${BASE}/archive?apikey=${newsdataKey}&language=en&domainurl=${DOMAIN_GROUPS.left_a}&from_date=${thirtyDaysAgo}&size=10`),
-      fetchArticles(`${BASE}/archive?apikey=${newsdataKey}&language=en&domainurl=${DOMAIN_GROUPS.center}&from_date=${thirtyDaysAgo}&size=10`),
-      fetchArticles(`${BASE}/archive?apikey=${newsdataKey}&language=en&domainurl=${DOMAIN_GROUPS.right}&from_date=${thirtyDaysAgo}&size=10`),
+      // ── NewsData.io — extra hard news fetches (replaces archive calls) ────────
+      fetchArticles(`${BASE}/latest?apikey=${newsdataKey}&country=us&category=crime&language=en&size=10`,      'National Security'),
+      fetchArticles(`${BASE}/latest?apikey=${newsdataKey}&country=us&category=top&language=en&size=10`,        'US Politics'),
+      fetchArticles(`${BASE}/latest?apikey=${newsdataKey}&category=politics&language=en&size=10`,              'World'),
       // ── GNews — conditional on key presence ──────────────────────────────────
       ...(gnewsKey ? [
         fetchGNews('nation',     gnewsKey, 'US Politics'),
@@ -312,7 +321,7 @@ export default async function handler(req, res) {
     const BATCH_LABELS = [
       'ND:left_a','ND:left_b','ND:center','ND:right',
       'ND:politics','ND:business','ND:tech','ND:health','ND:sports','ND:world',
-      'ND:arch_left','ND:arch_center','ND:arch_right',
+      'ND:crime','ND:top','ND:intl_politics',
       ...(gnewsKey ? ['GN:nation','GN:world','GN:business','GN:tech','GN:health','GN:sports'] : []),
       'ESPN:nfl','ESPN:nba','ESPN:mlb','ESPN:nhl','ESPN:soccer',
     ];
