@@ -89,14 +89,8 @@ export default function CardStack({
         />
       </div>
 
-      {/* Topic navigation — up/down buttons only */}
-      <div className="topic-nav">
-        <button className="topic-nav-btn" onClick={onPrevTopic} aria-label="Previous topic">↑</button>
-        <button className="topic-nav-btn" onClick={onNextTopic} aria-label="Next topic">↓</button>
-      </div>
-
       <p className="keyboard-hint">
-        ← → to shift perspective · ↑ ↓ or swipe to change topic
+        ← → to shift perspective · swipe up/down to change topic
       </p>
     </div>
   );

@@ -302,9 +302,8 @@ body {
   position: relative;
 }
 
-.card-body::-webkit-scrollbar { width: 3px; }
-.card-body::-webkit-scrollbar-track { background: transparent; }
-.card-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.card-body { scrollbar-width: none; } /* Firefox */
+.card-body::-webkit-scrollbar { display: none; } /* Chrome / Safari / iOS */
 
 /* Perspective cards: image scrolls with content (parallax) */
 .card-body-with-image {

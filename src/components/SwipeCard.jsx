@@ -142,18 +142,16 @@ export default function SwipeCard({
   onTakeRight,
   perspectiveMode,
 }) {
-  const [sourcesOpen,     setSourcesOpen]     = useState(false);
-  const [neutralExpanded, setNeutralExpanded] = useState(false);
-  const [atBound,         setAtBound]         = useState(null); // 'top' | 'bottom' | null
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [atBound,     setAtBound]     = useState(null); // 'top' | 'bottom' | null
 
   const cardBodyRef = useRef(null);
 
   // Word-by-word animation for take text
   const displayedText = useStreamingText(currentTake?.text ?? '');
 
-  // Reset scroll + expand states when topic changes
+  // Reset scroll states when topic changes
   useEffect(() => {
-    setNeutralExpanded(false);
     setSourcesOpen(false);
     setAtBound(null);
     if (cardBodyRef.current) cardBodyRef.current.scrollTop = 0;
@@ -279,43 +277,33 @@ export default function SwipeCard({
   if (isNeutral) {
     return (
       <div className="swipe-card neutral-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
-        {renderImage('neutral')}
+        <div className="card-body card-body-with-image" ref={cardBodyRef} onScroll={handleScroll}>
+          {renderImage('neutral')}
+          <div className="card-body-content">
+            {scrollHint}
+            {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
 
-        <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
-          {scrollHint}
-          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
+            {topic.summary && <p className="neutral-blurb">{topic.summary}</p>}
 
-          {topic.summary && <p className="neutral-blurb">{topic.summary}</p>}
+            {!currentTake && takesLoading && (
+              <div className="neutral-take-loading">
+                <span className="spinner-ring-sm" />
+                <span>Loading analysis…</span>
+              </div>
+            )}
 
-          {!currentTake && takesLoading && (
-            <div className="neutral-take-loading">
-              <span className="spinner-ring-sm" />
-              <span>Loading analysis…</span>
-            </div>
-          )}
+            {currentTake && (
+              <div className="take-text">
+                {displayedText.split('\n\n').map((p, i) => (
+                  <p key={i}>{p.trim()}</p>
+                ))}
+              </div>
+            )}
 
-          {currentTake && (
-            <div className="neutral-expand-section">
-              <button
-                className={`neutral-read-more-btn${neutralExpanded ? ' open' : ''}`}
-                onClick={() => setNeutralExpanded(e => !e)}
-              >
-                {neutralExpanded ? '▴ Show less' : '▾ Read full neutral analysis'}
-              </button>
-              {neutralExpanded && (
-                <div className="neutral-full-take">
-                  <div className="take-text">
-                    {displayedText.split('\n\n').map((p, i) => (
-                      <p key={i}>{p.trim()}</p>
-                    ))}
-                  </div>
-                  {renderSources(currentTake.sources)}
-                </div>
-              )}
-            </div>
-          )}
+            {currentTake && renderSources(currentTake.sources)}
 
-          <VotingButtons topicId={topic.id} />
+            <VotingButtons topicId={topic.id} />
+          </div>
         </div>
 
         {navArrows}

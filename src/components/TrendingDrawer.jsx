@@ -21,14 +21,6 @@ export default function TrendingDrawer({ topics, onClose, onSelectTopic }) {
               <span className="trending-rank">{i + 1}</span>
               <div className="trending-item-body">
                 <span className="trending-item-title">{topic.title}</span>
-                <div className="trending-item-meta">
-                  {topic.category && (
-                    <span className="trending-item-category">{topic.category}</span>
-                  )}
-                  <span className="trending-article-count">
-                    {topic.articles?.length ?? 0} articles
-                  </span>
-                </div>
               </div>
             </button>
           ))}
