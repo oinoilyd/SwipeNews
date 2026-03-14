@@ -95,15 +95,29 @@ export default function App() {
       : topicShells.filter(t => t.category === activeCategory),
   [topicShells, activeCategory]);
 
+  // ── Helper: filter a topic list to a given hour window ───────────────────
+  const filterByWindow = useCallback((topics, hours) => {
+    const cutoff = Date.now() - hours * 60 * 60 * 1000;
+    return topics.filter(t => {
+      if (!t.latestPublishedAt) return true; // undated topics always shown
+      const ms = new Date(t.latestPublishedAt).getTime();
+      if (isNaN(ms)) return true;            // unparseable date → always shown
+      return ms >= cutoff;
+    });
+  }, []);
+
   // ── Time-filtered topic list (by recency window) ──────────────────────────
   const timeFilteredTopics = useMemo(() => {
-    const hours  = { '24h': 24, '48h': 48, '72h': 72 }[timeFilter] ?? 48;
-    const cutoff = Date.now() - hours * 60 * 60 * 1000;
-    return filteredTopics.filter(t => {
-      if (!t.latestPublishedAt) return true; // undated topics always included
-      return new Date(t.latestPublishedAt).getTime() >= cutoff;
-    });
-  }, [filteredTopics, timeFilter]);
+    const hours = { '24h': 24, '48h': 48, '72h': 72 }[timeFilter] ?? 48;
+    return filterByWindow(filteredTopics, hours);
+  }, [filteredTopics, timeFilter, filterByWindow]);
+
+  // ── Topic counts per time window (shown on filter buttons) ───────────────
+  const timeFilterCounts = useMemo(() => ({
+    '24h': filterByWindow(filteredTopics, 24).length,
+    '48h': filterByWindow(filteredTopics, 48).length,
+    '72h': filterByWindow(filteredTopics, 72).length,
+  }), [filteredTopics, filterByWindow]);
 
   // ── Derived values ────────────────────────────────────────────────────────
   const currentTopic       = timeFilteredTopics[currentTopicIndex] ?? null;
@@ -423,7 +437,7 @@ export default function App() {
         topicShells={topicShells}
       />
 
-      <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
+      <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} counts={timeFilterCounts} />
 
       <main className="main">
         {timeFilteredTopics.length === 0 ? (

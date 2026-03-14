@@ -100,29 +100,29 @@ Return ONLY valid JSON:
   return { ...parsed.take, color: meta.color };
 }
 
+// ── Must match CACHE_VERSION in clustered-news.js ─────────────────────────────
+const TOPICS_CACHE_KEY = 'sn:topics:v6';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.json({ ok: false, message: 'ANTHROPIC_API_KEY not configured' });
+  }
 
   try {
-    // Fetch current topics from Redis or live endpoint
+    // Fetch current topics from Redis (versioned key — must match clustered-news.js)
     let topics;
-    const cachedTopics = await redis.get('sn:topics');
-    if (cachedTopics) {
+    const cachedTopics = await redis.get(TOPICS_CACHE_KEY);
+    if (cachedTopics && Array.isArray(cachedTopics) && cachedTopics.length > 0) {
       topics = cachedTopics;
+      console.log(`pregenerate: loaded ${topics.length} topics from Redis`);
     } else {
-      // Fallback: hit clustered-news to generate topics
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000';
-      const newsRes = await fetch(`${baseUrl}/api/clustered-news`);
-      if (!newsRes.ok) throw new Error(`clustered-news returned ${newsRes.status}`);
-      const newsData = await newsRes.json();
-      if (!newsData.topics?.length) throw new Error('No topics from clustered-news');
-      topics = newsData.topics;
+      // No cached topics yet — skip pregeneration, nothing to warm
+      console.log('pregenerate: no topics in Redis cache yet, skipping');
+      return res.json({ ok: false, message: 'No topics in cache — run /api/clustered-news first', skipped: true });
     }
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -166,7 +166,8 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
+    // Never surface a 500 to the client — log it and return a graceful 200
     console.error('pregenerate error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to pregenerate' });
+    return res.json({ ok: false, message: err.message || 'Pregenerate failed — stale cache will continue serving' });
   }
 }
