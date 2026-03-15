@@ -330,24 +330,10 @@ body {
 .card-body { scrollbar-width: none; } /* Firefox */
 .card-body::-webkit-scrollbar { display: none; } /* Chrome / Safari / iOS */
 
-/* Perspective cards: image scrolls with content (parallax) */
-.card-body-with-image {
-  padding: 0;
-  gap: 0;
-}
-
-/* Image sits edge-to-edge at the top; content has its own padding below */
-.card-body-with-image .card-image-container,
-.card-body-with-image .card-no-image-header {
+/* Image sits edge-to-edge at the top of the card (outside scroll area) */
+.card-image-container,
+.card-no-image-header {
   flex-shrink: 0;
-}
-
-.card-body-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px 70px; /* bottom pad clears the floating vote strip */
-  min-height: 100%;
 }
 
 /* ── Perspective badge ── */

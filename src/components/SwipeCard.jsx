@@ -88,21 +88,19 @@ export default function SwipeCard({
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [atBound,     setAtBound]     = useState(null); // 'top' | 'bottom' | null
 
-  const cardBodyRef       = useRef(null);
-  const imageRef          = useRef(null);
+  const cardBodyRef        = useRef(null);
   const scrollCollapsedRef = useRef(false);
 
   // Word-by-word animation for take text
   const displayedText = useStreamingText(currentTake?.text ?? '');
 
-  // Reset scroll + image on topic change
+  // Reset scroll on topic change
   useEffect(() => {
     setSourcesOpen(false);
     setAtBound(null);
     scrollCollapsedRef.current = false;
     onScrollChange?.(false);
     if (cardBodyRef.current) cardBodyRef.current.scrollTop = 0;
-    if (imageRef.current)    imageRef.current.style.transform = '';
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScroll = (e) => {
@@ -116,15 +114,6 @@ export default function SwipeCard({
         scrollCollapsedRef.current = shouldCollapse;
         onScrollChange(shouldCollapse);
       }
-    }
-
-    // Image freeze: image slides up naturally, then freezes with a sliver visible
-    if (imageRef.current) {
-      const IMAGE_H  = 160;  // matches CSS height
-      const FREEZE_H = 36;   // px of image left visible when frozen
-      const maxScroll = IMAGE_H - FREEZE_H;
-      imageRef.current.style.transform =
-        st > maxScroll ? `translateY(${st - maxScroll}px)` : '';
     }
 
     const atTop    = st <= 5;
@@ -182,7 +171,6 @@ export default function SwipeCard({
     return (
       <div
         className={`card-image-container${variant === 'neutral' ? ' neutral-image' : ''}`}
-        ref={imageRef}
       >
         <img
           src={topic.urlToImage}
@@ -248,31 +236,29 @@ export default function SwipeCard({
   if (isNeutral) {
     return (
       <div className="swipe-card neutral-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
-        <div className="card-body card-body-with-image" ref={cardBodyRef} onScroll={handleScroll}>
-          {renderImage('neutral')}
-          <div className="card-body-content">
-            {scrollHint}
-            {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
+        {renderImage('neutral')}
+        <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
+          {scrollHint}
+          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
 
-            {topic.summary && <p className="neutral-blurb">{topic.summary}</p>}
+          {topic.summary && <p className="neutral-blurb">{topic.summary}</p>}
 
-            {!currentTake && takesLoading && (
-              <div className="neutral-take-loading">
-                <span className="spinner-ring-sm" />
-                <span>Loading analysis…</span>
-              </div>
-            )}
+          {!currentTake && takesLoading && (
+            <div className="neutral-take-loading">
+              <span className="spinner-ring-sm" />
+              <span>Loading analysis…</span>
+            </div>
+          )}
 
-            {currentTake && (
-              <div className="take-text">
-                {displayedText.split('\n\n').map((p, i) => (
-                  <p key={i}><JargonText>{p.trim()}</JargonText></p>
-                ))}
-              </div>
-            )}
+          {currentTake && (
+            <div className="take-text">
+              {displayedText.split('\n\n').map((p, i) => (
+                <p key={i}><JargonText>{p.trim()}</JargonText></p>
+              ))}
+            </div>
+          )}
 
-            {currentTake && renderSources(currentTake.sources)}
-          </div>
+          {currentTake && renderSources(currentTake.sources)}
         </div>
 
         {navArrows}
@@ -289,22 +275,20 @@ export default function SwipeCard({
     const meta = override ? { ...baseMeta, ...override } : baseMeta;
     return (
       <div className="swipe-card" style={{ '--card-tint': tint, '--accent': meta.color }}>
-        <div className="card-body card-body-with-image" ref={cardBodyRef} onScroll={handleScroll}>
-          {renderImage()}
-          <div className="card-body-content">
-            {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
-            <div
-              className="perspective-badge"
-              style={{ color: meta.color, borderLeftColor: meta.color, background: `${meta.color}18` }}
-            >
-              {meta.label} Perspective
-            </div>
-            <div className="take-skeleton">
-              <div className="skeleton-line" />
-              <div className="skeleton-line" />
-              <div className="skeleton-line medium" />
-              <div className="skeleton-line short" />
-            </div>
+        {renderImage()}
+        <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
+          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
+          <div
+            className="perspective-badge"
+            style={{ color: meta.color, borderLeftColor: meta.color, background: `${meta.color}18` }}
+          >
+            {meta.label} Perspective
+          </div>
+          <div className="take-skeleton">
+            <div className="skeleton-line" />
+            <div className="skeleton-line" />
+            <div className="skeleton-line medium" />
+            <div className="skeleton-line short" />
           </div>
         </div>
         {navArrows}
@@ -315,24 +299,22 @@ export default function SwipeCard({
   // ── PERSPECTIVE CARD — loaded ─────────────────────────────────────────────
   return (
     <div className="swipe-card" style={{ '--card-tint': tint, '--accent': accent }}>
-      <div className="card-body card-body-with-image" ref={cardBodyRef} onScroll={handleScroll}>
-        {renderImage()}
-        <div className="card-body-content">
-          {scrollHint}
-          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
-          <div
-            className="perspective-badge"
-            style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
-          >
-            {currentTake.label} Perspective
-          </div>
-          <div className="take-text">
-            {displayedText.split('\n\n').map((p, i) => (
-              <p key={i}>{p.trim()}</p>
-            ))}
-          </div>
-          {renderSources(currentTake.sources)}
+      {renderImage()}
+      <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
+        {scrollHint}
+        {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
+        <div
+          className="perspective-badge"
+          style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
+        >
+          {currentTake.label} Perspective
         </div>
+        <div className="take-text">
+          {displayedText.split('\n\n').map((p, i) => (
+            <p key={i}>{p.trim()}</p>
+          ))}
+        </div>
+        {renderSources(currentTake.sources)}
       </div>
       {navArrows}
     </div>
