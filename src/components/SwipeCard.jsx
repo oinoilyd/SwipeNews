@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import JargonText from './JargonText.jsx';
 
 // ── Word-by-word streaming animation ─────────────────────────────────────────
@@ -37,83 +37,6 @@ function formatAge(iso) {
   } catch { return null; }
 }
 
-// ── Voting sub-component — corner mode (bottom-left 👎, bottom-right 👍) ─────
-function VotingButtons({ topicId }) {
-  const voteKey   = `vote:${topicId}`;
-  const countsKey = `votecounts:${topicId}`;
-
-  const [userVote,  setUserVote]  = useState(() => localStorage.getItem(voteKey));
-  const [votes,     setVotes]     = useState(() => {
-    try { return JSON.parse(localStorage.getItem(countsKey)) || { up: 0, down: 0 }; }
-    catch { return { up: 0, down: 0 }; }
-  });
-  const [animating, setAnimating] = useState(null);
-
-  const castVote = useCallback((dir) => {
-    setAnimating(dir);
-    setTimeout(() => setAnimating(null), 600);
-
-    let newVote;
-    let next;
-
-    if (userVote === dir) {
-      // Tap same button → unvote
-      newVote = null;
-      next = {
-        up:   votes.up   - (dir === 'up'   ? 1 : 0),
-        down: votes.down - (dir === 'down' ? 1 : 0),
-      };
-    } else {
-      // New vote or switch vote
-      newVote = dir;
-      next = {
-        up:   votes.up   + (dir === 'up'   ? 1 : 0) - (userVote === 'up'   ? 1 : 0),
-        down: votes.down + (dir === 'down' ? 1 : 0) - (userVote === 'down' ? 1 : 0),
-      };
-    }
-
-    setVotes(next);
-    setUserVote(newVote);
-    if (newVote) {
-      localStorage.setItem(voteKey, newVote);
-    } else {
-      localStorage.removeItem(voteKey);
-    }
-    localStorage.setItem(countsKey, JSON.stringify(next));
-  }, [userVote, votes, voteKey, countsKey]);
-
-  return (
-    <>
-      {/* Bottom-left: thumbs down */}
-      <button
-        className={[
-          'vote-btn',
-          userVote === 'down'  ? 'voted'     : '',
-          userVote === 'up'    ? 'other-voted': '',
-          animating === 'down' ? 'vote-anim'  : '',
-        ].filter(Boolean).join(' ')}
-        onClick={() => castVote('down')}
-        aria-label="Thumbs down"
-      >
-        👎 <span className="vote-count">{votes.down}</span>
-      </button>
-
-      {/* Bottom-right: thumbs up */}
-      <button
-        className={[
-          'vote-btn',
-          userVote === 'up'   ? 'voted'     : '',
-          userVote === 'down' ? 'other-voted': '',
-          animating === 'up'  ? 'vote-anim'  : '',
-        ].filter(Boolean).join(' ')}
-        onClick={() => castVote('up')}
-        aria-label="Thumbs up"
-      >
-        👍 <span className="vote-count">{votes.up}</span>
-      </button>
-    </>
-  );
-}
 
 // ── Card tint per take index ──────────────────────────────────────────────────
 const CARD_TINTS = [
@@ -210,13 +133,6 @@ export default function SwipeCard({
     ? LIMITED_INDICES.some(i => i > currentTakeIndex)
     : currentTakeIndex < 6;
   const timestamp  = formatAge(topic.latestPublishedAt);
-
-  // ── Shared: vote strip (bottom-left 👎, bottom-right 👍) ─────────────────
-  const voteStrip = (
-    <div className="card-vote-strip">
-      <VotingButtons topicId={topic.id} />
-    </div>
-  );
 
   // ── Shared: swipe indicator row ──────────────────────────────────────────
   const navArrows = (
@@ -346,7 +262,6 @@ export default function SwipeCard({
           </div>
         </div>
 
-        {voteStrip}
         {navArrows}
       </div>
     );
@@ -379,7 +294,6 @@ export default function SwipeCard({
             </div>
           </div>
         </div>
-        {voteStrip}
         {navArrows}
       </div>
     );

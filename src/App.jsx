@@ -95,22 +95,28 @@ export default function App() {
       : topicShells.filter(t => activeCategories.includes(t.category)),
   [topicShells, activeCategories]);
 
-  // ── Helper: filter a topic list to a given hour window ───────────────────
-  const filterByWindow = useCallback((topics, hours) => {
-    const cutoff = Date.now() - hours * 60 * 60 * 1000;
-    return topics.filter(t => {
-      if (!t.latestPublishedAt) return true; // undated topics always shown
-      const ms = new Date(t.latestPublishedAt).getTime();
-      if (isNaN(ms)) return true;            // unparseable date → always shown
-      return ms >= cutoff;
-    });
-  }, []);
-
   // ── Time-filtered topic list (by recency window) ──────────────────────────
   const timeFilteredTopics = useMemo(() => {
-    const hours = { '24h': 24, '48h': 48, '72h': 72 }[timeFilter] ?? 48;
-    return filterByWindow(filteredTopics, hours);
-  }, [filteredTopics, timeFilter, filterByWindow]);
+    const hours  = { '24h': 24, '48h': 48, '72h': 72 }[timeFilter] ?? 48;
+    const cutoff = Date.now() - hours * 60 * 60 * 1000;
+    const result = filteredTopics.filter(t => {
+      if (!t.latestPublishedAt) {
+        console.log(`[TimeFilter] PASS (no timestamp): "${t.title}"`);
+        return true;
+      }
+      const ms = new Date(t.latestPublishedAt).getTime();
+      if (isNaN(ms)) {
+        console.log(`[TimeFilter] PASS (bad timestamp "${t.latestPublishedAt}"): "${t.title}"`);
+        return true;
+      }
+      const ageHours = ((Date.now() - ms) / 3600000).toFixed(1);
+      const passes   = ms >= cutoff;
+      console.log(`[TimeFilter] ${passes ? 'PASS' : 'FAIL'} (${ageHours}h old, limit ${hours}h): "${t.title}" — ${t.latestPublishedAt}`);
+      return passes;
+    });
+    console.log(`[TimeFilter] ${timeFilter}: ${result.length}/${filteredTopics.length} topics pass`);
+    return result;
+  }, [filteredTopics, timeFilter]);
 
   // ── Derived values ────────────────────────────────────────────────────────
   const currentTopic       = timeFilteredTopics[currentTopicIndex] ?? null;

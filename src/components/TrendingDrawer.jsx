@@ -1,5 +1,6 @@
 export default function TrendingDrawer({ topics, onClose, onSelectTopic }) {
   const trending = [...topics]
+    .filter(t => t.category !== 'Sports & Culture')
     .sort((a, b) => (b.articles?.length ?? 0) - (a.articles?.length ?? 0))
     .slice(0, 10);
 
