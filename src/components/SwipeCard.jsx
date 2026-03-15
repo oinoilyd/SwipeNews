@@ -83,12 +83,14 @@ export default function SwipeCard({
   onTakeLeft,
   onTakeRight,
   perspectiveMode,
+  onScrollChange,
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [atBound,     setAtBound]     = useState(null); // 'top' | 'bottom' | null
 
-  const cardBodyRef = useRef(null);
-  const imageRef    = useRef(null);
+  const cardBodyRef       = useRef(null);
+  const imageRef          = useRef(null);
+  const scrollCollapsedRef = useRef(false);
 
   // Word-by-word animation for take text
   const displayedText = useStreamingText(currentTake?.text ?? '');
@@ -97,13 +99,24 @@ export default function SwipeCard({
   useEffect(() => {
     setSourcesOpen(false);
     setAtBound(null);
+    scrollCollapsedRef.current = false;
+    onScrollChange?.(false);
     if (cardBodyRef.current) cardBodyRef.current.scrollTop = 0;
     if (imageRef.current)    imageRef.current.style.transform = '';
-  }, [topic.id]);
+  }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScroll = (e) => {
     const el = e.currentTarget;
     const st = el.scrollTop;
+
+    // Signal header to collapse/expand based on scroll depth
+    if (onScrollChange) {
+      const shouldCollapse = st > 20;
+      if (shouldCollapse !== scrollCollapsedRef.current) {
+        scrollCollapsedRef.current = shouldCollapse;
+        onScrollChange(shouldCollapse);
+      }
+    }
 
     // Image freeze: image slides up naturally, then freezes with a sliver visible
     if (imageRef.current) {
@@ -321,7 +334,6 @@ export default function SwipeCard({
           {renderSources(currentTake.sources)}
         </div>
       </div>
-      {voteStrip}
       {navArrows}
     </div>
   );

@@ -83,10 +83,13 @@ export default function App() {
   const [error, setError]                       = useState(null);
   const [showTopicDrawer,    setShowTopicDrawer]    = useState(false);
   const [showTrendingDrawer, setShowTrendingDrawer] = useState(false);
+  const [headerCollapsed,    setHeaderCollapsed]    = useState(false);
 
   // Refs for stale-closure-safe async callbacks
-  const takesMapRef   = useRef({});
-  const loadingSetRef = useRef(new Set());
+  const takesMapRef        = useRef({});
+  const loadingSetRef      = useRef(new Set());
+  const topBarRef          = useRef(null);
+  const topBarHeightRef    = useRef(null);
 
   // ── Filtered topic list (by category) ────────────────────────────────────
   const filteredTopics = useMemo(() =>
@@ -146,10 +149,32 @@ export default function App() {
     setCurrentTakeIndex(3);
   }, [activeCategories, timeFilter]);
 
-  // ── Reset take to neutral when topic changes ──────────────────────────────
+  // ── Reset take to neutral + restore header when topic changes ───────────
   useEffect(() => {
     setCurrentTakeIndex(3);
+    setHeaderCollapsed(false);
   }, [currentTopicIndex]);
+
+  // ── Animate top bar height when collapsing/expanding ─────────────────────
+  useEffect(() => {
+    const el = topBarRef.current;
+    if (!el) return;
+    if (headerCollapsed) {
+      topBarHeightRef.current = el.scrollHeight;
+      el.style.height = `${el.scrollHeight}px`;
+      el.getBoundingClientRect(); // force reflow
+      el.style.height = '0px';
+    } else if (topBarHeightRef.current !== null) {
+      // Only animate expand if we previously collapsed (avoid running on initial mount)
+      el.style.height = `${topBarHeightRef.current}px`;
+      const onEnd = () => { el.style.height = ''; el.removeEventListener('transitionend', onEnd); };
+      el.addEventListener('transitionend', onEnd);
+    }
+  }, [headerCollapsed]);
+
+  const handleScrollChange = useCallback((collapsed) => {
+    setHeaderCollapsed(collapsed);
+  }, []);
 
   // ── Store a completed take into state + localStorage cache ───────────────
   const storeTake = useCallback((topic, position, take) => {
@@ -435,19 +460,21 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header
-        onRefresh={handleManualRefresh}
-        onShowTopics={() => setShowTopicDrawer(true)}
-        onShowTrending={() => setShowTrendingDrawer(true)}
-      />
+      <div ref={topBarRef} className="top-bar">
+        <Header
+          onRefresh={handleManualRefresh}
+          onShowTopics={() => setShowTopicDrawer(true)}
+          onShowTrending={() => setShowTrendingDrawer(true)}
+        />
 
-      <CategoryFilter
-        activeCategories={activeCategories}
-        onToggle={handleCategoryToggle}
-        topicShells={topicShells}
-      />
+        <CategoryFilter
+          activeCategories={activeCategories}
+          onToggle={handleCategoryToggle}
+          topicShells={topicShells}
+        />
 
-      <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
+        <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
+      </div>
 
       <main className="main">
         {timeFilteredTopics.length === 0 ? (
@@ -471,6 +498,7 @@ export default function App() {
             currentTopicIndex={currentTopicIndex}
             totalTopics={timeFilteredTopics.length}
             perspectiveMode={perspectiveMode}
+            onScrollChange={handleScrollChange}
           />
         )}
       </main>

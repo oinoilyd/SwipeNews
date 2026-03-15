@@ -15,6 +15,7 @@ export default function CardStack({
   currentTopicIndex,
   totalTopics,
   perspectiveMode,
+  onScrollChange,
 }) {
   const touchStartY      = useRef(null);
   const touchStartX      = useRef(null);
@@ -87,6 +88,7 @@ export default function CardStack({
           onTakeLeft={onTakeLeft}
           onTakeRight={onTakeRight}
           perspectiveMode={perspectiveMode}
+          onScrollChange={onScrollChange}
         />
       </div>
 
