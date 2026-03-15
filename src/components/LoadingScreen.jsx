@@ -51,6 +51,17 @@ export default function LoadingScreen({ stage = 0 }) {
         </p>
 
         <p className="loading-tagline">Left · Right · and everything in between</p>
+
+        <div className="loading-swipe-guide">
+          <div className="swipe-guide-row">
+            <span className="swipe-guide-icon">↕</span>
+            <span className="swipe-guide-label">Swipe up / down to browse topics</span>
+          </div>
+          <div className="swipe-guide-row">
+            <span className="swipe-guide-icon">↔</span>
+            <span className="swipe-guide-label">Swipe left / right to shift perspective</span>
+          </div>
+        </div>
       </div>
     </div>
   );

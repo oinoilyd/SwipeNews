@@ -1527,3 +1527,29 @@ body {
   margin-bottom: 4px;
   font-size: 0.8rem;
 }
+
+/* ── Loading screen swipe guide ── */
+.loading-swipe-guide {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0.55;
+}
+.swipe-guide-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.swipe-guide-icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.swipe-guide-label {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+}

@@ -58,7 +58,7 @@ let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 
 // ── Cache version — bump to auto-invalidate stale Redis data ─────────────────
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 
 // ── Title-similarity deduplication helpers ────────────────────────────────────
 const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','are','were']);
@@ -389,13 +389,17 @@ export default async function handler(req, res) {
 
         if (articles.length < 1) return null;
 
+        // Find the newest article timestamp; fall back to now if none have dates
         const latestPublishedAt = articles.reduce((max, a) =>
-          a.publishedAt && a.publishedAt > max ? a.publishedAt : max, '');
+          a.publishedAt && a.publishedAt > max ? a.publishedAt : max, '')
+          || new Date().toISOString();
 
-        if (latestPublishedAt) {
-          const latestMs = new Date(latestPublishedAt).getTime();
-          // Drop topics where even the freshest article is older than 72 hours
-          if (!isNaN(latestMs) && latestMs < seventyTwoHoursAgoMs) return null;
+        const latestMs = new Date(latestPublishedAt).getTime();
+        console.log(`Topic "${cluster.title}" latestPublishedAt=${latestPublishedAt} (${isNaN(latestMs) ? 'NaN' : Math.round((Date.now()-latestMs)/3600000)+'h ago'})`);
+
+        if (!isNaN(latestMs) && latestMs < seventyTwoHoursAgoMs) {
+          console.log(`  → DROPPED (older than 72h)`);
+          return null;
         }
 
         const tiers = new Set(articles.map(a =>
@@ -411,7 +415,7 @@ export default async function handler(req, res) {
           summary:           cluster.summary  || '',
           category:          cluster.category || 'US Politics',
           urlToImage:        img?.urlToImage  || null,
-          latestPublishedAt: latestPublishedAt || null,
+          latestPublishedAt,
           perspectiveMode,
           articles: articles.map(a => ({
             title:       a.title,

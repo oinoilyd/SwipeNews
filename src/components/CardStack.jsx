@@ -55,7 +55,7 @@ export default function CardStack({
     const cardBody = savedTarget?.closest?.('.card-body');
     if (cardBody) {
       const atTop    = cardBody.scrollTop === 0;
-      const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 1;
+      const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 20;
       if (dy < 0 && !atBottom) return;   // swipe up, but not at bottom yet
       if (dy > 0 && !atTop)    return;   // swipe down, but not at top yet
     }
