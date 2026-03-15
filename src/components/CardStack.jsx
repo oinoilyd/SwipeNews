@@ -47,8 +47,8 @@ export default function CardStack({
     }
 
     // ── Vertical swipe → navigate topics ─────────────────────────────────────
-    // Require 80px deliberate swipe, and vertical must dominate
-    if (absDy < 80 || absDy < absDx) return;
+    // Require 120px deliberate swipe, and vertical must dominate
+    if (absDy < 120 || absDy < absDx) return;
 
     // Only check card scroll position when the swipe STARTED inside the card body.
     // Swipes that start outside the card body (spectrum bar, margins, etc.)
@@ -56,7 +56,7 @@ export default function CardStack({
     const cardBody = savedTarget?.closest?.('.card-body');
     if (cardBody) {
       const atTop    = cardBody.scrollTop === 0;
-      const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 20;
+      const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 40;
       if (dy < 0 && !atBottom) return;   // swipe up, but not at bottom yet
       if (dy > 0 && !atTop)    return;   // swipe down, but not at top yet
     }
