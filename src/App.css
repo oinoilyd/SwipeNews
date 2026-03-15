@@ -339,7 +339,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 14px 16px 70px; /* bottom pad clears the floating vote strip */
   min-height: 100%;
 }
 
@@ -1120,30 +1120,37 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Vote strip — bottom corners of card ── */
+/* ── Vote strip — absolute corners above nav arrows ── */
 .card-vote-strip {
+  position: absolute;
+  bottom: 46px; /* sits just above .card-nav-arrows */
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 12px;
-  flex-shrink: 0;
-  z-index: 2;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 0 10px 6px;
+  pointer-events: none; /* let taps pass through to card body except on buttons */
+  z-index: 4;
 }
 
 .vote-btn {
+  pointer-events: all;
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 12px;
+  padding: 5px 11px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(18, 18, 26, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text-muted);
   font-size: 0.82rem;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 .vote-btn:hover:not(:disabled):not(.voted) {
   background: rgba(255, 255, 255, 0.09);
@@ -1474,4 +1481,49 @@ body {
   margin-top: 16px;
   letter-spacing: 0.03em;
   text-align: center;
+}
+
+/* ── Jargon tooltips ─────────────────────────────────────────────────────── */
+.jargon-wrapper {
+  position: relative;
+  display: inline;
+}
+
+.jargon-term {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(167, 139, 250, 0.55);
+  text-underline-offset: 3px;
+  cursor: help;
+  color: inherit;
+  transition: text-decoration-color 0.15s;
+}
+.jargon-term:hover,
+.jargon-term.open {
+  text-decoration-color: #a78bfa;
+}
+
+.jargon-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  background: #1e1b2e;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  z-index: 50;
+  pointer-events: none;
+  animation: fade-in 0.12s ease;
+}
+.jargon-tooltip strong {
+  color: #c4b5fd;
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
 }

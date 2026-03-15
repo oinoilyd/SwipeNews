@@ -76,7 +76,7 @@ export default function App() {
   const [loadingSet, setLoadingSet]             = useState(new Set());
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
   const [currentTakeIndex, setCurrentTakeIndex]   = useState(3); // 3 = Neutral
-  const [activeCategory, setActiveCategory]     = useState('All');
+  const [activeCategories, setActiveCategories] = useState([]); // [] = show all
   const [timeFilter, setTimeFilter]             = useState('48h');
   const [isLoading, setIsLoading]               = useState(true);
   const [loadingStage, setLoadingStage]         = useState(0);
@@ -90,10 +90,10 @@ export default function App() {
 
   // ── Filtered topic list (by category) ────────────────────────────────────
   const filteredTopics = useMemo(() =>
-    activeCategory === 'All'
+    activeCategories.length === 0
       ? topicShells
-      : topicShells.filter(t => t.category === activeCategory),
-  [topicShells, activeCategory]);
+      : topicShells.filter(t => activeCategories.includes(t.category)),
+  [topicShells, activeCategories]);
 
   // ── Helper: filter a topic list to a given hour window ───────────────────
   const filterByWindow = useCallback((topics, hours) => {
@@ -123,11 +123,22 @@ export default function App() {
     : false;
   const perspectiveMode    = currentTopic?.perspectiveMode ?? 'full';
 
+  // ── Toggle a category on/off; 'All' resets to show everything ───────────
+  const handleCategoryToggle = useCallback((cat) => {
+    if (cat === 'All') {
+      setActiveCategories([]);
+    } else {
+      setActiveCategories(prev =>
+        prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+      );
+    }
+  }, []);
+
   // ── Reset topic & take index when category or time filter changes ────────
   useEffect(() => {
     setCurrentTopicIndex(0);
     setCurrentTakeIndex(3);
-  }, [activeCategory, timeFilter]);
+  }, [activeCategories, timeFilter]);
 
   // ── Reset take to neutral when topic changes ──────────────────────────────
   useEffect(() => {
@@ -300,7 +311,7 @@ export default function App() {
       setTopicShells(processedTopics);
       setCurrentTopicIndex(0);
       setCurrentTakeIndex(3);
-      setActiveCategory('All');
+      setActiveCategories([]);
       setLoadingStage(2);
 
       // Clean up stale cache entries
@@ -366,7 +377,7 @@ export default function App() {
     setShowTrendingDrawer(false);
     const index = topicShells.findIndex(t => t.id === topic.id);
     if (index !== -1) {
-      setActiveCategory('All');
+      setActiveCategories([]);
       setCurrentTopicIndex(index);
     }
   }, [topicShells]);
@@ -425,8 +436,8 @@ export default function App() {
       />
 
       <CategoryFilter
-        activeCategory={activeCategory}
-        onSelect={setActiveCategory}
+        activeCategories={activeCategories}
+        onToggle={handleCategoryToggle}
         topicShells={topicShells}
       />
 

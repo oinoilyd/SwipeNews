@@ -11,20 +11,21 @@ export const CATEGORIES = [
   'Sports & Culture',
 ];
 
-export default function CategoryFilter({ activeCategory, onSelect, topicShells }) {
-  // Count topics per category
+// activeCategories: string[] — empty means "All"
+export default function CategoryFilter({ activeCategories, onToggle, topicShells }) {
   const counts = topicShells.reduce((acc, t) => {
     const cat = t.category || 'US Politics';
     acc[cat] = (acc[cat] || 0) + 1;
     return acc;
   }, {});
   const totalCount = topicShells.length;
+  const allActive  = activeCategories.length === 0;
 
   return (
     <div className="category-filter" role="tablist" aria-label="Filter by category">
       {CATEGORIES.map(cat => {
-        const count = cat === 'All' ? totalCount : (counts[cat] || 0);
-        const isActive = activeCategory === cat;
+        const count   = cat === 'All' ? totalCount : (counts[cat] || 0);
+        const isActive = cat === 'All' ? allActive : activeCategories.includes(cat);
         const isEmpty  = count === 0 && cat !== 'All';
 
         return (
@@ -33,7 +34,7 @@ export default function CategoryFilter({ activeCategory, onSelect, topicShells }
             role="tab"
             aria-selected={isActive}
             className={`cat-pill ${isActive ? 'active' : ''} ${isEmpty ? 'empty' : ''}`}
-            onClick={() => !isEmpty && onSelect(cat)}
+            onClick={() => !isEmpty && onToggle(cat)}
             disabled={isEmpty}
           >
             {cat}

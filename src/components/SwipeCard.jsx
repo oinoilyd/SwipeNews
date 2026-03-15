@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import JargonText from './JargonText.jsx';
 
 // ── Word-by-word streaming animation ─────────────────────────────────────────
 function useStreamingText(text, speedMs = 35) {
@@ -164,22 +165,35 @@ export default function SwipeCard({
   const [atBound,     setAtBound]     = useState(null); // 'top' | 'bottom' | null
 
   const cardBodyRef = useRef(null);
+  const imageRef    = useRef(null);
 
   // Word-by-word animation for take text
   const displayedText = useStreamingText(currentTake?.text ?? '');
 
-  // Reset scroll states when topic changes
+  // Reset scroll + image on topic change
   useEffect(() => {
     setSourcesOpen(false);
     setAtBound(null);
     if (cardBodyRef.current) cardBodyRef.current.scrollTop = 0;
+    if (imageRef.current)    imageRef.current.style.transform = '';
   }, [topic.id]);
 
   const handleScroll = (e) => {
     const el = e.currentTarget;
-    const atTop    = el.scrollTop <= 5;
-    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 5;
-    if (atTop && atBottom) setAtBound(null);  // content fits, no scroll needed
+    const st = el.scrollTop;
+
+    // Image freeze: image slides up naturally, then freezes with a sliver visible
+    if (imageRef.current) {
+      const IMAGE_H  = 160;  // matches CSS height
+      const FREEZE_H = 36;   // px of image left visible when frozen
+      const maxScroll = IMAGE_H - FREEZE_H;
+      imageRef.current.style.transform =
+        st > maxScroll ? `translateY(${st - maxScroll}px)` : '';
+    }
+
+    const atTop    = st <= 5;
+    const atBottom = st + el.clientHeight >= el.scrollHeight - 5;
+    if (atTop && atBottom) setAtBound(null);
     else if (atTop)        setAtBound('top');
     else if (atBottom)     setAtBound('bottom');
     else                   setAtBound(null);
@@ -237,7 +251,10 @@ export default function SwipeCard({
       );
     }
     return (
-      <div className={`card-image-container${variant === 'neutral' ? ' neutral-image' : ''}`}>
+      <div
+        className={`card-image-container${variant === 'neutral' ? ' neutral-image' : ''}`}
+        ref={imageRef}
+      >
         <img
           src={topic.urlToImage}
           alt={topic.title}
@@ -320,7 +337,7 @@ export default function SwipeCard({
             {currentTake && (
               <div className="take-text">
                 {displayedText.split('\n\n').map((p, i) => (
-                  <p key={i}>{p.trim()}</p>
+                  <p key={i}><JargonText>{p.trim()}</JargonText></p>
                 ))}
               </div>
             )}
