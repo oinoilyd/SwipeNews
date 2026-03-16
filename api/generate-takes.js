@@ -79,7 +79,7 @@ export default async function handler(req, res) {
 
   const meta = TAKE_POSITIONS.find(p => p.position === position);
 
-  // ── Cache check: in-memory → Redis → Gemini ──────────────────────────────
+  // ── Cache check: in-memory → Redis → Claude ──────────────────────────────
   const key = cacheKey(topic, position);
   const inMem = getCached(key);
   if (inMem) return res.json({ take: inMem, fromCache: true });

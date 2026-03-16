@@ -40,7 +40,7 @@ async function batch(items, fn, concurrency = 10) {
   return results;
 }
 
-async function generateTake(model, topic, meta) {
+async function generateTake(client, topic, meta) {
   const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
   const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
   const rightArts  = topic.articles.filter(a => (a.bias?.score ?? 0) >= 1);
