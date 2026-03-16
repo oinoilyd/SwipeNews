@@ -92,7 +92,7 @@ let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 
 // ── Cache version — bump to auto-invalidate stale Redis data ─────────────────
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 
 // ── Title-similarity deduplication helpers ────────────────────────────────────
 const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','are','were']);
@@ -229,25 +229,48 @@ function stripHtml(str) {
     .replace(/\s+/g, ' ').trim();
 }
 
+function decodeEntities(str) {
+  return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+function validImageUrl(raw) {
+  if (!raw) return null;
+  const url = decodeEntities(raw.trim());
+  return url.startsWith('http') ? url : null;
+}
+
 function extractRSSImage(itemXml) {
-  let m;
-  // <media:content url="..."> or <media:content url='...'>
+  let m, url;
+
+  // 1. <media:content url="..."> — covers Fox, NYT, CNN (may be inside <media:group>)
   m = itemXml.match(/<media:content[^>]+url=["']([^"']+)["']/i);
-  if (m) return m[1];
-  // <media:thumbnail url="...">
+  if (m && (url = validImageUrl(m[1]))) return url;
+
+  // 2. <media:thumbnail url="...">
   m = itemXml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i);
-  if (m) return m[1];
-  // <enclosure type="image/..."> — try both attribute orderings
-  m = itemXml.match(/<enclosure[^>]+type=["']image\/[^"']*["'][^>]+url=["']([^"']+)["']/i);
-  if (!m) m = itemXml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']*["']/i);
-  if (m) return m[1];
-  // <og:image> tag
+  if (m && (url = validImageUrl(m[1]))) return url;
+
+  // 3. <enclosure type="image/..."> — both attribute orderings
+  m = itemXml.match(/<enclosure[^>]+type=["']image\/[^"']*["'][^>]+url=["']([^"']+)["']/i)
+    || itemXml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']*["']/i);
+  if (m && (url = validImageUrl(m[1]))) return url;
+
+  // 4. <og:image> tag
   m = itemXml.match(/<og:image[^>]*>([^<]+)<\/og:image>/i);
-  if (m) return m[1].trim();
-  // First <img src="..."> inside description or content
-  const desc = extractXMLTag(itemXml, 'description') || extractXMLTag(itemXml, 'content:encoded') || '';
-  m = desc.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (m) return m[1];
+  if (m && (url = validImageUrl(m[1]))) return url;
+
+  // 5. <img src="..."> inside description (decode HTML entities in content first)
+  const rawDesc = extractXMLTag(itemXml, 'description') || '';
+  const decodedDesc = decodeEntities(rawDesc);
+  m = decodedDesc.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (m && (url = validImageUrl(m[1]))) return url;
+
+  // 6. <img src="..."> inside content:encoded (HTML-encoded in many feeds)
+  const rawCE = extractXMLTag(itemXml, 'content:encoded') || '';
+  const decodedCE = decodeEntities(rawCE);
+  m = decodedCE.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (m && (url = validImageUrl(m[1]))) return url;
+
   return null;
 }
 
@@ -260,6 +283,7 @@ const CATEGORY_FALLBACK_IMAGES = {
   'Health':            'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=800&auto=format&fit=crop',
   'Technology':        'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop',
   'Sports & Culture':  'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop',
+  'Entertainment':     'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800&auto=format&fit=crop',
   'Elections':         'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=800&auto=format&fit=crop',
   'Policy':            'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&auto=format&fit=crop',
 };
@@ -337,7 +361,7 @@ async function clusterArticles(articles) {
       content: `Cluster these ${articles.length} news articles into topics for a news app.
 
 Return ONLY valid JSON, no markdown:
-{"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"US Politics|World|Policy|Economy|National Security|Elections|Technology|Health|Sports & Culture","articleIndices":[0,1,2,3]}]}
+{"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"US Politics|World|Policy|Economy|National Security|Elections|Technology|Health|Sports & Culture|Entertainment","articleIndices":[0,1,2,3]}]}
 
 TARGET TOPIC COUNTS (firm targets — hit as many as possible given available articles):
 - Hard news total: 35-45 topics
@@ -349,27 +373,32 @@ TARGET TOPIC COUNTS (firm targets — hit as many as possible given available ar
   - Elections: 2-4 topics (if relevant articles exist)
   - Health: 3-5 topics
   - Technology: 3-5 topics
-- Sports & Culture: exactly 3-5 topics — no more, no fewer
-- TOTAL TARGET: 40-50 topics
+- Sports & Culture: exactly 3-5 topics (live sports only)
+- Entertainment: 2-4 topics (movies, TV, awards, celebrity, music)
+- TOTAL TARGET: 40-52 topics
 
-Rules:
-- Each topic needs at least 1 article; single-article topics are fine for hard news
-- Do NOT over-merge — keep related but distinct stories separate (e.g. two different bills = two topics)
-- Merge only near-identical duplicate stories
-- "category" must be exactly one of: US Politics, World, Policy, Economy, National Security, Elections, Technology, Health, Sports & Culture
-  - US Politics: domestic government, Congress, White House, political conflicts
-  - World: international news, foreign affairs
-  - Policy: legislation, regulations, climate/environment law, domestic policy debates
-  - Economy: markets, jobs, trade, inflation, corporate news
-  - National Security: military, intelligence, terrorism, border, defense
-  - Elections: campaigns, voting, candidates, electoral politics
-  - Technology: tech companies, AI, science, space, cyber
-  - Health: public health, medicine, FDA, healthcare
-  - Sports & Culture: sports — only assign if article is tagged [Sports & Culture]
-- Use [fetchCategory hints] shown in brackets when available
+CATEGORY DEFINITIONS — assign each article to EXACTLY ONE:
+  - US Politics: domestic government, Congress, White House, political conflicts, political figures
+  - World: international news, foreign governments, geopolitics, foreign affairs
+  - Policy: legislation, regulations, climate/environment law, domestic policy debates, new laws
+  - Economy: markets, jobs, trade, inflation, tariffs, corporate earnings, economic data
+  - National Security: military operations, intelligence, terrorism, border security, defense spending
+  - Elections: campaigns, voting rights, candidates, polling, electoral politics, election results
+  - Technology: tech companies, AI/ML, software, hardware, science breakthroughs, space, cybersecurity
+  - Health: public health, medicine, FDA approvals, healthcare policy, disease, drugs
+  - Sports & Culture: ONLY live sports — games, scores, trades, athlete news, team standings, leagues, championships. DO NOT assign Oscars, awards shows, movies, TV, music, or celebrity news here.
+  - Entertainment: Oscars, film, TV shows, streaming, celebrity news, music, awards shows, pop culture, cultural events. NOT sports.
+
+ASSIGNMENT RULES:
+- Use [fetchCategory hints] shown in brackets when available — they are reliable signals
+- If an article mentions BOTH sports AND entertainment, prefer the dominant angle
 - Neutral factual titles only — no editorial spin
-- For hard news: include any topic that plausibly belongs on the front page of NYT, WSJ, or BBC. Prefer more granular topics over merged mega-topics. Skip celebrity gossip, lifestyle fluff, product reviews.
-- For sports: pick the 3-5 most significant games/events/stories from tagged articles. Do NOT list every single game.
+- Each topic needs at least 1 article; single-article topics are fine for hard news
+- Do NOT over-merge — keep related but distinct stories separate
+- Merge only near-identical duplicate stories
+- For hard news: include anything that belongs on the front page of NYT, WSJ, or BBC
+- For sports: pick the 3-5 most significant games/events. Do NOT list every single game.
+- For entertainment: group by film/show/event, not by individual celebrity
 
 Articles:
 ${list}`,
@@ -570,13 +599,19 @@ export default async function handler(req, res) {
 
         const img         = articles.find(a => a.urlToImage);
         const fallbackImg = CATEGORY_FALLBACK_IMAGES[cluster.category] || null;
+        const finalImage  = img?.urlToImage || fallbackImg;
+        if (!img?.urlToImage && fallbackImg) {
+          console.log(`IMAGE FALLBACK [${cluster.category}]: "${cluster.title?.slice(0, 40)}"`);
+        } else if (!finalImage) {
+          console.log(`IMAGE MISSING [${cluster.category}]: "${cluster.title?.slice(0, 40)}" — no article image and no fallback`);
+        }
 
         return {
           id:                `topic-${i}`,
           title:             cluster.title    || 'Untitled Story',
           summary:           cluster.summary  || '',
           category:          cluster.category || 'US Politics',
-          urlToImage:        img?.urlToImage  || fallbackImg,
+          urlToImage:        finalImage,
           latestPublishedAt,
           perspectiveMode,
           biasCounts,

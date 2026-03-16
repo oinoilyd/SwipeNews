@@ -10,10 +10,11 @@ import './App.css';
 
 // Category → perspectiveMode mapping
 // 'full' = 7 political positions, 'limited' = Left/Neutral/Right only,
-// 'sports' = Fan/Analyst/Business, 'tech' = Optimist/Skeptic/Industry
+// 'sports' = Fan/Analyst/Business, 'tech' = Optimist/Skeptic/Neutral/Industry
 function getPerspectiveMode(category) {
   if (category === 'Sports & Culture') return 'sports';
   if (category === 'Technology')       return 'tech';
+  if (category === 'Entertainment')    return 'limited';
   return 'full';
 }
 // All non-full modes use limited indices for navigation
