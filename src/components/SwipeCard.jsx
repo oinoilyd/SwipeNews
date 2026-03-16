@@ -2,26 +2,29 @@ import { useState, useEffect, useRef } from 'react';
 import JargonText from './JargonText.jsx';
 
 // ── Word-by-word streaming animation ─────────────────────────────────────────
-function useStreamingText(text, speedMs = 35) {
+function useStreamingText(text, speedMs = 35, onStreamingChange) {
   const [displayed, setDisplayed] = useState('');
   const textRef = useRef('');
 
   useEffect(() => {
-    if (!text) { setDisplayed(''); return; }
-    // Reset when text changes (new topic or position)
+    if (!text) {
+      setDisplayed('');
+      onStreamingChange?.(false);
+      return;
+    }
     textRef.current = text;
     setDisplayed('');
+    onStreamingChange?.(true);
     const words = text.split(' ');
     let i = 0;
     const id = setInterval(() => {
       i++;
-      // Guard against stale closure: make sure we're still on same text
       if (textRef.current !== text) { clearInterval(id); return; }
       setDisplayed(words.slice(0, i).join(' '));
-      if (i >= words.length) clearInterval(id);
+      if (i >= words.length) { clearInterval(id); onStreamingChange?.(false); }
     }, speedMs);
     return () => clearInterval(id);
-  }, [text, speedMs]);
+  }, [text, speedMs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return displayed;
 }
@@ -84,6 +87,7 @@ export default function SwipeCard({
   onTakeRight,
   perspectiveMode,
   onScrollChange,
+  onStreamingChange,
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [atBound,     setAtBound]     = useState(null); // 'top' | 'bottom' | null
@@ -92,7 +96,7 @@ export default function SwipeCard({
   const scrollCollapsedRef = useRef(false);
 
   // Word-by-word animation for take text
-  const displayedText = useStreamingText(currentTake?.text ?? '');
+  const displayedText = useStreamingText(currentTake?.text ?? '', 35, onStreamingChange);
 
   // Reset scroll on topic change
   useEffect(() => {
