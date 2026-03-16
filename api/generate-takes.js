@@ -20,10 +20,10 @@ const SPORTS_VOICE = {
 };
 
 // ── Tech perspectives (non-political) ────────────────────────────────────────
-// Mapped to the same 3 limited positions: -2=Optimist, 0=Skeptic, 2=Industry
+// Positions: -2=Optimist, -1=Skeptic, 0=Neutral (falls through to POSITION_VOICE), 2=Industry
 const TECH_VOICE = {
   '-2': { label: 'Optimist', voice: `You are writing from a TECH OPTIMIST perspective. Focus on innovation potential, new capabilities unlocked, democratization of access, scientific progress, and the transformative upside. What's the best-case path this technology enables? Sound like a researcher or entrepreneur genuinely excited about where this leads.` },
-   '0': { label: 'Skeptic',  voice: `You are writing from a TECH SKEPTIC perspective. Focus on privacy risks, surveillance concerns, job displacement, algorithmic bias, ethical blind spots, unintended consequences, and why the hype may be outpacing reality. What are the legitimate concerns being glossed over by optimists and industry alike?` },
+  '-1': { label: 'Skeptic',  voice: `You are writing from a TECH SKEPTIC perspective. Focus on privacy risks, surveillance concerns, job displacement, algorithmic bias, ethical blind spots, unintended consequences, and why the hype may be outpacing reality. What are the legitimate concerns being glossed over by optimists and industry alike?` },
    '2': { label: 'Industry', voice: `You are writing from an INDUSTRY/BUSINESS perspective. Focus on market impact, competitive dynamics, investment implications, enterprise adoption, vendor landscapes, and what this means for tech companies and the broader business ecosystem. Sound like a tech analyst or VC.` },
 };
 

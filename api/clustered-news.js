@@ -229,6 +229,41 @@ function stripHtml(str) {
     .replace(/\s+/g, ' ').trim();
 }
 
+function extractRSSImage(itemXml) {
+  let m;
+  // <media:content url="..."> or <media:content url='...'>
+  m = itemXml.match(/<media:content[^>]+url=["']([^"']+)["']/i);
+  if (m) return m[1];
+  // <media:thumbnail url="...">
+  m = itemXml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i);
+  if (m) return m[1];
+  // <enclosure type="image/..."> — try both attribute orderings
+  m = itemXml.match(/<enclosure[^>]+type=["']image\/[^"']*["'][^>]+url=["']([^"']+)["']/i);
+  if (!m) m = itemXml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']*["']/i);
+  if (m) return m[1];
+  // <og:image> tag
+  m = itemXml.match(/<og:image[^>]*>([^<]+)<\/og:image>/i);
+  if (m) return m[1].trim();
+  // First <img src="..."> inside description or content
+  const desc = extractXMLTag(itemXml, 'description') || extractXMLTag(itemXml, 'content:encoded') || '';
+  m = desc.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (m) return m[1];
+  return null;
+}
+
+// ── Static fallback images per category (Unsplash, no API key needed) ────────
+const CATEGORY_FALLBACK_IMAGES = {
+  'US Politics':       'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&auto=format&fit=crop',
+  'World':             'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop',
+  'Economy':           'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop',
+  'National Security': 'https://images.unsplash.com/photo-1562408590-e32931084e23?w=800&auto=format&fit=crop',
+  'Health':            'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=800&auto=format&fit=crop',
+  'Technology':        'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop',
+  'Sports & Culture':  'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop',
+  'Elections':         'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=800&auto=format&fit=crop',
+  'Policy':            'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&auto=format&fit=crop',
+};
+
 async function fetchRSS({ name, url, score, label, color }, max = 15) {
   try {
     const controller = new AbortController();
@@ -267,7 +302,7 @@ async function fetchRSS({ name, url, score, label, color }, max = 15) {
 
       items.push({
         title, description: desc, source: name, url: link,
-        urlToImage:  null,
+        urlToImage:  extractRSSImage(chunk),
         publishedAt,
         bias:        { score, label, color },
         fetchCategory: null,
@@ -533,14 +568,15 @@ export default async function handler(req, res) {
           else                         biasCounts.center++;
         });
 
-        const img = articles.find(a => a.urlToImage);
+        const img         = articles.find(a => a.urlToImage);
+        const fallbackImg = CATEGORY_FALLBACK_IMAGES[cluster.category] || null;
 
         return {
           id:                `topic-${i}`,
           title:             cluster.title    || 'Untitled Story',
           summary:           cluster.summary  || '',
           category:          cluster.category || 'US Politics',
-          urlToImage:        img?.urlToImage  || null,
+          urlToImage:        img?.urlToImage  || fallbackImg,
           latestPublishedAt,
           perspectiveMode,
           biasCounts,

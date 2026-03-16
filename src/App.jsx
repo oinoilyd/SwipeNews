@@ -16,14 +16,19 @@ function getPerspectiveMode(category) {
   if (category === 'Technology')       return 'tech';
   return 'full';
 }
-// All non-full modes use the same 3 LIMITED_INDICES [1,3,5] for navigation
+// All non-full modes use limited indices for navigation
 const IS_LIMITED = (pm) => pm !== 'full';
 
 // Map take index (0-6) → position (-3 to 3)
 const indexToPosition = (i) => i - 3;
 
-// ── Limited-mode indices (Left=1, Neutral=3, Right=5) ─────────────────────────
-const LIMITED_INDICES = [1, 3, 5];
+// ── Limited-mode indices ───────────────────────────────────────────────────────
+const LIMITED_INDICES = [1, 3, 5];         // Left, Neutral, Right (sports / limited)
+const TECH_INDICES    = [1, 2, 3, 5];      // Optimist(-2), Skeptic(-1), Neutral(0), Industry(2)
+
+function getActiveIndices(pm) {
+  return pm === 'tech' ? TECH_INDICES : LIMITED_INDICES;
+}
 
 // ── localStorage take cache helpers ──────────────────────────────────────────
 const CACHE_PREFIX    = 'sw_take';
@@ -302,10 +307,10 @@ export default function App() {
     prefetchTake(currentTopic, pos);
 
     if (IS_LIMITED(currentTopic.perspectiveMode)) {
-      // Only prefetch adjacent available limited positions
-      const idx = LIMITED_INDICES.indexOf(currentTakeIndex);
-      if (idx > 0)                       prefetchTake(currentTopic, indexToPosition(LIMITED_INDICES[idx - 1]));
-      if (idx < LIMITED_INDICES.length - 1) prefetchTake(currentTopic, indexToPosition(LIMITED_INDICES[idx + 1]));
+      const indices = getActiveIndices(currentTopic.perspectiveMode);
+      const idx = indices.indexOf(currentTakeIndex);
+      if (idx > 0)                  prefetchTake(currentTopic, indexToPosition(indices[idx - 1]));
+      if (idx < indices.length - 1) prefetchTake(currentTopic, indexToPosition(indices[idx + 1]));
     } else {
       if (pos > -3) prefetchTake(currentTopic, pos - 1);
       if (pos <  3) prefetchTake(currentTopic, pos + 1);
@@ -369,7 +374,8 @@ export default function App() {
   // ── Navigate takes — respect limited mode ─────────────────────────────────
   const handleTakeLeft = useCallback(() => {
     if (IS_LIMITED(perspectiveMode)) {
-      const prev = LIMITED_INDICES.filter(i => i < currentTakeIndex);
+      const indices = getActiveIndices(perspectiveMode);
+      const prev = indices.filter(i => i < currentTakeIndex);
       if (prev.length) setCurrentTakeIndex(prev[prev.length - 1]);
     } else {
       setCurrentTakeIndex(i => Math.max(0, i - 1));
@@ -378,7 +384,8 @@ export default function App() {
 
   const handleTakeRight = useCallback(() => {
     if (IS_LIMITED(perspectiveMode)) {
-      const next = LIMITED_INDICES.filter(i => i > currentTakeIndex);
+      const indices = getActiveIndices(perspectiveMode);
+      const next = indices.filter(i => i > currentTakeIndex);
       if (next.length) setCurrentTakeIndex(next[0]);
     } else {
       setCurrentTakeIndex(i => Math.min(6, i + 1));
@@ -386,7 +393,7 @@ export default function App() {
   }, [perspectiveMode, currentTakeIndex]);
 
   const handleTakeJump = useCallback((index) => {
-    if (IS_LIMITED(perspectiveMode) && !LIMITED_INDICES.includes(index)) return;
+    if (IS_LIMITED(perspectiveMode) && !getActiveIndices(perspectiveMode).includes(index)) return;
     setCurrentTakeIndex(index);
   }, [perspectiveMode]);
 

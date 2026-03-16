@@ -52,7 +52,8 @@ const CARD_TINTS = [
   'rgba(220, 38,  38, 0.13)',  // 6 Far Right
 ];
 
-const LIMITED_INDICES = [1, 3, 5]; // Left, Neutral, Right
+const LIMITED_INDICES = [1, 3, 5];      // Left, Neutral, Right
+const TECH_INDICES    = [1, 2, 3, 5];   // Optimist, Skeptic, Neutral, Industry
 
 const TAKE_META = [
   { label: 'Far Left',     color: '#1d4ed8' },
@@ -73,7 +74,8 @@ const SPORTS_META_OVERRIDE = {
 };
 const TECH_META_OVERRIDE = {
   1: { label: 'Optimist', color: '#3b82f6' },
-  3: { label: 'Skeptic',  color: '#f59e0b' },
+  2: { label: 'Skeptic',  color: '#f59e0b' },
+  3: { label: 'Neutral',  color: '#a78bfa' },
   5: { label: 'Industry', color: '#10b981' },
 };
 
@@ -128,15 +130,16 @@ export default function SwipeCard({
     else                   setAtBound(null);
   };
 
-  const isNeutral  = currentTakeIndex === 3;
-  const isNonFull  = perspectiveMode !== 'full'; // sports, tech, limited all use 3 positions
-  const tint       = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
-  const accent     = currentTake?.color || '#a78bfa';
+  const isNeutral     = currentTakeIndex === 3;
+  const isNonFull     = perspectiveMode !== 'full';
+  const activeIndices = perspectiveMode === 'tech' ? TECH_INDICES : LIMITED_INDICES;
+  const tint          = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
+  const accent        = currentTake?.color || '#a78bfa';
   const canGoLeft  = isNonFull
-    ? LIMITED_INDICES.some(i => i < currentTakeIndex)
+    ? activeIndices.some(i => i < currentTakeIndex)
     : currentTakeIndex > 0;
   const canGoRight = isNonFull
-    ? LIMITED_INDICES.some(i => i > currentTakeIndex)
+    ? activeIndices.some(i => i > currentTakeIndex)
     : currentTakeIndex < 6;
   const timestamp  = formatAge(topic.latestPublishedAt);
 

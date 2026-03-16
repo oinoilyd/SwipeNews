@@ -19,12 +19,14 @@ const SPORTS_POSITIONS = [
   { index: 5, label: 'Business', short: 'Biz', color: '#22d3ee' },
 ];
 
-// Tech perspectives
+// Tech perspectives — 4 positions: Optimist, Skeptic, Neutral, Industry
 const TECH_POSITIONS = [
   { index: 1, label: 'Optimist', short: 'Opt', color: '#3b82f6' },
-  { index: 3, label: 'Skeptic',  short: 'Ske', color: '#f59e0b' },
+  { index: 2, label: 'Skeptic',  short: 'Ske', color: '#f59e0b' },
+  { index: 3, label: 'Neutral',  short: 'Neu', color: '#a78bfa' },
   { index: 5, label: 'Industry', short: 'Ind', color: '#10b981' },
 ];
+const TECH_INDICES_ARR = [1, 2, 3, 5];
 
 export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveMode }) {
   // Pick the right position set
@@ -51,7 +53,9 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
         <div className={`spectrum-gradient${isSports ? ' sports-gradient' : isTech ? ' tech-gradient' : ''}`} />
         {visiblePositions.map((pos) => {
           const isActive = pos.index === currentTakeIndex;
-          const leftPct  = isNonFull
+          const leftPct  = isTech
+            ? (TECH_INDICES_ARR.indexOf(pos.index) / (TECH_INDICES_ARR.length - 1)) * 100
+            : isNonFull
             ? ([1, 3, 5].indexOf(pos.index) / 2) * 100
             : (pos.index / 6) * 100;
           return (
@@ -83,7 +87,7 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
           <>
             <span className="spectrum-label-left">💻 Tech</span>
             <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
-            <span className="spectrum-label-right">Opt · Ske · Ind</span>
+            <span className="spectrum-label-right">Opt · Ske · Neu · Ind</span>
           </>
         ) : (
           <>
@@ -123,7 +127,7 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
       )}
       {isTech && (
         <p className="spectrum-limited-note">
-          💻 Tech topic — Optimist, Skeptic &amp; Industry perspectives
+          💻 Tech topic — Optimist, Skeptic, Neutral &amp; Industry perspectives
         </p>
       )}
       {isLimited && (
