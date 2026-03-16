@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { redis, takeKey } from '../lib/redis.js';
 
 const TAKE_POSITIONS = [
@@ -84,11 +84,15 @@ ${fmt(otherArts)}
 Return ONLY valid JSON:
 {"take":{"position":${meta.position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
-  const result = await model.generateContent(prompt);
-  const text   = result.response.text();
+  const msg  = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 500,
+    messages: [{ role: 'user', content: prompt }],
+  });
 
+  const text  = msg.content[0]?.text || '';
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON in Gemini response');
+  if (!match) throw new Error('No JSON in Claude response');
 
   const parsed = JSON.parse(match[0]);
   if (!parsed.take) throw new Error('No take in response');
@@ -104,8 +108,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  if (!process.env.GEMINI_API_KEY) {
-    return res.json({ ok: false, message: 'GEMINI_API_KEY not configured' });
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.json({ ok: false, message: 'ANTHROPIC_API_KEY not configured' });
   }
 
   try {
@@ -120,8 +124,7 @@ export default async function handler(req, res) {
       return res.json({ ok: false, message: 'No topics in cache — run /api/clustered-news first', skipped: true });
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     let generated = 0;
     let cached    = 0;
@@ -144,7 +147,7 @@ export default async function handler(req, res) {
           return;
         }
 
-        const take = await generateTake(model, topic, meta);
+        const take = await generateTake(client, topic, meta);
         await redis.set(rKey, take, { ex: 7200 });
         generated++;
       } catch (err) {

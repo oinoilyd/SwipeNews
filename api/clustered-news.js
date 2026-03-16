@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { redis } from '../lib/redis.js';
 
 // ── Media bias database — keyed by newsdata.io source_id or normalized name ──
@@ -166,10 +166,9 @@ async function fetchESPN(url, max = 5) {
   }
 }
 
-// ── Cluster articles into ~45-50 categorized topics with Gemini Flash ─────────
+// ── Cluster articles into ~45-50 categorized topics with Claude ───────────────
 async function clusterArticles(articles) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const list = articles
     .map((a, i) => {
@@ -180,8 +179,12 @@ async function clusterArticles(articles) {
     })
     .join('\n');
 
-  const result = await model.generateContent(
-    `Cluster these ${articles.length} news articles into topics for a news app.
+  const msg = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 6000,
+    messages: [{
+      role: 'user',
+      content: `Cluster these ${articles.length} news articles into topics for a news app.
 
 Return ONLY valid JSON, no markdown:
 {"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"US Politics|World|Policy|Economy|National Security|Elections|Technology|Health|Sports & Culture","articleIndices":[0,1,2,3]}]}
@@ -219,10 +222,11 @@ Rules:
 - For sports: pick the 3-5 most significant games/events/stories from tagged articles. Do NOT list every single game.
 
 Articles:
-${list}`
-  );
+${list}`,
+    }],
+  });
 
-  const text = result.response.text();
+  const text = msg.content[0]?.text || '';
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('Clustering returned no JSON');
   const parsed = JSON.parse(match[0]);
@@ -238,8 +242,8 @@ export default async function handler(req, res) {
   const newsdataKey = process.env.NEWSDATA_API_KEY;
   const gnewsKey    = process.env.GNEWS_API_KEY;
 
-  if (!newsdataKey)                 return res.json({ error: 'NEWSDATA_API_KEY not configured' });
-  if (!process.env.GEMINI_API_KEY) return res.json({ error: 'GEMINI_API_KEY not configured' });
+  if (!newsdataKey)                    return res.json({ error: 'NEWSDATA_API_KEY not configured' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const forceRefresh = req.query?.refresh === '1';
 

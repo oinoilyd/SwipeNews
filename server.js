@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import fetch from 'node-fetch';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -9,6 +9,8 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Media Bias Database — keyed by newsdata.io source_id or normalized name ───
 const MEDIA_BIAS = {
@@ -215,10 +217,8 @@ async function fetchESPN(url) {
   }
 }
 
-// ── Cluster articles into topics using Gemini Flash ──────────────────────────
+// ── Cluster articles into topics using Claude ─────────────────────────────────
 async function clusterArticles(articles) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   const list = articles
     .map((a, i) => {
@@ -228,8 +228,12 @@ async function clusterArticles(articles) {
     })
     .join('\n');
 
-  const result = await model.generateContent(
-    `Cluster these ${articles.length} news articles into 20-35 major ongoing topics.
+  const msg = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4096,
+    messages: [{
+      role: 'user',
+      content: `Cluster these ${articles.length} news articles into 20-35 major ongoing topics.
 
 Return ONLY valid JSON, no markdown:
 {"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"US Politics|World|Policy|Economy|National Security|Elections|Technology|Health|Sports & Culture","articleIndices":[0,1,2,3]}]}
@@ -255,10 +259,11 @@ Rules:
 - Order topics by descending newsworthiness (highest-priority first):
   1. National Security  2. Policy & Legislation  3. World  4. Economy
   5. Elections & Politics  6. US Politics  7. Technology  8. Health  9. Sports & Culture
-- Minimum newsworthiness bar: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial topics into broader ones or discard them. EXCEPTION: articles tagged [Sports & Culture] must always produce at least 3-5 Sports & Culture topics regardless of this filter — sports news belongs in the app even if it wouldn't make the front page.`
-  );
+- Minimum newsworthiness bar: only include topics that would plausibly appear on the front page of NYT, WSJ, or BBC. Skip celebrity gossip, lifestyle trends, parenting advice, entertainment opinions, product reviews, and human interest fluff. Merge trivial topics into broader ones or discard them. EXCEPTION: articles tagged [Sports & Culture] must always produce at least 3-5 Sports & Culture topics regardless of this filter — sports news belongs in the app even if it wouldn't make the front page.`,
+    }],
+  });
 
-  const text = result.response.text().trim();
+  const text = msg.content[0]?.text?.trim() || '';
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Clustering returned no JSON');
   const parsed = JSON.parse(jsonMatch[0]);
@@ -433,8 +438,8 @@ app.get('/api/clustered-news', async (req, res) => {
 
 // ── /api/generate-takes ────────────────────────────────────────────────────────
 app.post('/api/generate-takes', async (req, res) => {
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
   }
 
   const { topic, position } = req.body || {};
@@ -497,10 +502,13 @@ ${fmt(otherArts)}
 Return ONLY valid JSON:
 {"take":{"position":${position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"Brief framing note"}]}}`;
 
-    const genAI  = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model  = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const result = await model.generateContent(prompt);
-    const text   = result.response.text();
+    const msg  = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = msg.content[0]?.text || '';
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('No JSON in Claude response');
 

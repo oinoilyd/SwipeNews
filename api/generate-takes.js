@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { redis, takeKey } from '../lib/redis.js';
 
 const TAKE_POSITIONS = [
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const { topic, position } = req.body || {};
 
@@ -92,12 +92,11 @@ export default async function handler(req, res) {
       return res.json({ take: rCached, fromCache: true });
     }
   } catch (err) {
-    console.warn('Redis read failed, falling back to Gemini:', err.message);
+    console.warn('Redis read failed, falling back to Claude:', err.message);
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
     const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
@@ -143,11 +142,15 @@ ${fmt(otherArts)}
 Return ONLY valid JSON:
 {"take":{"position":${position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
-    const result = await model.generateContent(prompt);
-    const text   = result.response.text();
+    const msg  = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{ role: 'user', content: prompt }],
+    });
 
+    const text  = msg.content[0]?.text || '';
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('No JSON in Gemini response');
+    if (!match) throw new Error('No JSON in Claude response');
 
     const parsed = JSON.parse(match[0]);
     if (!parsed.take) throw new Error('No take in response');
