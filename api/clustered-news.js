@@ -52,6 +52,40 @@ const DOMAIN_GROUPS = {
   right:   'foxnews.com,nypost.com,breitbart.com,washingtontimes.com',
 };
 
+// ── RSS feed sources — no API key required ────────────────────────────────────
+// score: -3=Far Left, -2=Left, -1=Center-Left, 0=Center, 1=Center-Right, 2=Right, 3=Far Right
+const RSS_SOURCES = [
+  // Far Left
+  { name: 'MSNBC',               url: 'http://www.msnbc.com/feeds/latest',                               score: -3, label: 'Far Left',    color: '#2563eb' },
+  { name: 'Mother Jones',        url: 'https://www.motherjones.com/feed/',                               score: -3, label: 'Far Left',    color: '#2563eb' },
+  // Left
+  { name: 'CNN',                 url: 'http://rss.cnn.com/rss/cnn_topstories.rss',                       score: -2, label: 'Left',        color: '#3b82f6' },
+  { name: 'Slate',               url: 'https://slate.com/feeds/all.rss',                                 score: -2, label: 'Left',        color: '#3b82f6' },
+  // Center-Left
+  { name: 'NPR',                 url: 'https://feeds.npr.org/1001/rss.xml',                              score: -1, label: 'Center-Left', color: '#60a5fa' },
+  { name: 'The Atlantic',        url: 'https://feeds.feedburner.com/TheAtlantic',                        score: -1, label: 'Center-Left', color: '#60a5fa' },
+  { name: 'Washington Post',     url: 'https://feeds.washingtonpost.com/rss/national',                   score: -1, label: 'Center-Left', color: '#60a5fa' },
+  { name: 'The New York Times',  url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml',       score: -1, label: 'Center-Left', color: '#60a5fa' },
+  { name: 'NBC News',            url: 'https://feeds.nbcnews.com/nbcnews/public/news',                   score: -1, label: 'Center-Left', color: '#60a5fa' },
+  { name: 'ABC News',            url: 'https://feeds.abcnews.com/abcnews/topstories',                    score: -1, label: 'Center-Left', color: '#60a5fa' },
+  { name: 'BBC',                 url: 'http://feeds.bbci.co.uk/news/rss.xml',                            score: -1, label: 'Center-Left', color: '#60a5fa' },
+  // Center
+  { name: 'AP News',             url: 'https://feeds.apnews.com/rss/topnews',                            score:  0, label: 'Center',      color: '#a78bfa' },
+  { name: 'Reuters',             url: 'https://feeds.reuters.com/reuters/topNews',                       score:  0, label: 'Center',      color: '#a78bfa' },
+  { name: 'Axios',               url: 'https://api.axios.com/feed/',                                     score:  0, label: 'Center',      color: '#a78bfa' },
+  { name: 'Politico',            url: 'https://www.politico.com/rss/politicopicks.xml',                  score:  0, label: 'Center',      color: '#a78bfa' },
+  { name: 'The Hill',            url: 'https://thehill.com/feed',                                        score:  0, label: 'Center',      color: '#a78bfa' },
+  // Center-Right
+  { name: 'Wall Street Journal', url: 'https://feeds.a.wsj.com/rss/RSSWorldNews',                       score:  1, label: 'Center-Right', color: '#fb923c' },
+  // Right
+  { name: 'New York Post',       url: 'https://nypost.com/feed/',                                        score:  2, label: 'Right',       color: '#ef4444' },
+  { name: 'Fox News',            url: 'https://moxie.foxnews.com/google-publisher/latest.xml',           score:  2, label: 'Right',       color: '#ef4444' },
+  // Far Right
+  { name: 'The Federalist',      url: 'https://thefederalist.com/feed/',                                 score:  3, label: 'Far Right',   color: '#dc2626' },
+  { name: 'Daily Wire',          url: 'https://www.dailywire.com/feeds/rss.xml',                         score:  3, label: 'Far Right',   color: '#dc2626' },
+  { name: 'Breitbart',           url: 'https://feeds.feedburner.com/breitbart',                          score:  3, label: 'Far Right',   color: '#dc2626' },
+];
+
 // ── Module-level cache ────────────────────────────────────────────────────────
 let cachedTopics = null;
 let cacheTimestamp = 0;
@@ -162,6 +196,87 @@ async function fetchESPN(url, max = 5) {
       }));
   } catch (err) {
     console.warn('fetchESPN failed:', err.message);
+    return [];
+  }
+}
+
+// ── RSS helpers ───────────────────────────────────────────────────────────────
+function extractXMLTag(xml, tag) {
+  const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
+  const m = xml.match(re);
+  if (!m) return '';
+  const raw = m[1].trim();
+  const cdata = raw.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
+  return cdata ? cdata[1].trim() : raw;
+}
+
+function extractRSSLink(itemXml) {
+  // Atom: <link href="url"/>
+  const atom = itemXml.match(/<link[^>]+href=["']([^"']+)["']/i);
+  if (atom) return atom[1];
+  // RSS 2.0: <link>url</link>
+  const rss = itemXml.match(/<link>([^<]+)<\/link>/i);
+  if (rss) return rss[1].trim();
+  return '';
+}
+
+function stripHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+async function fetchRSS({ name, url, score, label, color }, max = 15) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'SwipeNews/1.0 RSS Reader' },
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      console.warn(`RSS [${name}]: HTTP ${res.status}`);
+      return [];
+    }
+
+    const xml   = await res.text();
+    const items = [];
+    const re    = /<item>([\s\S]*?)<\/item>|<entry>([\s\S]*?)<\/entry>/gi;
+    let m;
+    while ((m = re.exec(xml)) !== null && items.length < max) {
+      const chunk = m[1] || m[2];
+      const title = stripHtml(extractXMLTag(chunk, 'title'));
+      const link  = extractRSSLink(chunk);
+      if (!title || !link) continue;
+
+      const desc     = stripHtml(
+        extractXMLTag(chunk, 'description') ||
+        extractXMLTag(chunk, 'summary')     ||
+        extractXMLTag(chunk, 'content')
+      ) || title;
+      const pubRaw   = extractXMLTag(chunk, 'pubDate')   ||
+                       extractXMLTag(chunk, 'published') ||
+                       extractXMLTag(chunk, 'updated');
+      let publishedAt = null;
+      try { if (pubRaw) publishedAt = new Date(pubRaw).toISOString(); } catch { /* ignore */ }
+
+      items.push({
+        title, description: desc, source: name, url: link,
+        urlToImage:  null,
+        publishedAt,
+        bias:        { score, label, color },
+        fetchCategory: null,
+      });
+    }
+    console.log(`RSS [${name}]: ${items.length} articles`);
+    return items;
+  } catch (err) {
+    console.warn(`RSS [${name}]: ${err.message}`);
     return [];
   }
 }
@@ -319,6 +434,8 @@ export default async function handler(req, res) {
       fetchESPN('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/news'),
       fetchESPN('https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/news'),
       fetchESPN('https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/news'),
+      // ── RSS — no API key required ─────────────────────────────────────────────
+      ...RSS_SOURCES.map(src => fetchRSS(src)),
     ]);
 
     const BATCH_LABELS = [
@@ -327,6 +444,7 @@ export default async function handler(req, res) {
       'ND:crime','ND:top','ND:intl_politics',
       ...(gnewsKey ? ['GN:nation','GN:world','GN:business','GN:tech','GN:health','GN:sports'] : []),
       'ESPN:nfl','ESPN:nba','ESPN:mlb','ESPN:nhl','ESPN:soccer',
+      ...RSS_SOURCES.map(src => `RSS:${src.name}`),
     ];
 
     const batches = results.map((r, i) => {
@@ -407,6 +525,14 @@ export default async function handler(req, res) {
         ));
         const perspectiveMode = (articles.length >= 3 && tiers.size >= 2) ? 'full' : 'limited';
 
+        // ── Bias distribution — stored per topic for transparency & ranking ────
+        const biasCounts = { left: 0, center: 0, right: 0 };
+        articles.forEach(a => {
+          if      (a.bias.score <= -1) biasCounts.left++;
+          else if (a.bias.score >=  1) biasCounts.right++;
+          else                         biasCounts.center++;
+        });
+
         const img = articles.find(a => a.urlToImage);
 
         return {
@@ -417,6 +543,7 @@ export default async function handler(req, res) {
           urlToImage:        img?.urlToImage  || null,
           latestPublishedAt,
           perspectiveMode,
+          biasCounts,
           articles: articles.map(a => ({
             title:       a.title,
             description: a.description,
@@ -430,12 +557,25 @@ export default async function handler(req, res) {
 
     if (!topics.length) throw new Error('No valid topics passed quality filters');
 
-    // Sort topics by recency — newest latestPublishedAt first, undated topics last
+    // Sort topics by recency + bias spread bonus
+    // Cross-spectrum coverage (both left & right sources) boosts a topic as if
+    // it were 2h newer per cross-spectrum source pair — keeps trending relevant
+    // while surfacing stories that the full spectrum is covering.
     topics.sort((a, b) => {
-      if (!a.latestPublishedAt && !b.latestPublishedAt) return 0;
+      const aMs = a.latestPublishedAt ? new Date(a.latestPublishedAt).getTime() : 0;
+      const bMs = b.latestPublishedAt ? new Date(b.latestPublishedAt).getTime() : 0;
+      // Spread = number of matched left+right source pairs (min of each side)
+      const aSpread = Math.min(a.biasCounts?.left || 0, a.biasCounts?.right || 0);
+      const bSpread = Math.min(b.biasCounts?.left || 0, b.biasCounts?.right || 0);
+      // Each spread pair = 2h boost (in ms)
+      const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+      const aScore = aMs + aSpread * TWO_HOURS_MS;
+      const bScore = bMs + bSpread * TWO_HOURS_MS;
+      if (bScore !== aScore) return bScore - aScore;
+      // Tiebreak: undated last
       if (!a.latestPublishedAt) return 1;
       if (!b.latestPublishedAt) return -1;
-      return b.latestPublishedAt.localeCompare(a.latestPublishedAt);
+      return 0;
     });
 
     const finalCats = {};
