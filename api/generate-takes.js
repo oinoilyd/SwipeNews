@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { redis, takeKey } from '../lib/redis.js';
 
 const TAKE_POSITIONS = [
@@ -28,8 +28,6 @@ const TECH_VOICE = {
 };
 
 // ── Political perspectives (one per position -3 to 3) ─────────────────────────
-// What a thoughtful person from each political tradition would actually focus on —
-// not a thesaurus rewrite, but a genuinely different worldview and set of concerns.
 const POSITION_VOICE = {
   '-3': `You are writing from a FAR LEFT worldview. Center your analysis on class struggle, systemic oppression, corporate power, and anti-imperialism. On immigration: migrants are displaced by US foreign policy and corporate exploitation — enforcement is state violence against the vulnerable. On economy: inequality is a feature, not a bug, of capitalism. On national security: the military-industrial complex profits from endless war. Sound like a democratic socialist who reads Jacobin and The Intercept.`,
   '-2': `You are writing from a LEFT-LIBERAL worldview. Emphasize systemic racism, climate urgency, healthcare and housing as human rights, and immigration as both a humanitarian obligation and economic asset. On immigration: highlight family separation, DACA, economic contributions. On economy: the rich aren't paying their fair share; invest in people. Sound like a mainstream progressive Democrat — think AOC or a New York Times opinion columnist.`,
@@ -68,7 +66,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
 
   const { topic, position } = req.body || {};
 
@@ -81,7 +79,7 @@ export default async function handler(req, res) {
 
   const meta = TAKE_POSITIONS.find(p => p.position === position);
 
-  // ── Cache check: in-memory → Redis → Claude ──────────────────────────────
+  // ── Cache check: in-memory → Redis → Gemini ──────────────────────────────
   const key = cacheKey(topic, position);
   const inMem = getCached(key);
   if (inMem) return res.json({ take: inMem, fromCache: true });
@@ -94,11 +92,12 @@ export default async function handler(req, res) {
       return res.json({ take: rCached, fromCache: true });
     }
   } catch (err) {
-    console.warn('Redis read failed, falling back to Claude:', err.message);
+    console.warn('Redis read failed, falling back to Gemini:', err.message);
   }
 
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
     const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
@@ -144,15 +143,11 @@ ${fmt(otherArts)}
 Return ONLY valid JSON:
 {"take":{"position":${position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
-    const msg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 500,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const result = await model.generateContent(prompt);
+    const text   = result.response.text();
 
-    const text  = msg.content[0]?.text || '';
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('No JSON in Claude response');
+    if (!match) throw new Error('No JSON in Gemini response');
 
     const parsed = JSON.parse(match[0]);
     if (!parsed.take) throw new Error('No take in response');

@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { redis, takeKey } from '../lib/redis.js';
 
 const TAKE_POSITIONS = [
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
 
   const { topic, position } = req.body || {};
   if (!topic?.title || !Array.isArray(topic?.articles)) {
@@ -69,8 +69,9 @@ export default async function handler(req, res) {
       return res.end();
     }
 
-    // Stream from Claude
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    // Stream from Gemini
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
     const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
@@ -117,15 +118,11 @@ Return ONLY valid JSON:
 
     let fullText = '';
 
-    const stream = await client.messages.stream({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 500,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const streamResult = await model.generateContentStream(prompt);
 
-    for await (const chunk of stream) {
-      if (chunk.type === 'content_block_delta' && chunk.delta?.type === 'text_delta') {
-        const token = chunk.delta.text;
+    for await (const chunk of streamResult.stream) {
+      const token = chunk.text();
+      if (token) {
         fullText += token;
         send(res, { token });
       }

@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { redis, takeKey } from '../lib/redis.js';
 
 const TAKE_POSITIONS = [
@@ -40,7 +40,7 @@ async function batch(items, fn, concurrency = 10) {
   return results;
 }
 
-async function generateTake(client, topic, meta) {
+async function generateTake(model, topic, meta) {
   const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
   const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
   const rightArts  = topic.articles.filter(a => (a.bias?.score ?? 0) >= 1);
@@ -84,15 +84,11 @@ ${fmt(otherArts)}
 Return ONLY valid JSON:
 {"take":{"position":${meta.position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
-  const msg = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 500,
-    messages: [{ role: 'user', content: prompt }],
-  });
+  const result = await model.generateContent(prompt);
+  const text   = result.response.text();
 
-  const text  = msg.content[0]?.text || '';
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON in Claude response');
+  if (!match) throw new Error('No JSON in Gemini response');
 
   const parsed = JSON.parse(match[0]);
   if (!parsed.take) throw new Error('No take in response');
@@ -101,15 +97,15 @@ Return ONLY valid JSON:
 }
 
 // ── Must match CACHE_VERSION in clustered-news.js ─────────────────────────────
-const TOPICS_CACHE_KEY = 'sn:topics:v6';
+const TOPICS_CACHE_KEY = 'sn:topics:v7';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.json({ ok: false, message: 'ANTHROPIC_API_KEY not configured' });
+  if (!process.env.GEMINI_API_KEY) {
+    return res.json({ ok: false, message: 'GEMINI_API_KEY not configured' });
   }
 
   try {
@@ -120,12 +116,12 @@ export default async function handler(req, res) {
       topics = cachedTopics;
       console.log(`pregenerate: loaded ${topics.length} topics from Redis`);
     } else {
-      // No cached topics yet — skip pregeneration, nothing to warm
       console.log('pregenerate: no topics in Redis cache yet, skipping');
       return res.json({ ok: false, message: 'No topics in cache — run /api/clustered-news first', skipped: true });
     }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     let generated = 0;
     let cached    = 0;
@@ -148,7 +144,7 @@ export default async function handler(req, res) {
           return;
         }
 
-        const take = await generateTake(client, topic, meta);
+        const take = await generateTake(model, topic, meta);
         await redis.set(rKey, take, { ex: 7200 });
         generated++;
       } catch (err) {
@@ -166,7 +162,6 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
-    // Never surface a 500 to the client — log it and return a graceful 200
     console.error('pregenerate error:', err);
     return res.json({ ok: false, message: err.message || 'Pregenerate failed — stale cache will continue serving' });
   }
