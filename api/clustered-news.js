@@ -264,11 +264,11 @@ export default async function handler(req, res) {
         if (age < TWO_HOURS) {
           return res.json({ topics: rTopics, fromCache: true });
         }
-        // Stale-while-revalidate: return old immediately, trigger background refresh
+        // Stale-while-revalidate: return old immediately, trigger background topic refresh
         const baseUrl = process.env.VERCEL_URL
           ? `https://${process.env.VERCEL_URL}`
           : 'http://localhost:3000';
-        fetch(`${baseUrl}/api/pregenerate`, { method: 'POST' }).catch(() => {});
+        fetch(`${baseUrl}/api/clustered-news?refresh=1`).catch(() => {});
         return res.json({ topics: rTopics, fromCache: true, stale: true });
       }
       console.log('Redis cache miss — fetching fresh data');
@@ -441,6 +441,23 @@ export default async function handler(req, res) {
     const finalCats = {};
     topics.forEach(t => { finalCats[t.category] = (finalCats[t.category] || 0) + 1; });
     console.log(`Final: ${topics.length} topics by category:`, finalCats);
+
+    // ── Quality gate: don't overwrite Redis with sports-only results ────────────
+    // If all news APIs were rate-limited, we only get ESPN (sports). In that case,
+    // serve existing Redis data (however old) rather than poisoning the cache.
+    const hasNonSports = topics.some(t => t.category !== 'Sports & Culture');
+    if (!hasNonSports) {
+      console.log('Fresh fetch returned sports-only — news APIs likely rate-limited');
+      try {
+        const existing = await redis.get(REDIS_KEY);
+        if (existing?.length && existing.some(t => t.category !== 'Sports & Culture')) {
+          console.log(`Serving existing ${existing.length} Redis topics instead (sports-only not cached)`);
+          return res.json({ topics: existing, fromCache: true, stale: true });
+        }
+      } catch { /* ignore Redis errors */ }
+      console.log('No non-sports Redis fallback available — serving sports-only without caching');
+      return res.json({ topics, fromCache: false, sportsOnly: true });
+    }
 
     cachedTopics   = topics;
     cacheTimestamp = Date.now();
