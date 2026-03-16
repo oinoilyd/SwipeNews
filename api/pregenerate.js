@@ -101,7 +101,7 @@ Return ONLY valid JSON:
 }
 
 // ── Must match CACHE_VERSION in clustered-news.js ─────────────────────────────
-const TOPICS_CACHE_KEY = 'sn:topics:v7';
+const TOPICS_CACHE_KEY = 'sn:topics:v8';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

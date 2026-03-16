@@ -58,7 +58,7 @@ let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 
 // ── Cache version — bump to auto-invalidate stale Redis data ─────────────────
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 
 // ── Title-similarity deduplication helpers ────────────────────────────────────
 const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','are','were']);

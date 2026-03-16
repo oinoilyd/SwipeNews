@@ -239,7 +239,7 @@ export default function SwipeCard({
   // ── NEUTRAL CARD ──────────────────────────────────────────────────────────
   if (isNeutral) {
     return (
-      <div className="swipe-card neutral-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
+      <div className="swipe-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
         {renderImage('neutral')}
         <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
           {scrollHint}
