@@ -218,7 +218,7 @@ async function fetchESPN(url) {
 // ── Cluster articles into topics using Gemini Flash ──────────────────────────
 async function clusterArticles(articles) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   const list = articles
     .map((a, i) => {
@@ -498,7 +498,7 @@ Return ONLY valid JSON:
 {"take":{"position":${position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"Brief framing note"}]}}`;
 
     const genAI  = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model  = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model  = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result = await model.generateContent(prompt);
     const text   = result.response.text();
     const match = text.match(/\{[\s\S]*\}/);
