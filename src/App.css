@@ -1349,8 +1349,7 @@ body {
 .spectrum-mode-indicator {
   position: relative;
   display: flex;
-  justify-content: center;
-  margin-top: 2px;
+  align-items: center;
 }
 .spectrum-mode-btn {
   background: none;

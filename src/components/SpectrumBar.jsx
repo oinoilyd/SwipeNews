@@ -103,27 +103,20 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
           <>
             <span className="spectrum-label-left">◀ Liberal</span>
             <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
-            <span className="spectrum-label-right">Conservative ▶</span>
+            <div className="spectrum-mode-indicator">
+              {isLimited && (
+                <button className="spectrum-mode-btn" onClick={showModeTooltip}>⚠</button>
+              )}
+              {modeTooltip && (
+                <span className="spectrum-mode-tooltip">
+                  Limited coverage — only Left, Neutral &amp; Right available
+                </span>
+              )}
+              {!isLimited && <span className="spectrum-label-right">Conservative ▶</span>}
+            </div>
           </>
         )}
       </div>
-
-
-      {/* Mode indicator — tap for tooltip */}
-      {(isSports || isTech || isLimited) && (
-        <div className="spectrum-mode-indicator">
-          <button className="spectrum-mode-btn" onClick={showModeTooltip}>
-            {isSports ? '🏆' : isTech ? '💻' : '⚠'}
-          </button>
-          {modeTooltip && (
-            <span className="spectrum-mode-tooltip">
-              {isSports && 'Sports topic — Fan, Neutral & Business perspectives'}
-              {isTech   && 'Tech topic — Optimist, Skeptic, Neutral & Industry perspectives'}
-              {isLimited && 'Limited coverage — only Left, Neutral & Right available'}
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
