@@ -90,6 +90,7 @@ export default function App() {
   const [showTopicDrawer,    setShowTopicDrawer]    = useState(false);
   const [showTrendingDrawer, setShowTrendingDrawer] = useState(false);
   const [headerCollapsed,    setHeaderCollapsed]    = useState(false);
+  const [trendingTitles,     setTrendingTitles]     = useState(new Set());
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -102,13 +103,15 @@ export default function App() {
   const filteredTopics = useMemo(() => {
     if (activeCategories.length === 0) return topicShells;
     const hasPoliticsMeta = activeCategories.includes('Politics');
+    const hasTop10        = activeCategories.includes('Top 10');
     return topicShells.filter(t => {
       const cat = t.category || 'US Politics';
+      if (hasTop10 && trendingTitles.has(t.title)) return true;
       if (activeCategories.includes(cat)) return true;
       if (hasPoliticsMeta && POLITICAL_CATS.includes(cat)) return true;
       return false;
     });
-  }, [topicShells, activeCategories]);
+  }, [topicShells, activeCategories, trendingTitles]);
 
   // ── Time-filtered topic list (by recency window) ──────────────────────────
   const timeFilteredTopics = useMemo(() => {
@@ -301,6 +304,34 @@ export default function App() {
     }
   }, [storeTake, fetchStreamTake]);
 
+  // ── Fetch trending titles whenever topicShells refreshes ─────────────────
+  useEffect(() => {
+    if (!topicShells.length) return;
+    const payload = topicShells
+      .filter(t => t.category !== 'Sports & Culture')
+      .map(t => ({ title: t.title, articleCount: t.articles?.length ?? 0 }));
+    fetch('/api/trending', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ topics: payload }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.trending?.length) {
+          setTrendingTitles(new Set(data.trending.map(r => r.title)));
+        }
+      })
+      .catch(() => {
+        // Fallback: article-count ranking
+        const top10 = [...topicShells]
+          .filter(t => t.category !== 'Sports & Culture')
+          .sort((a, b) => (b.articles?.length ?? 0) - (a.articles?.length ?? 0))
+          .slice(0, 10)
+          .map(t => t.title);
+        setTrendingTitles(new Set(top10));
+      });
+  }, [topicShells]);
+
   // ── On topic change: prefetch neutral for current topic only ─────────────
   useEffect(() => {
     if (!timeFilteredTopics.length) return;
@@ -435,7 +466,7 @@ export default function App() {
 
   const handleTrendingSelect = useCallback((topic) => {
     setShowTrendingDrawer(false);
-    const index = topicShells.findIndex(t => t.id === topic.id);
+    const index = topicShells.findIndex(t => t.title === topic.title || t.id === topic.id);
     if (index !== -1) {
       setActiveCategories([]);
       setCurrentTopicIndex(index);
@@ -505,6 +536,7 @@ export default function App() {
           activeCategories={activeCategories}
           onToggle={handleCategoryToggle}
           topicShells={topicShells}
+          trendingCount={trendingTitles.size}
         />
       </div>
 
