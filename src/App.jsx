@@ -538,7 +538,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="app-footer">
+      <footer className={`app-footer${headerCollapsed ? ' collapsed' : ''}`}>
         <a href="mailto:swipenews@test.com" className="footer-link">swipenews@test.com</a>
         <span>© {new Date().getFullYear()} SwipeNews</span>
       </footer>
