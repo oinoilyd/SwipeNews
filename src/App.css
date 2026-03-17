@@ -264,6 +264,8 @@ body {
   height: 220px;
   flex-shrink: 0;
   overflow: hidden;
+  /* Vertical swipes on the image navigate topics, not scroll the card */
+  touch-action: pan-x;
 }
 
 .card-image {
@@ -310,6 +312,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Same as image: vertical swipes here navigate topics */
+  touch-action: pan-x;
 }
 
 .card-no-image-header .topic-category-badge {

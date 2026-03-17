@@ -17,28 +17,66 @@ export default function CardStack({
   perspectiveMode,
   onScrollChange,
 }) {
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
+  const touchStartX      = useRef(null);
+  const touchStartY      = useRef(null);
+  const touchStartTime   = useRef(null);
+  const touchStartTarget = useRef(null);
 
-  // Only track horizontal swipes for perspective changes.
-  // Topic navigation is via explicit ↑ / ↓ buttons — no more vertical swipe.
   const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
+    touchStartX.current      = e.touches[0].clientX;
+    touchStartY.current      = e.touches[0].clientY;
+    touchStartTime.current   = Date.now();
+    touchStartTarget.current = e.target;
   };
 
   const handleTouchEnd = (e) => {
     if (touchStartX.current === null) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
-    touchStartX.current = null;
-    touchStartY.current = null;
 
-    // Horizontal swipe only — must be dominant axis and ≥ 55px
-    if (Math.abs(dx) >= 55 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    const dx          = e.changedTouches[0].clientX - touchStartX.current;
+    const dy          = e.changedTouches[0].clientY - touchStartY.current;
+    const dt          = Math.max(Date.now() - touchStartTime.current, 1);
+    const savedTarget = touchStartTarget.current;
+
+    touchStartX.current      = null;
+    touchStartY.current      = null;
+    touchStartTime.current   = null;
+    touchStartTarget.current = null;
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // ── Horizontal swipe → change perspective ────────────────────────────────
+    if (absDx >= 55 && absDx > absDy * 1.5) {
       if (dx < 0) onTakeRight();
       else        onTakeLeft();
+      return;
     }
+
+    // ── Vertical swipe → navigate topics ─────────────────────────────────────
+    // Must be clearly vertical and at least 80px
+    if (absDy < 80 || absDy < absDx * 2) return;
+
+    // Determine where the touch started
+    const inCardContent = savedTarget?.closest?.('.card-content');
+
+    if (inCardContent) {
+      // Inside the text / scrollable area: require boundary + velocity so
+      // normal reading scrolls never accidentally flip topics.
+      const cardBody = inCardContent.closest?.('.card-body');
+      if (cardBody) {
+        const atTop    = cardBody.scrollTop <= 5;
+        const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 20;
+        if (dy < 0 && !atBottom) return;  // still content below — keep scrolling
+        if (dy > 0 && !atTop)    return;  // still content above — keep scrolling
+      }
+      // Velocity gate: must be a deliberate flick (≥ 0.35 px/ms = ~350 px/s)
+      if (absDy / dt < 0.35) return;
+    }
+    // Outside the text area (image, header, spectrum bar, nav bar):
+    // any 80px+ vertical gesture navigates — no scroll conflict there.
+
+    if (dy < 0) onNextTopic();
+    else        onPrevTopic();
   };
 
   return (
@@ -66,7 +104,7 @@ export default function CardStack({
         />
       </div>
 
-      {/* Topic navigation — explicit tap buttons */}
+      {/* Topic navigation — explicit tap buttons + counter */}
       <div className="topic-nav-bar">
         <button
           className="topic-nav-btn"
