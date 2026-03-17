@@ -4,7 +4,7 @@ import Header from './components/Header';
 import LoadingScreen from './components/LoadingScreen';
 import TopicDrawer from './components/TopicDrawer';
 import TrendingDrawer from './components/TrendingDrawer';
-import CategoryFilter from './components/CategoryFilter';
+import CategoryFilter, { POLITICAL_CATS } from './components/CategoryFilter';
 import TimeFilter from './components/TimeFilter';
 import './App.css';
 
@@ -98,11 +98,17 @@ export default function App() {
   const topBarHeightRef    = useRef(null);
 
   // ── Filtered topic list (by category) ────────────────────────────────────
-  const filteredTopics = useMemo(() =>
-    activeCategories.length === 0
-      ? topicShells
-      : topicShells.filter(t => activeCategories.includes(t.category)),
-  [topicShells, activeCategories]);
+  // "Politics" is a meta-category — it expands to all political sub-categories.
+  const filteredTopics = useMemo(() => {
+    if (activeCategories.length === 0) return topicShells;
+    const hasPoliticsMeta = activeCategories.includes('Politics');
+    return topicShells.filter(t => {
+      const cat = t.category || 'US Politics';
+      if (activeCategories.includes(cat)) return true;
+      if (hasPoliticsMeta && POLITICAL_CATS.includes(cat)) return true;
+      return false;
+    });
+  }, [topicShells, activeCategories]);
 
   // ── Time-filtered topic list (by recency window) ──────────────────────────
   const timeFilteredTopics = useMemo(() => {
