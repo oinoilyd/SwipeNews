@@ -139,12 +139,21 @@ export default function CardStack({
     const absDy = Math.abs(dy);
 
     // ── Top-zone gesture: restore collapsed header ────────────────────────────
-    if (headerCollapsed && startY < 72) {
-      const isTap           = absDx < 22 && absDy < 22;
-      const isVerticalSwipe = absDy > 30 && absDy > absDx * 1.3;
-      if (isTap || isVerticalSwipe) {
-        onRestoreHeader?.();
-        return;
+    if (headerCollapsed) {
+      // Measure the actual spectrum bar bottom so the zone is layout-independent
+      const specEl = cardAreaRef.current?.parentElement?.querySelector('.spectrum-bar-wrapper');
+      const zoneBottom = specEl ? specEl.getBoundingClientRect().bottom + 10 : 130;
+
+      if (startY <= zoneBottom) {
+        const onPip = savedTarget?.closest?.('.spectrum-pip'); // let pip taps through
+        if (!onPip) {
+          const isTap           = absDx < 22 && absDy < 22;
+          const isVerticalSwipe = absDy > 30 && absDy > absDx * 1.3;
+          if (isTap || isVerticalSwipe) {
+            onRestoreHeader?.();
+            return;
+          }
+        }
       }
     }
 
