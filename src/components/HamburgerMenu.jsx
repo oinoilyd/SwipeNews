@@ -1,4 +1,10 @@
-export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo }) {
+const TIME_OPTIONS = [
+  { value: '24h', label: 'Last 24 Hours' },
+  { value: '48h', label: 'Last 48 Hours' },
+  { value: '72h', label: 'Last 72 Hours' },
+];
+
+export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, timeFilter, onTimeFilterChange }) {
   const items = [
     { label: 'Profile',             icon: '👤', disabled: true,  note: 'Coming soon' },
     { label: '🔥 Top 10 Trending',  disabled: false, action: () => { onShowTrending(); onClose(); } },
@@ -14,6 +20,23 @@ export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo }) {
           <span className="hamburger-title">Menu</span>
           <button className="hamburger-close" onClick={onClose} aria-label="Close menu">✕</button>
         </div>
+
+        {/* Time range filter */}
+        <div className="hamburger-section">
+          <span className="hamburger-section-label">Time Range</span>
+          <div className="hamburger-time-options">
+            {TIME_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`hamburger-time-btn${timeFilter === opt.value ? ' active' : ''}`}
+                onClick={() => onTimeFilterChange?.(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <nav className="hamburger-nav">
           {items.map((item, i) => (
             <button

@@ -31,9 +31,13 @@ body {
   background: var(--bg);
 }
 
-/* ── Collapsible top bar (header + filters) ─────────────────────────────── */
+/* ── Top bar: category filter always visible; only header row collapses ─── */
 .top-bar {
   flex-shrink: 0;
+}
+
+/* Only the header row animates in/out */
+.header-row-collapsible {
   overflow: hidden;
   transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1379,6 +1383,49 @@ body {
   font-size: 0.72rem;
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* Time range section inside hamburger */
+.hamburger-section {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.hamburger-section-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.hamburger-time-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hamburger-time-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.hamburger-time-btn:hover {
+  background: rgba(255,255,255,0.07);
+  color: var(--text);
+}
+.hamburger-time-btn.active {
+  background: rgba(167,139,250,0.15);
+  border-color: #a78bfa66;
+  color: #c4b5fd;
+  font-weight: 600;
 }
 
 /* ── Trending drawer ── */

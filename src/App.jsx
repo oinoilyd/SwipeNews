@@ -489,20 +489,23 @@ export default function App() {
 
   return (
     <div className="app">
-      <div ref={topBarRef} className="top-bar">
-        <Header
-          onRefresh={handleManualRefresh}
-          onShowTopics={() => setShowTopicDrawer(true)}
-          onShowTrending={() => setShowTrendingDrawer(true)}
-        />
+      <div className="top-bar">
+        {/* Only the header row collapses — category filter stays visible */}
+        <div ref={topBarRef} className="header-row-collapsible">
+          <Header
+            onRefresh={handleManualRefresh}
+            onShowTopics={() => setShowTopicDrawer(true)}
+            onShowTrending={() => setShowTrendingDrawer(true)}
+            timeFilter={timeFilter}
+            onTimeFilterChange={setTimeFilter}
+          />
+        </div>
 
         <CategoryFilter
           activeCategories={activeCategories}
           onToggle={handleCategoryToggle}
           topicShells={topicShells}
         />
-
-        <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
       </div>
 
       <main className="main">
