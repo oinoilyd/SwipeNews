@@ -25,7 +25,20 @@ export default function LoadingScreen({ stage = 0 }) {
     <div className="loading-screen">
       <div className="loading-content">
         <div className="loading-logo">
-          <span className="logo-icon-large">📰</span>
+          <svg width="64" height="64" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="ls-pg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#6d28d9" />
+                <stop offset="100%" stopColor="#c4b5fd" />
+              </linearGradient>
+              <filter id="ls-glow">
+                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            <rect width="28" height="28" rx="7" fill="url(#ls-pg)" filter="url(#ls-glow)" />
+            <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
+          </svg>
         </div>
         <h1 className="loading-title">Perspectiv</h1>
         <p className="loading-subtitle">{STAGES[Math.min(stage, STAGES.length - 1)]}</p>

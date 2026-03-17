@@ -17,7 +17,16 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending, timeFi
           >
             ☰
           </button>
-          <span className="logo-icon">📰</span>
+          <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="hdr-pg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#6d28d9" />
+                <stop offset="100%" stopColor="#c4b5fd" />
+              </linearGradient>
+            </defs>
+            <rect width="28" height="28" rx="7" fill="url(#hdr-pg)" />
+            <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
+          </svg>
           <span className="logo-text">Perspectiv</span>
         </div>
 
