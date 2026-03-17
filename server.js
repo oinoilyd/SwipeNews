@@ -548,6 +548,20 @@ app.post('/api/votes', (req, res) => {
   res.json(v);
 });
 
+// ── Trending endpoint (dev — ranks by devVotes net score, article count as tiebreaker) ──
+app.post('/api/trending', (req, res) => {
+  const { topics } = req.body || {};
+  if (!Array.isArray(topics)) return res.status(400).json({ error: 'topics array required' });
+  const withVotes = topics.map(t => {
+    const v = devVotes.get(t.title) || { up: 0, down: 0 };
+    return { title: t.title, net: v.up - v.down, articleCount: t.articleCount ?? 0 };
+  });
+  const trending = withVotes
+    .sort((a, b) => b.net - a.net || b.articleCount - a.articleCount)
+    .slice(0, 10);
+  res.json({ trending });
+});
+
 // ── Pregenerate stub (dev server) ─────────────────────────────────────────────
 app.post('/api/pregenerate', (req, res) => {
   res.json({ ok: true, message: 'pregenerate not available in dev mode', generated: 0, cached: 0 });
