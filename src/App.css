@@ -465,66 +465,66 @@ body {
 /* ── Sources panel ── */
 .sources-panel {
   border-top: 1px solid var(--border);
-  padding-top: 10px;
+  padding-top: 6px;
   flex-shrink: 0;
 }
 
 .sources-toggle {
   background: none;
-  border: 1px solid var(--border);
+  border: none;
   color: var(--text-muted);
-  font-size: 0.78rem;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  font-size: 0.68rem;
+  padding: 3px 0;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
-  width: 100%;
-  transition: background 0.15s, color 0.15s;
+  gap: 3px;
+  transition: color 0.15s;
 }
-.sources-toggle:hover { background: var(--surface2); color: var(--text); }
+.sources-toggle:hover { color: var(--text); }
 
-.sources-chevron { font-size: 0.8rem; }
+.sources-chevron { font-size: 0.65rem; }
 .sources-count { color: var(--text-muted); }
 
 .sources-list {
   list-style: none;
-  margin-top: 8px;
+  margin-top: 4px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .source-item {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 10px;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px;
   background: var(--surface2);
-  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 0.78rem;
+  font-size: 0.68rem;
 }
 
 .source-name {
   font-weight: 700;
   color: var(--text);
-  font-size: 0.82rem;
+  font-size: 0.68rem;
 }
 
 .source-framing {
   color: var(--text-muted);
   font-style: italic;
-  line-height: 1.4;
+  line-height: 1.3;
+  font-size: 0.65rem;
 }
 
 .source-link {
   color: #818cf8;
   text-decoration: none;
-  font-size: 0.72rem;
-  margin-top: 2px;
+  font-size: 0.65rem;
   width: fit-content;
+  margin-left: auto;
 }
 .source-link:hover { text-decoration: underline; }
 
