@@ -104,9 +104,9 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
           </>
         ) : isEntertainment ? (
           <>
-            <span className="spectrum-label-left">🎬 Entertainment</span>
+            <span className="spectrum-label-left">◀ Progressive</span>
             <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
-            <span className="spectrum-label-right">Progressive · Traditional</span>
+            <span className="spectrum-label-right">Traditional ▶</span>
           </>
         ) : (
           <>
