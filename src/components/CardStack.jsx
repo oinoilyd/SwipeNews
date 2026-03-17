@@ -47,9 +47,10 @@ export default function CardStack({
     const absDy = Math.abs(dy);
 
     // ── Horizontal swipe → change perspective ────────────────────────────────
-    if (absDx >= 55 && absDx > absDy * 1.5) {
-      // Block while current take is still loading, or within 400ms of last swipe
-      if (takesLoading) return;
+    // While loading: require a very deliberate 160px drag (≈3× normal threshold)
+    // so accidental or impatient swipes don't fire mid-load.
+    const swipeThreshold = takesLoading ? 160 : 55;
+    if (absDx >= swipeThreshold && absDx > absDy * 1.5) {
       const now = Date.now();
       if (now - lastSwipeTime.current < 400) return;
       lastSwipeTime.current = now;
