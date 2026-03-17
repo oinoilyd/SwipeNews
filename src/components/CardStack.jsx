@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import SwipeCard from './SwipeCard';
 import SpectrumBar from './SpectrumBar';
 
@@ -17,11 +17,18 @@ export default function CardStack({
   perspectiveMode,
   onScrollChange,
 }) {
-  const touchStartX      = useRef(null);
-  const touchStartY      = useRef(null);
-  const touchStartTime   = useRef(null);
-  const touchStartTarget = useRef(null);
-  const lastSwipeTime    = useRef(0);
+  const touchStartX        = useRef(null);
+  const touchStartY        = useRef(null);
+  const touchStartTime     = useRef(null);
+  const touchStartTarget   = useRef(null);
+  const lastSwipeTime      = useRef(0);
+  // Reset whenever the topic changes — enforces a 1s window where vertical
+  // swipe-to-navigate is locked out so skeleton scrolling doesn't misfire.
+  const lastTopicChangeTime = useRef(Date.now());
+
+  useEffect(() => {
+    lastTopicChangeTime.current = Date.now();
+  }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTouchStart = (e) => {
     touchStartX.current      = e.touches[0].clientX;
@@ -47,8 +54,7 @@ export default function CardStack({
     const absDy = Math.abs(dy);
 
     // ── Horizontal swipe → change perspective ────────────────────────────────
-    // While loading: require a very deliberate 160px drag (≈3× normal threshold)
-    // so accidental or impatient swipes don't fire mid-load.
+    // While loading: require a very deliberate 160px drag (≈3× normal threshold).
     const swipeThreshold = takesLoading ? 160 : 55;
     if (absDx >= swipeThreshold && absDx > absDy * 1.5) {
       const now = Date.now();
@@ -60,15 +66,23 @@ export default function CardStack({
     }
 
     // ── Vertical swipe → navigate topics ─────────────────────────────────────
-    // Must be clearly vertical and at least 80px
-    if (absDy < 80 || absDy < absDx * 2) return;
+    // Must be clearly vertical and at least 100px (raised from 80).
+    if (absDy < 100 || absDy < absDx * 2) return;
+
+    // Block vertical navigation for 1 second after a topic change.
+    // This is the core fix: the skeleton has little content so the card body
+    // is already "at the bottom", and any downward scroll attempt misfires as
+    // topic navigation. The cooldown gives the content time to load first.
+    if (Date.now() - lastTopicChangeTime.current < 1000) return;
+
+    // Also block entirely while the current take is loading.
+    if (takesLoading) return;
 
     // Determine where the touch started
     const inCardContent = savedTarget?.closest?.('.card-content');
 
     if (inCardContent) {
-      // Inside the text / scrollable area: require boundary + velocity so
-      // normal reading scrolls never accidentally flip topics.
+      // Inside the text area: require boundary + a deliberate flick velocity.
       const cardBody = inCardContent.closest?.('.card-body');
       if (cardBody) {
         const atTop    = cardBody.scrollTop <= 5;
@@ -76,11 +90,11 @@ export default function CardStack({
         if (dy < 0 && !atBottom) return;  // still content below — keep scrolling
         if (dy > 0 && !atTop)    return;  // still content above — keep scrolling
       }
-      // Velocity gate: must be a deliberate flick (≥ 0.35 px/ms = ~350 px/s)
-      if (absDy / dt < 0.35) return;
+      // Velocity gate: raised to 0.45 px/ms (~450 px/s) — requires a real flick.
+      if (absDy / dt < 0.45) return;
     }
     // Outside the text area (image, header, spectrum bar, nav bar):
-    // any 80px+ vertical gesture navigates — no scroll conflict there.
+    // passes with just the distance check — no scroll conflict there.
 
     if (dy < 0) onNextTopic();
     else        onPrevTopic();
