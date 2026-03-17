@@ -2,29 +2,24 @@ import { useState, useEffect, useRef } from 'react';
 import JargonText from './JargonText.jsx';
 
 // ── Word-by-word streaming animation ─────────────────────────────────────────
-function useStreamingText(text, speedMs = 35, onStreamingChange) {
+function useStreamingText(text, speedMs = 35) {
   const [displayed, setDisplayed] = useState('');
   const textRef = useRef('');
 
   useEffect(() => {
-    if (!text) {
-      setDisplayed('');
-      onStreamingChange?.(false);
-      return;
-    }
+    if (!text) { setDisplayed(''); return; }
     textRef.current = text;
     setDisplayed('');
-    onStreamingChange?.(true);
     const words = text.split(' ');
     let i = 0;
     const id = setInterval(() => {
       i++;
       if (textRef.current !== text) { clearInterval(id); return; }
       setDisplayed(words.slice(0, i).join(' '));
-      if (i >= words.length) { clearInterval(id); onStreamingChange?.(false); }
+      if (i >= words.length) clearInterval(id);
     }, speedMs);
     return () => clearInterval(id);
-  }, [text, speedMs]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text, speedMs]);
 
   return displayed;
 }
@@ -40,7 +35,6 @@ function formatAge(iso) {
   } catch { return null; }
 }
 
-
 // ── Card tint per take index ──────────────────────────────────────────────────
 const CARD_TINTS = [
   'rgba(29,  78, 216, 0.13)',  // 0 Far Left
@@ -52,8 +46,8 @@ const CARD_TINTS = [
   'rgba(220, 38,  38, 0.13)',  // 6 Far Right
 ];
 
-const LIMITED_INDICES = [1, 3, 5];      // Left, Neutral, Right
-const TECH_INDICES    = [1, 2, 3, 5];   // Optimist, Skeptic, Neutral, Industry
+const LIMITED_INDICES = [1, 3, 5];
+const TECH_INDICES    = [1, 2, 3, 5];
 
 const TAKE_META = [
   { label: 'Far Left',     color: '#1d4ed8' },
@@ -65,8 +59,6 @@ const TAKE_META = [
   { label: 'Far Right',    color: '#dc2626' },
 ];
 
-// ── Sports / Tech label overrides for loading state ───────────────────────────
-// These map take index → {label, color} for non-political perspectives
 const SPORTS_META_OVERRIDE = {
   1: { label: 'Fan',      color: '#f97316' },
   3: { label: 'Analyst',  color: '#a78bfa' },
@@ -89,116 +81,84 @@ export default function SwipeCard({
   onTakeRight,
   perspectiveMode,
   onScrollChange,
-  onStreamingChange,
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [atBound,     setAtBound]     = useState(null); // 'top' | 'bottom' | null
+  const cardBodyRef       = useRef(null);
+  const scrollCollapseRef = useRef(false);
 
-  const cardBodyRef        = useRef(null);
-  const scrollCollapsedRef = useRef(false);
+  const displayedText = useStreamingText(currentTake?.text ?? '');
 
-  // Word-by-word animation for take text
-  const displayedText = useStreamingText(currentTake?.text ?? '', 35, onStreamingChange);
-
-  // Reset scroll on topic change
+  // Reset scroll + sources on topic change
   useEffect(() => {
     setSourcesOpen(false);
-    setAtBound(null);
-    scrollCollapsedRef.current = false;
+    scrollCollapseRef.current = false;
     onScrollChange?.(false);
     if (cardBodyRef.current) cardBodyRef.current.scrollTop = 0;
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScroll = (e) => {
-    const el = e.currentTarget;
-    const st = el.scrollTop;
-
-    // Signal header to collapse/expand based on scroll depth
-    if (onScrollChange) {
-      const shouldCollapse = st > 20;
-      if (shouldCollapse !== scrollCollapsedRef.current) {
-        scrollCollapsedRef.current = shouldCollapse;
-        onScrollChange(shouldCollapse);
-      }
+    if (!onScrollChange) return;
+    const shouldCollapse = e.currentTarget.scrollTop > 20;
+    if (shouldCollapse !== scrollCollapseRef.current) {
+      scrollCollapseRef.current = shouldCollapse;
+      onScrollChange(shouldCollapse);
     }
-
-    const atTop    = st <= 5;
-    const atBottom = st + el.clientHeight >= el.scrollHeight - 5;
-    if (atTop && atBottom) setAtBound(null);
-    else if (atTop)        setAtBound('top');
-    else if (atBottom)     setAtBound('bottom');
-    else                   setAtBound(null);
   };
 
+  // Derived values
   const isNeutral     = currentTakeIndex === 3;
   const isNonFull     = perspectiveMode !== 'full';
   const activeIndices = perspectiveMode === 'tech' ? TECH_INDICES : LIMITED_INDICES;
   const tint          = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
-  const accent        = currentTake?.color || '#a78bfa';
+
+  const baseMeta  = TAKE_META[currentTakeIndex] ?? TAKE_META[3];
+  const override  = perspectiveMode === 'sports' ? SPORTS_META_OVERRIDE[currentTakeIndex]
+                  : perspectiveMode === 'tech'   ? TECH_META_OVERRIDE[currentTakeIndex]
+                  : null;
+  const meta      = override ? { ...baseMeta, ...override } : baseMeta;
+  const accent    = currentTake?.color || meta.color || '#a78bfa';
+
   const canGoLeft  = isNonFull
     ? activeIndices.some(i => i < currentTakeIndex)
     : currentTakeIndex > 0;
   const canGoRight = isNonFull
     ? activeIndices.some(i => i > currentTakeIndex)
     : currentTakeIndex < 6;
-  const timestamp  = formatAge(topic.latestPublishedAt);
 
-  // ── Shared: swipe indicator row ──────────────────────────────────────────
-  const navArrows = (
-    <div className="card-nav-arrows">
-      <button
-        className={`swipe-nav-tap${!canGoLeft ? ' faded' : ''}`}
-        onClick={onTakeLeft}
-        disabled={!canGoLeft}
-        aria-label="More liberal perspective"
-      >🔵←</button>
-      <span className="swipe-nav-label">SWIPE</span>
-      <button
-        className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
-        onClick={onTakeRight}
-        disabled={!canGoRight}
-        aria-label="More conservative perspective"
-      >→🔴</button>
-    </div>
-  );
+  const timestamp = formatAge(topic.latestPublishedAt);
 
-  // ── Shared: image or no-image header ─────────────────────────────────────
-  function renderImage(variant) {
+  // ── Hero: image with title overlay, or no-image header ───────────────────
+  function renderHero() {
     if (!topic.urlToImage) {
       return (
-        <div className={`card-no-image-header${variant === 'neutral' ? ' neutral-no-image' : ''}`}>
-          {variant === 'neutral' && topic.category && (
+        <div className="card-no-image-header">
+          {topic.category && (
             <span className="topic-category-badge">{topic.category}</span>
           )}
-          {variant !== 'neutral' && <p className="card-eyebrow">TODAY'S TOPIC</p>}
           <h2 className="card-topic-title-large">{topic.title}</h2>
         </div>
       );
     }
     return (
-      <div
-        className={`card-image-container${variant === 'neutral' ? ' neutral-image' : ''}`}
-      >
+      <div className="card-image-container">
         <img
           src={topic.urlToImage}
           alt={topic.title}
           className="card-image"
           onError={(e) => { e.target.closest('.card-image-container').style.display = 'none'; }}
         />
-        <div className={`card-image-overlay${variant === 'neutral' ? ' neutral-overlay' : ''}`} />
-        {variant === 'neutral' ? (
-          <div className="neutral-image-content">
-            {topic.category && <span className="topic-category-badge">{topic.category}</span>}
-            <h2 className="neutral-card-title">{topic.title}</h2>
-          </div>
-        ) : (
-          <span className="card-image-topic-badge">{topic.title}</span>
-        )}
+        <div className="card-image-overlay" />
+        <div className="card-image-content">
+          {topic.category && (
+            <span className="topic-category-badge">{topic.category}</span>
+          )}
+          <h2 className="card-image-title">{topic.title}</h2>
+        </div>
       </div>
     );
   }
 
-  // ── Shared: sources accordion ─────────────────────────────────────────────
+  // ── Sources accordion ─────────────────────────────────────────────────────
   function renderSources(sources) {
     if (!sources?.length) return null;
     return (
@@ -232,97 +192,86 @@ export default function SwipeCard({
     );
   }
 
-  // ── Scroll boundary hint ─────────────────────────────────────────────────
-  const scrollHint = atBound && (
-    <div className={`scroll-hint scroll-hint-${atBound}`}>
-      {atBound === 'top' ? '↑' : '↓'}
+  // ── Perspective nav arrows (bottom bar) ───────────────────────────────────
+  const navArrows = (
+    <div className="card-nav-arrows">
+      <button
+        className={`swipe-nav-tap${!canGoLeft ? ' faded' : ''}`}
+        onClick={onTakeLeft}
+        disabled={!canGoLeft}
+        aria-label="More liberal perspective"
+      >🔵←</button>
+      <span className="swipe-nav-label">SWIPE</span>
+      <button
+        className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
+        onClick={onTakeRight}
+        disabled={!canGoRight}
+        aria-label="More conservative perspective"
+      >→🔴</button>
     </div>
   );
 
-  // ── NEUTRAL CARD ──────────────────────────────────────────────────────────
-  if (isNeutral) {
-    return (
-      <div className="swipe-card" style={{ '--card-tint': tint, '--accent': '#a78bfa' }}>
-        {renderImage('neutral')}
-        <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
-          {scrollHint}
-          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
-
-          {topic.summary && <p className="neutral-blurb">{topic.summary}</p>}
-
-          {!currentTake && takesLoading && (
-            <div className="neutral-take-loading">
-              <span className="spinner-ring-sm" />
-              <span>Loading analysis…</span>
-            </div>
-          )}
-
-          {currentTake && (
-            <div className="take-text">
-              {displayedText.split('\n\n').map((p, i) => (
-                <p key={i}><JargonText>{p.trim()}</JargonText></p>
-              ))}
-            </div>
-          )}
-
-          {currentTake && renderSources(currentTake.sources)}
-        </div>
-
-        {navArrows}
-      </div>
-    );
-  }
-
-  // ── PERSPECTIVE CARD — loading ────────────────────────────────────────────
-  if (!currentTake) {
-    const baseMeta = TAKE_META[currentTakeIndex] ?? TAKE_META[3];
-    const override =
-      perspectiveMode === 'sports' ? SPORTS_META_OVERRIDE[currentTakeIndex] :
-      perspectiveMode === 'tech'   ? TECH_META_OVERRIDE[currentTakeIndex]   : null;
-    const meta = override ? { ...baseMeta, ...override } : baseMeta;
-    return (
-      <div className="swipe-card" style={{ '--card-tint': tint, '--accent': meta.color }}>
-        {renderImage()}
-        <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
-          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
-          <div
-            className="perspective-badge"
-            style={{ color: meta.color, borderLeftColor: meta.color, background: `${meta.color}18` }}
-          >
-            {meta.label} Perspective
-          </div>
-          <div className="take-skeleton">
-            <div className="skeleton-line" />
-            <div className="skeleton-line" />
-            <div className="skeleton-line medium" />
-            <div className="skeleton-line short" />
-          </div>
-        </div>
-        {navArrows}
-      </div>
-    );
-  }
-
-  // ── PERSPECTIVE CARD — loaded ─────────────────────────────────────────────
+  // ── Single unified render ─────────────────────────────────────────────────
   return (
     <div className="swipe-card" style={{ '--card-tint': tint, '--accent': accent }}>
-      {renderImage()}
+      {/* Scrollable area: hero image at top, content below */}
       <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
-        {scrollHint}
-        {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
-        <div
-          className="perspective-badge"
-          style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
-        >
-          {currentTake.label} Perspective
+        {renderHero()}
+
+        <div className="card-content">
+          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
+
+          {isNeutral ? (
+            <>
+              {topic.summary && (
+                <p className="neutral-blurb">{topic.summary}</p>
+              )}
+              {!currentTake && takesLoading && (
+                <div className="neutral-take-loading">
+                  <span className="spinner-ring-sm" />
+                  <span>Loading analysis…</span>
+                </div>
+              )}
+              {currentTake && (
+                <div className="take-text">
+                  {displayedText.split('\n\n').map((p, i) => (
+                    <p key={i}><JargonText>{p.trim()}</JargonText></p>
+                  ))}
+                </div>
+              )}
+              {currentTake && renderSources(currentTake.sources)}
+            </>
+          ) : (
+            <>
+              <div
+                className="perspective-badge"
+                style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
+              >
+                {(currentTake?.label ?? meta.label)} Perspective
+              </div>
+
+              {!currentTake ? (
+                <div className="take-skeleton">
+                  <div className="skeleton-line" />
+                  <div className="skeleton-line" />
+                  <div className="skeleton-line medium" />
+                  <div className="skeleton-line short" />
+                </div>
+              ) : (
+                <>
+                  <div className="take-text">
+                    {displayedText.split('\n\n').map((p, i) => (
+                      <p key={i}>{p.trim()}</p>
+                    ))}
+                  </div>
+                  {renderSources(currentTake.sources)}
+                </>
+              )}
+            </>
+          )}
         </div>
-        <div className="take-text">
-          {displayedText.split('\n\n').map((p, i) => (
-            <p key={i}>{p.trim()}</p>
-          ))}
-        </div>
-        {renderSources(currentTake.sources)}
       </div>
+
       {navArrows}
     </div>
   );

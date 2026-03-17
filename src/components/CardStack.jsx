@@ -17,60 +17,28 @@ export default function CardStack({
   perspectiveMode,
   onScrollChange,
 }) {
-  const touchStartY      = useRef(null);
-  const touchStartX      = useRef(null);
-  const touchStartTarget = useRef(null);
-  const isStreamingRef   = useRef(false);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
 
+  // Only track horizontal swipes for perspective changes.
+  // Topic navigation is via explicit ↑ / ↓ buttons — no more vertical swipe.
   const handleTouchStart = (e) => {
-    touchStartY.current      = e.touches[0].clientY;
-    touchStartX.current      = e.touches[0].clientX;
-    touchStartTarget.current = e.target;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
   };
 
   const handleTouchEnd = (e) => {
-    if (touchStartY.current === null) return;
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
 
-    const dy          = e.changedTouches[0].clientY - touchStartY.current;
-    const dx          = e.changedTouches[0].clientX - touchStartX.current;
-    const savedTarget = touchStartTarget.current;
-
-    touchStartY.current      = null;
-    touchStartX.current      = null;
-    touchStartTarget.current = null;
-
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-
-    // ── Horizontal swipe → change perspective ────────────────────────────────
-    if (absDx >= 60 && absDx > absDy) {
+    // Horizontal swipe only — must be dominant axis and ≥ 55px
+    if (Math.abs(dx) >= 55 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       if (dx < 0) onTakeRight();
       else        onTakeLeft();
-      return;
     }
-
-    // ── Vertical swipe → navigate topics ─────────────────────────────────────
-    // Must be a deliberate 120px pull that's vertically dominant
-    if (absDy < 120 || absDy < absDx) return;
-
-    // Never trigger from a touch that started on the card image
-    if (savedTarget?.closest?.('.card-image-container')) return;
-
-    // Never navigate while text is streaming/animating
-    if (isStreamingRef.current) return;
-
-    // If touch started inside the card body, require the card to be
-    // scrolled to the correct boundary before navigating
-    const cardBody = savedTarget?.closest?.('.card-body');
-    if (cardBody) {
-      const atTop    = cardBody.scrollTop <= 0;
-      const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 40;
-      if (dy < 0 && !atBottom) return;  // swipe up — not at bottom yet
-      if (dy > 0 && !atTop)    return;  // swipe down — not at top yet
-    }
-
-    if (dy < 0) onNextTopic();
-    else        onPrevTopic();
   };
 
   return (
@@ -95,13 +63,27 @@ export default function CardStack({
           onTakeRight={onTakeRight}
           perspectiveMode={perspectiveMode}
           onScrollChange={onScrollChange}
-          onStreamingChange={(s) => { isStreamingRef.current = s; }}
         />
       </div>
 
-      <p className="keyboard-hint">
-        ← → to shift perspective · swipe up/down to change topic
-      </p>
+      {/* Topic navigation — explicit tap buttons */}
+      <div className="topic-nav-bar">
+        <button
+          className="topic-nav-btn"
+          onClick={onPrevTopic}
+          aria-label="Previous topic"
+        >↑</button>
+        <span className="topic-counter-inline">
+          {currentTopicIndex + 1}
+          <span className="topic-counter-sep"> / </span>
+          {totalTopics}
+        </span>
+        <button
+          className="topic-nav-btn"
+          onClick={onNextTopic}
+          aria-label="Next topic"
+        >↓</button>
+      </div>
     </div>
   );
 }
