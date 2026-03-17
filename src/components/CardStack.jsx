@@ -21,6 +21,7 @@ export default function CardStack({
   const touchStartY      = useRef(null);
   const touchStartTime   = useRef(null);
   const touchStartTarget = useRef(null);
+  const lastSwipeTime    = useRef(0);
 
   const handleTouchStart = (e) => {
     touchStartX.current      = e.touches[0].clientX;
@@ -47,6 +48,11 @@ export default function CardStack({
 
     // ── Horizontal swipe → change perspective ────────────────────────────────
     if (absDx >= 55 && absDx > absDy * 1.5) {
+      // Block while current take is still loading, or within 400ms of last swipe
+      if (takesLoading) return;
+      const now = Date.now();
+      if (now - lastSwipeTime.current < 400) return;
+      lastSwipeTime.current = now;
       if (dx < 0) onTakeRight();
       else        onTakeLeft();
       return;

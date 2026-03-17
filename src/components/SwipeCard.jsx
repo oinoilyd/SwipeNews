@@ -118,12 +118,13 @@ export default function SwipeCard({
   const meta      = override ? { ...baseMeta, ...override } : baseMeta;
   const accent    = currentTake?.color || meta.color || '#a78bfa';
 
-  const canGoLeft  = isNonFull
+  // Also block nav while the current take is still fetching
+  const canGoLeft  = !takesLoading && (isNonFull
     ? activeIndices.some(i => i < currentTakeIndex)
-    : currentTakeIndex > 0;
-  const canGoRight = isNonFull
+    : currentTakeIndex > 0);
+  const canGoRight = !takesLoading && (isNonFull
     ? activeIndices.some(i => i > currentTakeIndex)
-    : currentTakeIndex < 6;
+    : currentTakeIndex < 6);
 
   const timestamp = formatAge(topic.latestPublishedAt);
 
@@ -201,7 +202,10 @@ export default function SwipeCard({
         disabled={!canGoLeft}
         aria-label="More liberal perspective"
       >🔵←</button>
-      <span className="swipe-nav-label">SWIPE</span>
+      {takesLoading
+        ? <span className="spinner-ring-sm" style={{ margin: '0 4px' }} />
+        : <span className="swipe-nav-label">SWIPE</span>
+      }
       <button
         className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
         onClick={onTakeRight}
