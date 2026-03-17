@@ -253,18 +253,18 @@ body {
 
 /* ── Card slide-in animations (topic navigation) ─────────────────────────── */
 @keyframes slide-in-bottom {
-  from { transform: translateY(48px); opacity: 0; }
+  from { transform: translateY(22px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 @keyframes slide-in-top {
-  from { transform: translateY(-48px); opacity: 0; }
+  from { transform: translateY(-22px); opacity: 0; }
   to   { transform: translateY(0);     opacity: 1; }
 }
 .swipe-card.slide-in-bottom {
-  animation: slide-in-bottom 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation: slide-in-bottom 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 .swipe-card.slide-in-top {
-  animation: slide-in-top 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation: slide-in-top 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 /* ── Card area ────────────────────────────────────────────────────────────── */
