@@ -60,9 +60,9 @@ const TAKE_META = [
 ];
 
 const SPORTS_META_OVERRIDE = {
-  1: { label: 'Fan',      color: '#f97316' },
-  3: { label: 'Analyst',  color: '#a78bfa' },
-  5: { label: 'Business', color: '#22d3ee' },
+  1: { label: 'Fan',      color: '#22c55e' },  // green — social, crowd energy
+  3: { label: 'Neutral',  color: '#a78bfa' },  // purple — consistent with neutral
+  5: { label: 'Business', color: '#f59e0b' },  // amber/gold — financial
 };
 const TECH_META_OVERRIDE = {
   1: { label: 'Optimist', color: '#3b82f6' },

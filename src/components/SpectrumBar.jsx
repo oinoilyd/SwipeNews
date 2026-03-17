@@ -12,11 +12,11 @@ const POLITICAL_POSITIONS = [
 // Limited political (3 positions only)
 const LIMITED_INDICES = new Set([1, 3, 5]);
 
-// Sports perspectives — use the same 3 nav indices (1=Fan, 3=Analyst, 5=Business)
+// Sports perspectives — use the same 3 nav indices (1=Fan, 3=Neutral, 5=Business)
 const SPORTS_POSITIONS = [
-  { index: 1, label: 'Fan',      short: 'Fan', color: '#f97316' },
-  { index: 3, label: 'Analyst',  short: 'Ana', color: '#a78bfa' },
-  { index: 5, label: 'Business', short: 'Biz', color: '#22d3ee' },
+  { index: 1, label: 'Fan',      short: 'Fan', color: '#22c55e' },  // green
+  { index: 3, label: 'Neutral',  short: 'Neu', color: '#a78bfa' },  // purple
+  { index: 5, label: 'Business', short: 'Biz', color: '#f59e0b' },  // amber
 ];
 
 // Tech perspectives — 4 positions: Optimist, Skeptic, Neutral, Industry
@@ -81,7 +81,7 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
           <>
             <span className="spectrum-label-left">🏆 Sports</span>
             <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
-            <span className="spectrum-label-right">Fan · Analyst · Business</span>
+            <span className="spectrum-label-right">Fan · Neutral · Business</span>
           </>
         ) : isTech ? (
           <>
@@ -122,7 +122,7 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
       {/* Mode note */}
       {isSports && (
         <p className="spectrum-limited-note">
-          🏆 Sports topic — Fan, Analyst &amp; Business perspectives
+          🏆 Sports topic — Fan, Neutral &amp; Business perspectives
         </p>
       )}
       {isTech && (
