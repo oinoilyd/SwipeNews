@@ -28,7 +28,17 @@ const TECH_POSITIONS = [
 ];
 const TECH_INDICES_ARR = [1, 2, 3, 5];
 
+import { useState, useRef } from 'react';
+
 export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveMode }) {
+  const [modeTooltip, setModeTooltip] = useState(false);
+  const modeTooltipTimer = useRef(null);
+
+  function showModeTooltip() {
+    clearTimeout(modeTooltipTimer.current);
+    setModeTooltip(true);
+    modeTooltipTimer.current = setTimeout(() => setModeTooltip(false), 2500);
+  }
   // Pick the right position set
   const isSports  = perspectiveMode === 'sports';
   const isTech    = perspectiveMode === 'tech';
@@ -121,21 +131,20 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
         </div>
       )}
 
-      {/* Mode note */}
-      {isSports && (
-        <p className="spectrum-limited-note">
-          🏆 Sports topic — Fan, Neutral &amp; Business perspectives
-        </p>
-      )}
-      {isTech && (
-        <p className="spectrum-limited-note">
-          💻 Tech topic — Optimist, Skeptic, Neutral &amp; Industry perspectives
-        </p>
-      )}
-      {isLimited && (
-        <p className="spectrum-limited-note">
-          ⚠ Limited source coverage — only Left, Neutral &amp; Right available
-        </p>
+      {/* Mode indicator — tap for tooltip */}
+      {(isSports || isTech || isLimited) && (
+        <div className="spectrum-mode-indicator">
+          <button className="spectrum-mode-btn" onClick={showModeTooltip}>
+            {isSports ? '🏆' : isTech ? '💻' : '⚠'}
+          </button>
+          {modeTooltip && (
+            <span className="spectrum-mode-tooltip">
+              {isSports && 'Sports topic — Fan, Neutral & Business perspectives'}
+              {isTech   && 'Tech topic — Optimist, Skeptic, Neutral & Industry perspectives'}
+              {isLimited && 'Limited coverage — only Left, Neutral & Right available'}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

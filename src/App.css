@@ -1345,13 +1345,39 @@ body {
   font-size: 0.95rem;
 }
 
-/* ── Limited coverage note ── */
-.spectrum-limited-note {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  text-align: center;
-  margin-top: 4px;
-  opacity: 0.75;
+/* ── Mode indicator (replaces limited-note) ── */
+.spectrum-mode-indicator {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+.spectrum-mode-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  opacity: 0.5;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.spectrum-mode-btn:hover { opacity: 0.85; }
+.spectrum-mode-tooltip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0,0,0,0.78);
+  border-radius: 6px;
+  padding: 4px 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: tip-fade 2.5s ease forwards;
+  z-index: 10;
 }
 
 /* ── Hamburger menu overlay ── */
