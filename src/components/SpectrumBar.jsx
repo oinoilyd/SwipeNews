@@ -29,9 +29,9 @@ const TECH_INDICES_ARR = [1, 2, 3, 5];
 
 // Entertainment perspectives
 const ENTERTAINMENT_POSITIONS = [
-  { index: 1, label: 'Progressive', color: '#a855f7' },
-  { index: 3, label: 'Neutral',     color: '#a78bfa' },
-  { index: 5, label: 'Traditional', color: '#f59e0b' },
+  { index: 1, label: 'Progressive', color: '#7b6eb0' },
+  { index: 3, label: 'Neutral',     color: '#7d8699' },
+  { index: 5, label: 'Traditional', color: '#8f6344' },
 ];
 
 export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveMode }) {

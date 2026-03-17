@@ -71,9 +71,9 @@ const TECH_META_OVERRIDE = {
   5: { label: 'Industry', color: '#10b981' },
 };
 const ENTERTAINMENT_META_OVERRIDE = {
-  1: { label: 'Progressive', color: '#a855f7' },  // purple
-  3: { label: 'Neutral',     color: '#a78bfa' },
-  5: { label: 'Traditional', color: '#f59e0b' },  // amber
+  1: { label: 'Progressive', color: '#7b6eb0' },
+  3: { label: 'Neutral',     color: '#7d8699' },
+  5: { label: 'Traditional', color: '#8f6344' },
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -259,7 +259,7 @@ export default function SwipeCard({
             className="perspective-badge"
             style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
           >
-            {(currentTake?.label ?? meta.label)} Perspective
+            {meta.label} Perspective
           </div>
 
           {/* Take content — identical structure for all perspectives */}
