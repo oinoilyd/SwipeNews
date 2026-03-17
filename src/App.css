@@ -312,11 +312,16 @@ body {
   transition: background 0.4s ease;
 }
 
-/* ── Card hero image — first child of scroll area ── */
+/* ── Card hero image — expands to fill card, leaving only summary below fold ── */
 .card-image-container {
   position: relative;
   width: 100%;
-  height: 220px;
+  /*
+   * Use dvh (dynamic viewport height) so the image fills the card
+   * while leaving ~130px for the neutral summary to peek below.
+   * Subtract: header(80) + category-filter(50) + spectrum-bar(100) + topic-nav(44) + footer(32) + summary(130) ≈ 436
+   */
+  height: clamp(200px, calc(100dvh - 436px), 520px);
   flex-shrink: 0;
   overflow: hidden;
   /* Vertical swipes on the image navigate topics, not scroll the card */
