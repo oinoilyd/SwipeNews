@@ -1,34 +1,38 @@
+import { useState, useRef } from 'react';
+
 // ── Full 7-position political spectrum ────────────────────────────────────────
 const POLITICAL_POSITIONS = [
-  { index: 0, label: 'Far Left',     short: 'FL',  color: '#1d4ed8' },
-  { index: 1, label: 'Left',         short: 'L',   color: '#3b82f6' },
-  { index: 2, label: 'Center-Left',  short: 'CL',  color: '#818cf8' },
-  { index: 3, label: 'Neutral',      short: 'N',   color: '#a78bfa' },
-  { index: 4, label: 'Center-Right', short: 'CR',  color: '#f97316' },
-  { index: 5, label: 'Right',        short: 'R',   color: '#ef4444' },
-  { index: 6, label: 'Far Right',    short: 'FR',  color: '#dc2626' },
+  { index: 0, label: 'Far Left',     color: '#1d4ed8' },
+  { index: 1, label: 'Left',         color: '#3b82f6' },
+  { index: 2, label: 'Center-Left',  color: '#818cf8' },
+  { index: 3, label: 'Neutral',      color: '#a78bfa' },
+  { index: 4, label: 'Center-Right', color: '#f97316' },
+  { index: 5, label: 'Right',        color: '#ef4444' },
+  { index: 6, label: 'Far Right',    color: '#dc2626' },
 ];
 
-// Limited political (3 positions only)
-const LIMITED_INDICES = new Set([1, 3, 5]);
-
-// Sports perspectives — use the same 3 nav indices (1=Fan, 3=Neutral, 5=Business)
+// Sports perspectives
 const SPORTS_POSITIONS = [
-  { index: 1, label: 'Fan',      short: 'Fan', color: '#22c55e' },  // green
-  { index: 3, label: 'Neutral',  short: 'N',   color: '#a78bfa' },  // purple
-  { index: 5, label: 'Business', short: 'Biz', color: '#f59e0b' },  // amber
+  { index: 1, label: 'Fan',      color: '#22c55e' },
+  { index: 3, label: 'Neutral',  color: '#a78bfa' },
+  { index: 5, label: 'Business', color: '#f59e0b' },
 ];
 
-// Tech perspectives — 4 positions: Optimist, Skeptic, Neutral, Industry
+// Tech perspectives
 const TECH_POSITIONS = [
-  { index: 1, label: 'Optimist', short: 'Opt', color: '#3b82f6' },
-  { index: 2, label: 'Skeptic',  short: 'Ske', color: '#f59e0b' },
-  { index: 3, label: 'Neutral',  short: 'Neu', color: '#a78bfa' },
-  { index: 5, label: 'Industry', short: 'Ind', color: '#10b981' },
+  { index: 1, label: 'Optimist', color: '#3b82f6' },
+  { index: 2, label: 'Skeptic',  color: '#f59e0b' },
+  { index: 3, label: 'Neutral',  color: '#a78bfa' },
+  { index: 5, label: 'Industry', color: '#10b981' },
 ];
 const TECH_INDICES_ARR = [1, 2, 3, 5];
 
-import { useState, useRef } from 'react';
+// Entertainment perspectives
+const ENTERTAINMENT_POSITIONS = [
+  { index: 1, label: 'Progressive', color: '#a855f7' },
+  { index: 3, label: 'Neutral',     color: '#a78bfa' },
+  { index: 5, label: 'Traditional', color: '#f59e0b' },
+];
 
 export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveMode }) {
   const [modeTooltip, setModeTooltip] = useState(false);
@@ -39,28 +43,27 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
     setModeTooltip(true);
     modeTooltipTimer.current = setTimeout(() => setModeTooltip(false), 2500);
   }
-  // Pick the right position set
-  const isSports  = perspectiveMode === 'sports';
-  const isTech    = perspectiveMode === 'tech';
-  const isLimited = perspectiveMode === 'limited';
-  const isNonFull = perspectiveMode !== 'full';
+
+  const isSports        = perspectiveMode === 'sports';
+  const isTech          = perspectiveMode === 'tech';
+  const isEntertainment = perspectiveMode === 'entertainment';
+  const isNonFull       = perspectiveMode !== 'full';
 
   const visiblePositions =
-    isSports  ? SPORTS_POSITIONS :
-    isTech    ? TECH_POSITIONS :
-    isLimited ? POLITICAL_POSITIONS.filter(p => LIMITED_INDICES.has(p.index)) :
-                POLITICAL_POSITIONS;
+    isSports        ? SPORTS_POSITIONS :
+    isTech          ? TECH_POSITIONS :
+    isEntertainment ? ENTERTAINMENT_POSITIONS :
+                      POLITICAL_POSITIONS;
 
-  // Active position label + color
   const current =
     visiblePositions.find(p => p.index === currentTakeIndex)
-    ?? visiblePositions[1]; // default to middle
+    ?? visiblePositions[1];
 
   return (
     <div className="spectrum-bar-wrapper">
       {/* Track with clickable pips */}
       <div className="spectrum-track">
-        <div className={`spectrum-gradient${isSports ? ' sports-gradient' : isTech ? ' tech-gradient' : ''}`} />
+        <div className={`spectrum-gradient${isSports ? ' sports-gradient' : isTech ? ' tech-gradient' : isEntertainment ? ' entertainment-gradient' : ''}`} />
         {visiblePositions.map((pos) => {
           const isActive = pos.index === currentTakeIndex;
           const leftPct  = isTech
@@ -99,21 +102,17 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
             <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
             <span className="spectrum-label-right">Opt · Ske · Neu · Ind</span>
           </>
+        ) : isEntertainment ? (
+          <>
+            <span className="spectrum-label-left">🎬 Entertainment</span>
+            <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
+            <span className="spectrum-label-right">Progressive · Traditional</span>
+          </>
         ) : (
           <>
             <span className="spectrum-label-left">◀ Liberal</span>
             <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
-            <div className="spectrum-mode-indicator">
-              {isLimited && (
-                <button className="spectrum-mode-btn" onClick={showModeTooltip}>⚠</button>
-              )}
-              {modeTooltip && (
-                <span className="spectrum-mode-tooltip">
-                  Limited coverage — only Left, Neutral &amp; Right available
-                </span>
-              )}
-              {!isLimited && <span className="spectrum-label-right">Conservative ▶</span>}
-            </div>
+            <span className="spectrum-label-right">Conservative ▶</span>
           </>
         )}
       </div>

@@ -18,7 +18,7 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending, timeFi
             ☰
           </button>
           <span className="logo-icon">📰</span>
-          <span className="logo-text">SwipeNews</span>
+          <span className="logo-text">Perspectiv</span>
         </div>
 
         <div className="header-controls">
@@ -45,11 +45,11 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending, timeFi
         <div className="info-modal-backdrop" onClick={() => setShowInfo(false)}>
           <div className="info-modal-card" onClick={e => e.stopPropagation()}>
             <div className="info-modal-header">
-              <span className="info-modal-title">About SwipeNews</span>
+              <span className="info-modal-title">About Perspectiv</span>
               <button className="info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close">✕</button>
             </div>
             <p className="info-modal-text">
-              SwipeNews uses established media bias ratings (AllSides, Ground News) to
+              Perspectiv uses established media bias ratings (AllSides, Ground News) to
               categorize news sources as left, center, or right leaning. AI perspectives
               are synthesized from multiple outlets within each bias tier. The AI uses
               its own discretion to interpret and summarize each source's framing —

@@ -27,7 +27,7 @@ export default function LoadingScreen({ stage = 0 }) {
         <div className="loading-logo">
           <span className="logo-icon-large">📰</span>
         </div>
-        <h1 className="loading-title">SwipeNews</h1>
+        <h1 className="loading-title">Perspectiv</h1>
         <p className="loading-subtitle">{STAGES[Math.min(stage, STAGES.length - 1)]}</p>
 
         {/* Progress bar */}

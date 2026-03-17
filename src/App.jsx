@@ -9,12 +9,12 @@ import TimeFilter from './components/TimeFilter';
 import './App.css';
 
 // Category → perspectiveMode mapping
-// 'full' = 7 political positions, 'limited' = Left/Neutral/Right only,
-// 'sports' = Fan/Analyst/Business, 'tech' = Optimist/Skeptic/Neutral/Industry
+// 'full' = 7 political positions, 'entertainment' = Progressive/Neutral/Traditional,
+// 'sports' = Fan/Neutral/Business, 'tech' = Optimist/Skeptic/Neutral/Industry
 function getPerspectiveMode(category) {
   if (category === 'Sports & Culture') return 'sports';
   if (category === 'Technology')       return 'tech';
-  if (category === 'Entertainment')    return 'limited';
+  if (category === 'Entertainment')    return 'entertainment';
   return 'full';
 }
 // All non-full modes use limited indices for navigation
@@ -539,8 +539,8 @@ export default function App() {
       </main>
 
       <footer className={`app-footer${headerCollapsed ? ' collapsed' : ''}`}>
-        <a href="mailto:swipenews@test.com" className="footer-link">swipenews@test.com</a>
-        <span>© {new Date().getFullYear()} SwipeNews</span>
+        <a href="mailto:perspectivesnews@test.com" className="footer-link">perspectivesnews@test.com</a>
+        <span>© {new Date().getFullYear()} Perspectiv</span>
       </footer>
 
       {showTopicDrawer && (

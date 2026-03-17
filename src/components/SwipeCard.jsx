@@ -70,6 +70,11 @@ const TECH_META_OVERRIDE = {
   3: { label: 'Neutral',  color: '#a78bfa' },
   5: { label: 'Industry', color: '#10b981' },
 };
+const ENTERTAINMENT_META_OVERRIDE = {
+  1: { label: 'Progressive', color: '#a855f7' },  // purple
+  3: { label: 'Neutral',     color: '#a78bfa' },
+  5: { label: 'Traditional', color: '#f59e0b' },  // amber
+};
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SwipeCard({
@@ -115,8 +120,9 @@ export default function SwipeCard({
   const tint          = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
 
   const baseMeta  = TAKE_META[currentTakeIndex] ?? TAKE_META[3];
-  const override  = perspectiveMode === 'sports' ? SPORTS_META_OVERRIDE[currentTakeIndex]
-                  : perspectiveMode === 'tech'   ? TECH_META_OVERRIDE[currentTakeIndex]
+  const override  = perspectiveMode === 'sports'        ? SPORTS_META_OVERRIDE[currentTakeIndex]
+                  : perspectiveMode === 'tech'          ? TECH_META_OVERRIDE[currentTakeIndex]
+                  : perspectiveMode === 'entertainment' ? ENTERTAINMENT_META_OVERRIDE[currentTakeIndex]
                   : null;
   const meta      = override ? { ...baseMeta, ...override } : baseMeta;
   const accent    = currentTake?.color || meta.color || '#a78bfa';

@@ -191,6 +191,16 @@ body {
   ) !important;
 }
 
+/* Entertainment gradient: purple (Progressive) → neutral → amber (Traditional) */
+.entertainment-gradient {
+  background: linear-gradient(
+    to right,
+    #a855f7 0%,
+    #a78bfa 50%,
+    #f59e0b 100%
+  ) !important;
+}
+
 .spectrum-pip {
   position: absolute;
   transform: translateX(-50%);
