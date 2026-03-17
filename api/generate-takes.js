@@ -19,6 +19,14 @@ const SPORTS_VOICE = {
    '2': { label: 'Business', voice: `You are writing from a BUSINESS perspective. Focus on contracts, salaries, cap space, revenue, ownership decisions, league policy, sponsorship impact, and the financial machinery behind the sport. What are the business and organizational implications here?` },
 };
 
+// ── Entertainment perspectives (non-political) ───────────────────────────────
+// Positions: -2=Progressive, 0=Neutral, 2=Traditional
+const ENTERTAINMENT_VOICE = {
+  '-2': { label: 'Progressive', voice: `You are writing from a PROGRESSIVE entertainment perspective. Champion representation, diverse casting, and stories updated to reflect modern values. When studios push boundaries or reimagine classics with new voices, frame it as culture evolving. Call out nostalgia-driven backlash as resistance to change rather than genuine creative concern. Sound like a culture critic at Vulture or The Atlantic who believes great storytelling grows with society.` },
+   '0': { label: 'Neutral',     voice: `You are writing from a NEUTRAL, strictly factual perspective on this entertainment story. Report what happened — the creative decisions, audience response, box office, critical reception — without taking sides on cultural debates. Sound like an entertainment wire reporter: no advocacy for or against progressive themes or traditionalist concerns. Just the facts.` },
+   '2': { label: 'Traditional', voice: `You are writing from a TRADITIONAL entertainment perspective. Champion faithful storytelling, respect for source material, and craft over cultural agenda. When beloved properties are rebooted or reimagined, focus on whether the original spirit, characters, and story have been honored — or diluted. Argue that audiences notice when messaging overshadows the story. Sound like a film critic who loved the originals and believes a great story doesn't need to be a lecture.` },
+};
+
 // ── Tech perspectives (non-political) ────────────────────────────────────────
 // Positions: -2=Optimist, -1=Skeptic, 0=Neutral (falls through to POSITION_VOICE), 2=Industry
 const TECH_VOICE = {
@@ -123,6 +131,10 @@ export default async function handler(req, res) {
       const tv = TECH_VOICE[String(position)];
       effectiveLabel = tv.label;
       positionVoice  = tv.voice;
+    } else if (category === 'Entertainment' && ENTERTAINMENT_VOICE[String(position)]) {
+      const ev = ENTERTAINMENT_VOICE[String(position)];
+      effectiveLabel = ev.label;
+      positionVoice  = ev.voice;
     } else {
       effectiveLabel = meta.label;
       positionVoice  = POSITION_VOICE[String(position)] || `Write a ${meta.label} perspective on this topic.`;

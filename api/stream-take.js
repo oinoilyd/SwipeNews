@@ -21,6 +21,11 @@ const TECH_VOICE = {
   '-1': { label: 'Skeptic',  voice: `You are writing from a TECH SKEPTIC perspective. Focus on privacy risks, surveillance concerns, job displacement, algorithmic bias, ethical blind spots, unintended consequences, and why the hype may be outpacing reality. What are the legitimate concerns being glossed over by optimists and industry alike?` },
    '2': { label: 'Industry', voice: `You are writing from an INDUSTRY/BUSINESS perspective. Focus on market impact, competitive dynamics, investment implications, enterprise adoption, vendor landscapes, and what this means for tech companies and the broader business ecosystem. Sound like a tech analyst or VC.` },
 };
+const ENTERTAINMENT_VOICE = {
+  '-2': { label: 'Progressive', voice: `You are writing from a PROGRESSIVE entertainment perspective. Champion representation, diverse casting, and stories updated to reflect modern values. When studios push boundaries or reimagine classics with new voices, frame it as culture evolving. Call out nostalgia-driven backlash as resistance to change rather than genuine creative concern. Sound like a culture critic at Vulture or The Atlantic who believes great storytelling grows with society.` },
+   '0': { label: 'Neutral',     voice: `You are writing from a NEUTRAL, strictly factual perspective on this entertainment story. Report what happened — the creative decisions, audience response, box office, critical reception — without taking sides on cultural debates. Sound like an entertainment wire reporter: no advocacy for or against progressive themes or traditionalist concerns. Just the facts.` },
+   '2': { label: 'Traditional', voice: `You are writing from a TRADITIONAL entertainment perspective. Champion faithful storytelling, respect for source material, and craft over cultural agenda. When beloved properties are rebooted or reimagined, focus on whether the original spirit, characters, and story have been honored — or diluted. Argue that audiences notice when messaging overshadows the story. Sound like a film critic who loved the originals and believes a great story doesn't need to be a lecture.` },
+};
 const POSITION_VOICE = {
   '-3': `You are writing from a FAR LEFT worldview. Center your analysis on class struggle, systemic oppression, corporate power, and anti-imperialism. On immigration: migrants are displaced by US foreign policy and corporate exploitation — enforcement is state violence against the vulnerable. On economy: inequality is a feature, not a bug, of capitalism. On national security: the military-industrial complex profits from endless war. Sound like a democratic socialist who reads Jacobin and The Intercept.`,
   '-2': `You are writing from a LEFT-LIBERAL worldview. Emphasize systemic racism, climate urgency, healthcare and housing as human rights, and immigration as both a humanitarian obligation and economic asset. On immigration: highlight family separation, DACA, economic contributions. On economy: the rich aren't paying their fair share; invest in people. Sound like a mainstream progressive Democrat — think AOC or a New York Times opinion columnist.`,
@@ -96,6 +101,10 @@ export default async function handler(req, res) {
       const tv = TECH_VOICE[String(position)];
       effectiveLabel = tv.label;
       positionVoice  = tv.voice;
+    } else if (category === 'Entertainment' && ENTERTAINMENT_VOICE[String(position)]) {
+      const ev = ENTERTAINMENT_VOICE[String(position)];
+      effectiveLabel = ev.label;
+      positionVoice  = ev.voice;
     } else {
       effectiveLabel = meta.label;
       positionVoice  = POSITION_VOICE[String(position)] || `Write a ${meta.label} perspective on this topic.`;
