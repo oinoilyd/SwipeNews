@@ -16,6 +16,8 @@ export default function CardStack({
   totalTopics,
   perspectiveMode,
   onScrollChange,
+  headerCollapsed,
+  onRestoreHeader,
 }) {
   const touchStartX          = useRef(null);
   const touchStartY          = useRef(null);
@@ -68,6 +70,7 @@ export default function CardStack({
     const dy          = e.changedTouches[0].clientY - touchStartY.current;
     const dt          = Math.max(Date.now() - touchStartTime.current, 1);
     const savedTarget = touchStartTarget.current;
+    const startY      = touchStartY.current;
 
     touchStartX.current      = null;
     touchStartY.current      = null;
@@ -76,6 +79,19 @@ export default function CardStack({
 
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
+
+    // ── Top-zone gesture: restore collapsed header ────────────────────────────
+    // When the header is hidden, a tap or any vertical swipe starting in the top
+    // 72px of the viewport (where the spectrum bar lives) brings it back.
+    // Horizontal swipes in this zone are still handled as perspective changes.
+    if (headerCollapsed && startY < 72) {
+      const isTap          = absDx < 22 && absDy < 22;
+      const isVerticalSwipe = absDy > 30 && absDy > absDx * 1.3;
+      if (isTap || isVerticalSwipe) {
+        onRestoreHeader?.();
+        return;
+      }
+    }
 
     // ── Horizontal swipe → change perspective ────────────────────────────────
     if (absDx >= 55 && absDx > absDy * 1.5) {

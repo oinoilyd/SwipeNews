@@ -155,10 +155,10 @@ export default function App() {
     setCurrentTakeIndex(3);
   }, [activeCategories, timeFilter]);
 
-  // ── Reset take to neutral + restore header when topic changes ───────────
+  // ── Reset take to neutral when topic changes ────────────────────────────
   useEffect(() => {
     setCurrentTakeIndex(3);
-    setHeaderCollapsed(false);
+    // Header stays collapsed — user restores it deliberately
   }, [currentTopicIndex]);
 
   // ── Animate top bar height when collapsing/expanding ─────────────────────
@@ -178,8 +178,9 @@ export default function App() {
     }
   }, [headerCollapsed]);
 
+  // Only collapse on scroll — user must deliberately restore the header
   const handleScrollChange = useCallback((collapsed) => {
-    setHeaderCollapsed(collapsed);
+    if (collapsed) setHeaderCollapsed(true);
   }, []);
 
   // ── Store a completed take into state + localStorage cache ───────────────
@@ -507,6 +508,8 @@ export default function App() {
             totalTopics={timeFilteredTopics.length}
             perspectiveMode={perspectiveMode}
             onScrollChange={handleScrollChange}
+            headerCollapsed={headerCollapsed}
+            onRestoreHeader={() => setHeaderCollapsed(false)}
           />
         )}
       </main>
