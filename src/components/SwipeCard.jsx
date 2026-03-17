@@ -221,52 +221,35 @@ export default function SwipeCard({
         <div className="card-content">
           {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
 
-          {isNeutral ? (
-            <>
-              {topic.summary && (
-                <p className="neutral-blurb">{topic.summary}</p>
-              )}
-              {!currentTake && takesLoading && (
-                <div className="neutral-take-loading">
-                  <span className="spinner-ring-sm" />
-                  <span>Loading analysis…</span>
-                </div>
-              )}
-              {currentTake && (
-                <div className="take-text">
-                  {displayedText.split('\n\n').map((p, i) => (
-                    <p key={i}><JargonText>{p.trim()}</JargonText></p>
-                  ))}
-                </div>
-              )}
-              {currentTake && renderSources(currentTake.sources)}
-            </>
+          {/* Neutral-only: high-level summary sits above the perspective content */}
+          {isNeutral && topic.summary && (
+            <p className="neutral-blurb">{topic.summary}</p>
+          )}
+
+          {/* Perspective badge — identical for all perspectives including neutral */}
+          <div
+            className="perspective-badge"
+            style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
+          >
+            {(currentTake?.label ?? meta.label)} Perspective
+          </div>
+
+          {/* Take content — identical structure for all perspectives */}
+          {!currentTake ? (
+            <div className="take-skeleton">
+              <div className="skeleton-line" />
+              <div className="skeleton-line" />
+              <div className="skeleton-line medium" />
+              <div className="skeleton-line short" />
+            </div>
           ) : (
             <>
-              <div
-                className="perspective-badge"
-                style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
-              >
-                {(currentTake?.label ?? meta.label)} Perspective
+              <div className="take-text">
+                {displayedText.split('\n\n').map((p, i) => (
+                  <p key={i}><JargonText>{p.trim()}</JargonText></p>
+                ))}
               </div>
-
-              {!currentTake ? (
-                <div className="take-skeleton">
-                  <div className="skeleton-line" />
-                  <div className="skeleton-line" />
-                  <div className="skeleton-line medium" />
-                  <div className="skeleton-line short" />
-                </div>
-              ) : (
-                <>
-                  <div className="take-text">
-                    {displayedText.split('\n\n').map((p, i) => (
-                      <p key={i}>{p.trim()}</p>
-                    ))}
-                  </div>
-                  {renderSources(currentTake.sources)}
-                </>
-              )}
+              {renderSources(currentTake.sources)}
             </>
           )}
         </div>
