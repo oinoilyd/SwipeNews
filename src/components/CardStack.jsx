@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import SwipeCard from './SwipeCard';
 import SpectrumBar from './SpectrumBar';
 
@@ -25,9 +25,22 @@ export default function CardStack({
   // Absolute timestamp until which vertical swipe-to-navigate is locked.
   // New topic → 2500ms lock. Perspective change → 1000ms lock (if not longer).
   const verticalSwipeLockUntil = useRef(0);
+  // Direction of the last topic navigation, used to pick the slide-in animation.
+  const pendingNavDir = useRef(null); // 'next' | 'prev' | null
+  const [slideClass,  setSlideClass] = useState('');
 
   useEffect(() => {
     verticalSwipeLockUntil.current = Date.now() + 2500;
+    const dir = pendingNavDir.current;
+    pendingNavDir.current = null;
+    const cls = dir === 'next' ? 'slide-in-bottom'
+              : dir === 'prev' ? 'slide-in-top'
+              : '';
+    if (cls) {
+      setSlideClass(cls);
+      const t = setTimeout(() => setSlideClass(''), 380);
+      return () => clearTimeout(t);
+    }
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When the neutral perspective (index 3) finishes loading, cap the vertical
@@ -109,8 +122,8 @@ export default function CardStack({
     // Outside the text area (image, header, spectrum bar, nav bar):
     // passes with just the distance check — no scroll conflict there.
 
-    if (dy < 0) onNextTopic();
-    else        onPrevTopic();
+    if (dy < 0) { pendingNavDir.current = 'next'; onNextTopic(); }
+    else        { pendingNavDir.current = 'prev'; onPrevTopic(); }
   };
 
   return (
@@ -135,6 +148,7 @@ export default function CardStack({
           onTakeRight={onTakeRight}
           perspectiveMode={perspectiveMode}
           onScrollChange={onScrollChange}
+          slideClass={slideClass}
         />
       </div>
 
@@ -142,7 +156,7 @@ export default function CardStack({
       <div className="topic-nav-bar">
         <button
           className="topic-nav-btn"
-          onClick={onPrevTopic}
+          onClick={() => { pendingNavDir.current = 'prev'; onPrevTopic(); }}
           aria-label="Previous topic"
         >↑</button>
         <span className="topic-counter-inline">
@@ -152,7 +166,7 @@ export default function CardStack({
         </span>
         <button
           className="topic-nav-btn"
-          onClick={onNextTopic}
+          onClick={() => { pendingNavDir.current = 'next'; onNextTopic(); }}
           aria-label="Next topic"
         >↓</button>
       </div>

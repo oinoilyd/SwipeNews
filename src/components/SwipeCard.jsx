@@ -81,6 +81,7 @@ export default function SwipeCard({
   onTakeRight,
   perspectiveMode,
   onScrollChange,
+  slideClass,
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const cardBodyRef       = useRef(null);
@@ -216,7 +217,7 @@ export default function SwipeCard({
 
   // ── Single unified render ─────────────────────────────────────────────────
   return (
-    <div className="swipe-card" style={{ '--card-tint': tint, '--accent': accent }}>
+    <div className={`swipe-card${slideClass ? ` ${slideClass}` : ''}`} style={{ '--card-tint': tint, '--accent': accent }}>
       {/* Scrollable area: hero image at top, content below */}
       <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
         {renderHero()}
