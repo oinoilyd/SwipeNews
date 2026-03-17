@@ -368,6 +368,20 @@ export default function App() {
     }
   }, []);
 
+  // ── Pull-to-refresh: shuffle topic order in-place, no network call ──────────
+  const handleRefreshOrder = useCallback(() => {
+    setTopicShells(prev => {
+      const copy = [...prev];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    });
+    setCurrentTopicIndex(0);
+    setCurrentTakeIndex(3);
+  }, []);
+
   // ── Manual refresh: fire pregenerate in background, then reload topics ──────
   const handleManualRefresh = useCallback(() => {
     // Kick off full cache regeneration in the background (takes up to 5 min, fire-and-forget)
@@ -516,6 +530,7 @@ export default function App() {
             onScrollChange={handleScrollChange}
             headerCollapsed={headerCollapsed}
             onRestoreHeader={() => setHeaderCollapsed(false)}
+            onRefreshOrder={handleRefreshOrder}
           />
         )}
       </main>

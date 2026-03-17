@@ -18,6 +18,7 @@ export default function CardStack({
   onScrollChange,
   headerCollapsed,
   onRestoreHeader,
+  onRefreshOrder,
 }) {
   const touchStartX          = useRef(null);
   const touchStartY          = useRef(null);
@@ -29,6 +30,7 @@ export default function CardStack({
   // Direction of the last topic navigation, used to pick the slide-in animation.
   const pendingNavDir = useRef(null); // 'next' | 'prev' | null
   const [slideClass,  setSlideClass] = useState('');
+  const [refreshing,  setRefreshing] = useState(false);
   // Ref to the card-area div for the rubber-band transform
   const cardAreaRef = useRef(null);
 
@@ -89,17 +91,7 @@ export default function CardStack({
   const handleTouchEnd = (e) => {
     if (touchStartX.current === null) return;
 
-    // ── Snap back rubber band before anything else ────────────────────────────
-    const cardEl = cardAreaRef.current;
-    if (cardEl?.style.transform) {
-      // Spring-back with a satisfying overshoot
-      cardEl.style.transition = 'transform 0.52s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      cardEl.style.transform  = '';
-      setTimeout(() => { if (cardAreaRef.current) cardAreaRef.current.style.transition = ''; }, 540);
-      touchStartX.current = touchStartY.current = touchStartTime.current = touchStartTarget.current = null;
-      return; // don't navigate — rubber band means "nothing to go back to"
-    }
-
+    // Calculate movement up-front so both the rubber-band and swipe paths can use it
     const dx          = e.changedTouches[0].clientX - touchStartX.current;
     const dy          = e.changedTouches[0].clientY - touchStartY.current;
     const dt          = Math.max(Date.now() - touchStartTime.current, 1);
@@ -110,6 +102,24 @@ export default function CardStack({
     touchStartY.current      = null;
     touchStartTime.current   = null;
     touchStartTarget.current = null;
+
+    // ── Snap back rubber band ─────────────────────────────────────────────────
+    const cardEl = cardAreaRef.current;
+    if (cardEl?.style.transform) {
+      // Spring-back with a satisfying overshoot
+      cardEl.style.transition = 'transform 0.52s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      cardEl.style.transform  = '';
+      setTimeout(() => { if (cardAreaRef.current) cardAreaRef.current.style.transition = ''; }, 540);
+      // Deliberate pull (>80px) → shuffle topic order after the bounce settles
+      if (dy > 80 && onRefreshOrder) {
+        setRefreshing(true);
+        setTimeout(() => {
+          onRefreshOrder();
+          setRefreshing(false);
+        }, 540);
+      }
+      return; // don't navigate — rubber band means "nothing to go back to"
+    }
 
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
@@ -191,6 +201,9 @@ export default function CardStack({
       />
 
       <div className="card-area" ref={cardAreaRef}>
+        {refreshing && (
+          <div className="pull-refresh-toast">↻ Refreshing…</div>
+        )}
         <SwipeCard
           topic={topic}
           currentTake={currentTake}

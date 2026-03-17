@@ -257,6 +257,31 @@ body {
   overflow: hidden;
 }
 
+/* Pull-to-refresh toast */
+.pull-refresh-toast {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.2);
+  pointer-events: none;
+  z-index: 20;
+  animation: toast-fade-in 0.2s ease forwards;
+}
+@keyframes toast-fade-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 /* ── Swipe card ───────────────────────────────────────────────────────────── */
 .swipe-card {
   position: absolute;
