@@ -98,26 +98,28 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
         )}
       </div>
 
-      {/* Quick-jump pills */}
-      <div className="spectrum-pills-row">
-        {visiblePositions.map((pos) => {
-          const isActive = pos.index === currentTakeIndex;
-          return (
-            <button
-              key={pos.index}
-              className={`spectrum-pill ${isActive ? 'active' : ''}`}
-              style={{
-                background:  isActive ? pos.color : `${pos.color}22`,
-                borderColor: `${pos.color}55`,
-                color:        isActive ? '#fff' : pos.color,
-              }}
-              onClick={() => onTakeJump(pos.index)}
-            >
-              {pos.short}
-            </button>
-          );
-        })}
-      </div>
+      {/* Quick-jump pills — only on neutral */}
+      {currentTakeIndex === 3 && (
+        <div className="spectrum-pills-row">
+          {visiblePositions.map((pos) => {
+            const isActive = pos.index === currentTakeIndex;
+            return (
+              <button
+                key={pos.index}
+                className={`spectrum-pill ${isActive ? 'active' : ''}`}
+                style={{
+                  background:  isActive ? pos.color : `${pos.color}22`,
+                  borderColor: `${pos.color}55`,
+                  color:        isActive ? '#fff' : pos.color,
+                }}
+                onClick={() => onTakeJump(pos.index)}
+              >
+                {pos.short}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Mode note */}
       {isSports && (

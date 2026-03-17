@@ -202,22 +202,28 @@ export default function SwipeCard({
   // ── Perspective nav arrows (bottom bar) ───────────────────────────────────
   const navArrows = (
     <div className="card-nav-arrows">
-      <button
-        className={`swipe-nav-tap${!canGoLeft ? ' faded' : ''}`}
-        onClick={onTakeLeft}
-        disabled={!canGoLeft}
-        aria-label="More liberal perspective"
-      >🔵←</button>
+      <div className="swipe-nav-side">
+        <button
+          className={`swipe-nav-tap${!canGoLeft ? ' faded' : ''}`}
+          onClick={onTakeLeft}
+          disabled={!canGoLeft}
+          aria-label="More liberal perspective"
+        >🔵←</button>
+        <span className="swipe-nav-tip">More Liberal</span>
+      </div>
       {takesLoading
         ? <span className="spinner-ring-sm" style={{ margin: '0 4px' }} />
         : <span className="swipe-nav-label">SWIPE</span>
       }
-      <button
-        className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
-        onClick={onTakeRight}
-        disabled={!canGoRight}
-        aria-label="More conservative perspective"
-      >→🔴</button>
+      <div className="swipe-nav-side right">
+        <button
+          className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
+          onClick={onTakeRight}
+          disabled={!canGoRight}
+          aria-label="More conservative perspective"
+        >→🔴</button>
+        <span className="swipe-nav-tip">More Conservative</span>
+      </div>
     </div>
   );
 

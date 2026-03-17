@@ -553,6 +553,22 @@ body {
   user-select: none;
 }
 
+.swipe-nav-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.swipe-nav-tip {
+  font-size: 0.52rem;
+  color: var(--text-muted);
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* ── Topic navigation dots ── */
 .topic-nav {
   display: flex;
@@ -1392,8 +1408,22 @@ body {
 
 /* Time range section inside hamburger */
 .hamburger-section {
-  padding: 14px 16px 10px;
+  padding: 12px 16px 10px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.hamburger-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 0;
+}
+.hamburger-section-toggle:has(+ .hamburger-time-options) .hamburger-section-label {
+  margin-bottom: 0;
 }
 .hamburger-section-label {
   display: block;
@@ -1402,9 +1432,15 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 10px;
+  margin-bottom: 0;
+}
+.hamburger-section-chevron {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.7;
 }
 .hamburger-time-options {
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;

@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const TIME_OPTIONS = [
   { value: '24h', label: 'Last 24 Hours' },
   { value: '48h', label: 'Last 48 Hours' },
@@ -5,6 +7,8 @@ const TIME_OPTIONS = [
 ];
 
 export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, timeFilter, onTimeFilterChange }) {
+  const [timeOpen, setTimeOpen] = useState(false);
+
   const items = [
     { label: 'Profile',             icon: '👤', disabled: true,  note: 'Coming soon' },
     { label: '🔥 Top 10 Trending',  disabled: false, action: () => { onShowTrending(); onClose(); } },
@@ -21,20 +25,28 @@ export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, tim
           <button className="hamburger-close" onClick={onClose} aria-label="Close menu">✕</button>
         </div>
 
-        {/* Time range filter */}
+        {/* Time range filter — accordion */}
         <div className="hamburger-section">
-          <span className="hamburger-section-label">Time Range</span>
-          <div className="hamburger-time-options">
-            {TIME_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                className={`hamburger-time-btn${timeFilter === opt.value ? ' active' : ''}`}
-                onClick={() => onTimeFilterChange?.(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <button
+            className="hamburger-section-toggle"
+            onClick={() => setTimeOpen(o => !o)}
+          >
+            <span className="hamburger-section-label">Time Range</span>
+            <span className="hamburger-section-chevron">{timeOpen ? '▾' : '▸'}</span>
+          </button>
+          {timeOpen && (
+            <div className="hamburger-time-options">
+              {TIME_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  className={`hamburger-time-btn${timeFilter === opt.value ? ' active' : ''}`}
+                  onClick={() => { onTimeFilterChange?.(opt.value); onClose(); }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <nav className="hamburger-nav">
