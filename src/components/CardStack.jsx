@@ -29,10 +29,11 @@ export default function CardStack({
   const verticalSwipeLockUntil = useRef(0);
   // Direction of the last topic navigation, used to pick the slide-in animation.
   const pendingNavDir = useRef(null); // 'next' | 'prev' | null
-  const [slideClass,  setSlideClass] = useState('');
-  const [refreshing,  setRefreshing] = useState(false);
+  const [slideClass, setSlideClass] = useState('');
   // Ref to the card-area div for the rubber-band transform
-  const cardAreaRef = useRef(null);
+  const cardAreaRef  = useRef(null);
+  // Ref to the pull-refresh label that lives in the grey zone above the card
+  const pullLabelRef = useRef(null);
 
   useEffect(() => {
     verticalSwipeLockUntil.current = Date.now() + 2500;
@@ -86,6 +87,16 @@ export default function CardStack({
       el.style.transition = 'none';
       el.style.transform  = `translateY(${stretch}px)`;
     }
+
+    // Update the pull-refresh label in the revealed grey zone
+    const label = pullLabelRef.current;
+    if (label) {
+      const ready = dy > 100;
+      label.style.opacity    = Math.min(dy / 80, 1);
+      label.style.transform  = `translateX(-50%) scale(${ready ? 1.05 : 1})`;
+      label.textContent      = ready ? '↻  Release to refresh' : '↻  Pull to refresh';
+      label.style.color      = ready ? '#fff' : 'rgba(255,255,255,0.55)';
+    }
   };
 
   const handleTouchEnd = (e) => {
@@ -110,13 +121,16 @@ export default function CardStack({
       cardEl.style.transition = 'transform 0.52s cubic-bezier(0.34, 1.56, 0.64, 1)';
       cardEl.style.transform  = '';
       setTimeout(() => { if (cardAreaRef.current) cardAreaRef.current.style.transition = ''; }, 540);
-      // Deliberate pull (>80px) → shuffle topic order after the bounce settles
-      if (dy > 80 && onRefreshOrder) {
-        setRefreshing(true);
-        setTimeout(() => {
-          onRefreshOrder();
-          setRefreshing(false);
-        }, 540);
+      // Fade out the pull label
+      const label = pullLabelRef.current;
+      if (label) {
+        label.style.transition = 'opacity 0.3s ease';
+        label.style.opacity    = 0;
+        setTimeout(() => { if (pullLabelRef.current) pullLabelRef.current.style.transition = ''; }, 320);
+      }
+      // Deliberate pull (>100px) → shuffle topic order after the bounce settles
+      if (dy > 100 && onRefreshOrder) {
+        setTimeout(() => onRefreshOrder(), 540);
       }
       return; // don't navigate — rubber band means "nothing to go back to"
     }
@@ -200,10 +214,12 @@ export default function CardStack({
         perspectiveMode={perspectiveMode}
       />
 
+      {/* Pull-to-refresh label — lives in grey zone revealed when card translates down */}
+      <div className="pull-refresh-zone">
+        <span className="pull-refresh-label" ref={pullLabelRef}>↻  Pull to refresh</span>
+      </div>
+
       <div className="card-area" ref={cardAreaRef}>
-        {refreshing && (
-          <div className="pull-refresh-toast">↻ Refreshing…</div>
-        )}
         <SwipeCard
           topic={topic}
           currentTake={currentTake}

@@ -257,29 +257,29 @@ body {
   overflow: hidden;
 }
 
-/* Pull-to-refresh toast */
-.pull-refresh-toast {
+/* Pull-to-refresh label — floats in the grey zone revealed when card translates down */
+.pull-refresh-zone {
+  height: 0;
+  overflow: visible;
+  flex-shrink: 0;
+  position: relative;
+  pointer-events: none;
+  z-index: 0;
+}
+.pull-refresh-label {
   position: absolute;
-  top: 12px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(255,255,255,0.15);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  padding: 5px 14px;
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.2);
+  opacity: 0;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
   pointer-events: none;
-  z-index: 20;
-  animation: toast-fade-in 0.2s ease forwards;
-}
-@keyframes toast-fade-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  user-select: none;
 }
 
 /* ── Swipe card ───────────────────────────────────────────────────────────── */
