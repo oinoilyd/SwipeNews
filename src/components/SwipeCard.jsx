@@ -128,11 +128,17 @@ export default function SwipeCard({
 
   const timestamp = formatAge(topic.latestPublishedAt);
 
+  // Tap hero → expand card (same as scrolling down)
+  function handleHeroTap() {
+    scrollCollapseRef.current = true;
+    onScrollChange?.(true);
+  }
+
   // ── Hero: image with title overlay, or no-image header ───────────────────
   function renderHero() {
     if (!topic.urlToImage) {
       return (
-        <div className="card-no-image-header">
+        <div className="card-no-image-header" onClick={handleHeroTap}>
           {topic.category && (
             <span className="topic-category-badge">{topic.category}</span>
           )}
@@ -141,7 +147,7 @@ export default function SwipeCard({
       );
     }
     return (
-      <div className="card-image-container">
+      <div className="card-image-container" onClick={handleHeroTap}>
         <img
           src={topic.urlToImage}
           alt={topic.title}
