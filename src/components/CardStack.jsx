@@ -17,18 +17,29 @@ export default function CardStack({
   perspectiveMode,
   onScrollChange,
 }) {
-  const touchStartX        = useRef(null);
-  const touchStartY        = useRef(null);
-  const touchStartTime     = useRef(null);
-  const touchStartTarget   = useRef(null);
-  const lastSwipeTime      = useRef(0);
-  // Reset whenever the topic changes — enforces a 1s window where vertical
-  // swipe-to-navigate is locked out so skeleton scrolling doesn't misfire.
-  const lastTopicChangeTime = useRef(Date.now());
+  const touchStartX          = useRef(null);
+  const touchStartY          = useRef(null);
+  const touchStartTime       = useRef(null);
+  const touchStartTarget     = useRef(null);
+  const lastSwipeTime        = useRef(0);
+  // Absolute timestamp until which vertical swipe-to-navigate is locked.
+  // New topic → 2500ms lock. Perspective change → 1000ms lock (if not longer).
+  const verticalSwipeLockUntil = useRef(0);
 
   useEffect(() => {
-    lastTopicChangeTime.current = Date.now();
+    verticalSwipeLockUntil.current = Date.now() + 2500;
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When the neutral perspective (index 3) finishes loading, cap the vertical
+  // lock to 1s — no need to wait the full 2.5s if there's already content.
+  useEffect(() => {
+    if (!takesLoading && currentTakeIndex === 3) {
+      verticalSwipeLockUntil.current = Math.min(
+        verticalSwipeLockUntil.current,
+        Date.now() + 1000
+      );
+    }
+  }, [takesLoading, currentTakeIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTouchStart = (e) => {
     touchStartX.current      = e.touches[0].clientX;
@@ -54,28 +65,30 @@ export default function CardStack({
     const absDy = Math.abs(dy);
 
     // ── Horizontal swipe → change perspective ────────────────────────────────
-    // While loading: require a very deliberate 160px drag (≈3× normal threshold).
-    const swipeThreshold = takesLoading ? 160 : 55;
-    if (absDx >= swipeThreshold && absDx > absDy * 1.5) {
+    if (absDx >= 55 && absDx > absDy * 1.5) {
       const now = Date.now();
       if (now - lastSwipeTime.current < 400) return;
       lastSwipeTime.current = now;
+      // After a perspective switch, apply a 1s vertical lock (if not already longer).
+      verticalSwipeLockUntil.current = Math.max(
+        verticalSwipeLockUntil.current,
+        Date.now() + 1000
+      );
       if (dx < 0) onTakeRight();
       else        onTakeLeft();
       return;
     }
 
     // ── Vertical swipe → navigate topics ─────────────────────────────────────
-    // Must be clearly vertical and at least 100px (raised from 80).
+    // Must be clearly vertical and at least 100px.
     if (absDy < 100 || absDy < absDx * 2) return;
 
-    // Block vertical navigation for 1 second after a topic change.
-    // This is the core fix: the skeleton has little content so the card body
-    // is already "at the bottom", and any downward scroll attempt misfires as
-    // topic navigation. The cooldown gives the content time to load first.
-    if (Date.now() - lastTopicChangeTime.current < 1000) return;
+    // Block vertical navigation until the lock expires.
+    // New topic → 2500ms lock. Perspective switch → 1000ms lock.
+    if (Date.now() < verticalSwipeLockUntil.current) return;
 
-    // Also block entirely while the current take is loading.
+    // Block vertical nav while any take is loading — the lock cap above
+    // handles the neutral-fully-loaded case by shortening the wait to 1s.
     if (takesLoading) return;
 
     // Determine where the touch started

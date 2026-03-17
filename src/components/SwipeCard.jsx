@@ -118,13 +118,12 @@ export default function SwipeCard({
   const meta      = override ? { ...baseMeta, ...override } : baseMeta;
   const accent    = currentTake?.color || meta.color || '#a78bfa';
 
-  // Also block nav while the current take is still fetching
-  const canGoLeft  = !takesLoading && (isNonFull
+  const canGoLeft  = isNonFull
     ? activeIndices.some(i => i < currentTakeIndex)
-    : currentTakeIndex > 0);
-  const canGoRight = !takesLoading && (isNonFull
+    : currentTakeIndex > 0;
+  const canGoRight = isNonFull
     ? activeIndices.some(i => i > currentTakeIndex)
-    : currentTakeIndex < 6);
+    : currentTakeIndex < 6;
 
   const timestamp = formatAge(topic.latestPublishedAt);
 
