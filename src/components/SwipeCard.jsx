@@ -84,6 +84,8 @@ export default function SwipeCard({
   slideClass,
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [tooltip, setTooltip] = useState(null); // 'left' | 'right' | null
+  const tooltipTimer = useRef(null);
   const cardBodyRef       = useRef(null);
   const scrollCollapseRef = useRef(false);
 
@@ -199,17 +201,22 @@ export default function SwipeCard({
     );
   }
 
+  function showTooltip(side) {
+    clearTimeout(tooltipTimer.current);
+    setTooltip(side);
+    tooltipTimer.current = setTimeout(() => setTooltip(null), 2000);
+  }
+
   // ── Perspective nav arrows (bottom bar) ───────────────────────────────────
   const navArrows = (
     <div className="card-nav-arrows">
       <div className="swipe-nav-side">
         <button
           className={`swipe-nav-tap${!canGoLeft ? ' faded' : ''}`}
-          onClick={onTakeLeft}
-          disabled={!canGoLeft}
+          onClick={() => showTooltip('left')}
           aria-label="More liberal perspective"
         >🔵←</button>
-        <span className="swipe-nav-tip">More Liberal</span>
+        {tooltip === 'left' && <span className="swipe-nav-tip visible">More Liberal</span>}
       </div>
       {takesLoading
         ? <span className="spinner-ring-sm" style={{ margin: '0 4px' }} />
@@ -218,11 +225,10 @@ export default function SwipeCard({
       <div className="swipe-nav-side right">
         <button
           className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
-          onClick={onTakeRight}
-          disabled={!canGoRight}
+          onClick={() => showTooltip('right')}
           aria-label="More conservative perspective"
         >→🔴</button>
-        <span className="swipe-nav-tip">More Conservative</span>
+        {tooltip === 'right' && <span className="swipe-nav-tip visible">More Conservative</span>}
       </div>
     </div>
   );
