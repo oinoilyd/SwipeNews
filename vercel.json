@@ -2,14 +2,17 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "crons": [
-    { "path": "/api/pregenerate", "schedule": "0 6 * * *" }
+    { "path": "/api/pregenerate",  "schedule": "0 6 * * *" },
+    { "path": "/api/refresh-rss",  "schedule": "0 */4 * * *" }
   ],
   "functions": {
-    "api/clustered-news.js": { "maxDuration": 45 },
-    "api/generate-takes.js": { "maxDuration": 30 },
-    "api/pregenerate.js":    { "maxDuration": 300 },
-    "api/stream-take.js":    { "maxDuration": 60 },
-    "api/votes.js":          { "maxDuration": 10 }
+    "api/clustered-news.js": { "maxDuration": 10  },
+    "api/pregenerate.js":    { "maxDuration": 60  },
+    "api/refresh-rss.js":    { "maxDuration": 30  },
+    "api/generate-takes.js": { "maxDuration": 30  },
+    "api/stream-take.js":    { "maxDuration": 30  },
+    "api/votes.js":          { "maxDuration": 10  },
+    "api/trending.js":       { "maxDuration": 10  }
   },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }

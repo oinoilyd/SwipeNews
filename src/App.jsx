@@ -370,6 +370,14 @@ export default function App() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+
+      // Cache warming state — pregenerate is running in the background
+      if (data.loading) {
+        setLoadingStage(1); // show "Building perspectives…" stage
+        setTimeout(() => fetchTopicShells(false), 30000); // retry in 30s
+        return; // keep isLoading: true, LoadingScreen stays visible
+      }
+
       if (!data.topics?.length) throw new Error('No topics returned');
 
       clearTimeout(timer1);
