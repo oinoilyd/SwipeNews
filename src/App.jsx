@@ -138,6 +138,8 @@ export default function App() {
 
   // ── Derived values ────────────────────────────────────────────────────────
   const currentTopic       = timeFilteredTopics[currentTopicIndex] ?? null;
+  const prevTopic          = timeFilteredTopics[currentTopicIndex - 1] ?? null;
+  const nextTopic          = timeFilteredTopics[currentTopicIndex + 1] ?? null;
   const currentPosition    = indexToPosition(currentTakeIndex);
   const currentTake        = currentTopic
     ? (takesMap[currentTopic.id]?.[currentPosition] ?? null)
@@ -421,11 +423,10 @@ export default function App() {
     setCurrentTakeIndex(3);
   }, []);
 
-  // ── Manual refresh: fire pregenerate in background, then reload topics ──────
+  // ── Manual refresh: reload topics from Redis cache (pregenerate runs on cron) ─
+  // NOTE: do NOT fire /api/pregenerate here — it can timeout/500 and the cron
+  // handles daily regeneration. This just reloads whatever is already cached.
   const handleManualRefresh = useCallback(() => {
-    // Kick off full cache regeneration in the background (takes up to 5 min, fire-and-forget)
-    fetch('/api/pregenerate', { method: 'POST' }).catch(() => {/* ignore */});
-    // Immediately reload topic shells bypassing the news cache
     fetchTopicShells(true);
   }, [fetchTopicShells]);
 
@@ -558,7 +559,9 @@ export default function App() {
           </div>
         ) : currentTopic && (
           <CardStack
+            prevTopic={prevTopic}
             topic={currentTopic}
+            nextTopic={nextTopic}
             currentTake={currentTake}
             currentTakeIndex={currentTakeIndex}
             takesLoading={currentTakeLoading}
@@ -567,18 +570,13 @@ export default function App() {
             onTakeJump={handleTakeJump}
             onNextTopic={handleNextTopic}
             onPrevTopic={handlePrevTopic}
-            currentTopicIndex={currentTopicIndex}
-            totalTopics={timeFilteredTopics.length}
             perspectiveMode={perspectiveMode}
-            onScrollChange={handleScrollChange}
-            headerCollapsed={headerCollapsed}
-            onRestoreHeader={() => setHeaderCollapsed(false)}
             onRefreshOrder={handleRefreshOrder}
           />
         )}
       </main>
 
-      <footer className={`app-footer${headerCollapsed ? ' collapsed' : ''}`}>
+      <footer className="app-footer collapsed">
         <a href="mailto:perspectivesnews@test.com" className="footer-link">perspectivesnews@test.com</a>
         <span>© {new Date().getFullYear()} Perspectiv</span>
       </footer>

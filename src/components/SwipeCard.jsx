@@ -35,20 +35,7 @@ function formatAge(iso) {
   } catch { return null; }
 }
 
-// ── Card tint per take index ──────────────────────────────────────────────────
-const CARD_TINTS = [
-  'rgba(29,  78, 216, 0.13)',  // 0 Far Left
-  'rgba(59, 130, 246, 0.10)',  // 1 Left
-  'rgba(129,140, 248, 0.07)',  // 2 Center-Left
-  'rgba(0,   0,   0,  0.00)',  // 3 Neutral
-  'rgba(249,115,  22, 0.07)',  // 4 Center-Right
-  'rgba(239, 68,  68, 0.10)',  // 5 Right
-  'rgba(220, 38,  38, 0.13)',  // 6 Far Right
-];
-
-const LIMITED_INDICES = [1, 3, 5];
-const TECH_INDICES    = [1, 2, 3, 5];
-
+// ── Perspective metadata ───────────────────────────────────────────────────────
 const TAKE_META = [
   { label: 'Far Left',     color: '#1d4ed8' },
   { label: 'Left',         color: '#3b82f6' },
@@ -59,10 +46,12 @@ const TAKE_META = [
   { label: 'Far Right',    color: '#dc2626' },
 ];
 
+// Mode overrides — always use these colors in non-full modes to avoid
+// political color contamination (e.g. Sports pos 2 is "Business" not "Right")
 const SPORTS_META_OVERRIDE = {
-  1: { label: 'Fan',      color: '#22c55e' },  // green — social, crowd energy
-  3: { label: 'Neutral',  color: '#a78bfa' },  // purple — consistent with neutral
-  5: { label: 'Business', color: '#f59e0b' },  // amber/gold — financial
+  1: { label: 'Fan',      color: '#22c55e' },
+  3: { label: 'Neutral',  color: '#a78bfa' },
+  5: { label: 'Business', color: '#f59e0b' },
 };
 const TECH_META_OVERRIDE = {
   1: { label: 'Optimist', color: '#3b82f6' },
@@ -76,104 +65,61 @@ const ENTERTAINMENT_META_OVERRIDE = {
   5: { label: 'Traditional', color: '#8f6344' },
 };
 
+// ── Left/right endpoint colors per mode (for swipe hint arrows) ───────────────
+const LEFT_COLOR = {
+  full:          '#3b82f6',
+  sports:        '#22c55e',
+  tech:          '#3b82f6',
+  entertainment: '#7b6eb0',
+};
+const RIGHT_COLOR = {
+  full:          '#ef4444',
+  sports:        '#f59e0b',
+  tech:          '#10b981',
+  entertainment: '#8f6344',
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SwipeCard({
   topic,
-  currentTake,
-  currentTakeIndex,
-  takesLoading,
-  onTakeLeft,
-  onTakeRight,
-  perspectiveMode,
-  onScrollChange,
-  slideClass,
+  currentTake    = null,
+  currentTakeIndex = 3,
+  takesLoading   = false,
+  perspectiveMode = 'full',
+  spectrumBar    = null,   // rendered only on the active card, below title
+  isPreview      = false,  // preview cards show only image + title
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [tooltip, setTooltip] = useState(null); // 'left' | 'right' | null
-  const tooltipTimer = useRef(null);
-  const cardBodyRef       = useRef(null);
-  const scrollCollapseRef = useRef(false);
+  const takePanelRef = useRef(null);
 
-  const displayedText = useStreamingText(currentTake?.text ?? '');
+  const displayedText = useStreamingText(isPreview ? '' : (currentTake?.text ?? ''));
 
-  // Reset scroll + sources on topic change
+  // Reset scroll + sources when topic changes
   useEffect(() => {
     setSourcesOpen(false);
-    scrollCollapseRef.current = false;
-    onScrollChange?.(false);
-    if (cardBodyRef.current) cardBodyRef.current.scrollTop = 0;
+    if (takePanelRef.current) takePanelRef.current.scrollTop = 0;
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleScroll = (e) => {
-    if (!onScrollChange) return;
-    const shouldCollapse = e.currentTarget.scrollTop > 20;
-    if (shouldCollapse !== scrollCollapseRef.current) {
-      scrollCollapseRef.current = shouldCollapse;
-      onScrollChange(shouldCollapse);
-    }
-  };
+  // ── Derived metadata ─────────────────────────────────────────────────────
+  const override =
+    perspectiveMode === 'sports'        ? SPORTS_META_OVERRIDE[currentTakeIndex]
+    : perspectiveMode === 'tech'        ? TECH_META_OVERRIDE[currentTakeIndex]
+    : perspectiveMode === 'entertainment' ? ENTERTAINMENT_META_OVERRIDE[currentTakeIndex]
+    : null;
 
-  // Derived values
-  const isNeutral     = currentTakeIndex === 3;
-  const isNonFull     = perspectiveMode !== 'full';
-  const activeIndices = perspectiveMode === 'tech' ? TECH_INDICES : LIMITED_INDICES;
-  const tint          = CARD_TINTS[currentTakeIndex] ?? CARD_TINTS[3];
+  const baseMeta = TAKE_META[currentTakeIndex] ?? TAKE_META[3];
+  const meta     = override ? { ...baseMeta, ...override } : baseMeta;
 
-  const baseMeta  = TAKE_META[currentTakeIndex] ?? TAKE_META[3];
-  const override  = perspectiveMode === 'sports'        ? SPORTS_META_OVERRIDE[currentTakeIndex]
-                  : perspectiveMode === 'tech'          ? TECH_META_OVERRIDE[currentTakeIndex]
-                  : perspectiveMode === 'entertainment' ? ENTERTAINMENT_META_OVERRIDE[currentTakeIndex]
-                  : null;
-  const meta      = override ? { ...baseMeta, ...override } : baseMeta;
-  const accent    = currentTake?.color || meta.color || '#a78bfa';
+  // Always use the mode override color — avoids political colors bleeding into sports/tech/ent
+  const accent = override?.color || meta.color || '#a78bfa';
+  const tint   = `${accent}20`;
 
-  const canGoLeft  = isNonFull
-    ? activeIndices.some(i => i < currentTakeIndex)
-    : currentTakeIndex > 0;
-  const canGoRight = isNonFull
-    ? activeIndices.some(i => i > currentTakeIndex)
-    : currentTakeIndex < 6;
+  const isNeutral  = currentTakeIndex === 3;
+  const timestamp  = formatAge(topic.latestPublishedAt);
+  const lColor     = LEFT_COLOR[perspectiveMode]  || LEFT_COLOR.full;
+  const rColor     = RIGHT_COLOR[perspectiveMode] || RIGHT_COLOR.full;
 
-  const timestamp = formatAge(topic.latestPublishedAt);
-
-  // Tap hero → expand card (same as scrolling down)
-  function handleHeroTap() {
-    scrollCollapseRef.current = true;
-    onScrollChange?.(true);
-  }
-
-  // ── Hero: image with title overlay, or no-image header ───────────────────
-  function renderHero() {
-    if (!topic.urlToImage) {
-      return (
-        <div className="card-no-image-header" onClick={handleHeroTap}>
-          {topic.category && (
-            <span className="topic-category-badge">{topic.category}</span>
-          )}
-          <h2 className="card-topic-title-large">{topic.title}</h2>
-        </div>
-      );
-    }
-    return (
-      <div className="card-image-container" onClick={handleHeroTap}>
-        <img
-          src={topic.urlToImage}
-          alt={topic.title}
-          className="card-image"
-          onError={(e) => { e.target.closest('.card-image-container').style.display = 'none'; }}
-        />
-        <div className="card-image-overlay" />
-        <div className="card-image-content">
-          {topic.category && (
-            <span className="topic-category-badge">{topic.category}</span>
-          )}
-          <h2 className="card-image-title">{topic.title}</h2>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Sources accordion ─────────────────────────────────────────────────────
+  // ── Sources accordion ────────────────────────────────────────────────────
   function renderSources(sources) {
     if (!sources?.length) return null;
     return (
@@ -207,83 +153,109 @@ export default function SwipeCard({
     );
   }
 
-  function showTooltip(side) {
-    clearTimeout(tooltipTimer.current);
-    setTooltip(side);
-    tooltipTimer.current = setTimeout(() => setTooltip(null), 2000);
-  }
-
-  // ── Perspective nav arrows (bottom bar) ───────────────────────────────────
-  const navArrows = (
-    <div className="card-nav-arrows">
-      <div className="swipe-nav-side">
-        <button
-          className={`swipe-nav-tap${!canGoLeft ? ' faded' : ''}`}
-          onClick={() => showTooltip('left')}
-          aria-label="More liberal perspective"
-        >🔵←</button>
-        {tooltip === 'left' && <span className="swipe-nav-tip visible">More Liberal</span>}
-      </div>
-      {takesLoading
-        ? <span className="spinner-ring-sm" style={{ margin: '0 4px' }} />
-        : <span className="swipe-nav-label">SWIPE</span>
-      }
-      <div className="swipe-nav-side right">
-        <button
-          className={`swipe-nav-tap${!canGoRight ? ' faded' : ''}`}
-          onClick={() => showTooltip('right')}
-          aria-label="More conservative perspective"
-        >→🔴</button>
-        {tooltip === 'right' && <span className="swipe-nav-tip visible">More Conservative</span>}
-      </div>
-    </div>
-  );
-
-  // ── Single unified render ─────────────────────────────────────────────────
   return (
-    <div className={`swipe-card${slideClass ? ` ${slideClass}` : ''}`} style={{ '--card-tint': tint, '--accent': accent }}>
-      {/* Scrollable area: hero image at top, content below */}
-      <div className="card-body" ref={cardBodyRef} onScroll={handleScroll}>
-        {renderHero()}
+    <div className="swipe-card" style={{ '--accent': accent, '--card-tint': tint }}>
 
-        <div className="card-content">
-          {timestamp && <p className="card-timestamp">Updated {timestamp}</p>}
+      {/* ── Full-screen background ── */}
+      {topic.urlToImage ? (
+        <img
+          src={topic.urlToImage}
+          alt={topic.title}
+          className="card-bg-image"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+      ) : (
+        <div className="card-bg-solid" />
+      )}
 
-          {/* Neutral-only: high-level summary sits above the perspective content */}
-          {isNeutral && topic.summary && (
-            <p className="neutral-blurb">{topic.summary}</p>
+      {/* Dark gradient to ensure text readability at bottom */}
+      <div className="card-bg-gradient" />
+
+      {/* Perspective colour tint overlay */}
+      <div className="card-tint-overlay" />
+
+      {/* ── Content overlay ── */}
+      <div className="card-overlay">
+
+        {/* Top: category badge + timestamp */}
+        <div className="card-top-row">
+          {topic.category && (
+            <span className="topic-category-badge">{topic.category}</span>
           )}
+          {timestamp && !isPreview && (
+            <span className="card-timestamp-overlay">{timestamp}</span>
+          )}
+        </div>
 
-          {/* Perspective badge — identical for all perspectives including neutral */}
-          <div
-            className="perspective-badge"
-            style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
-          >
-            {meta.label} Perspective
-          </div>
+        {/* Transparent spacer — touching here drags the card */}
+        <div className="card-drag-spacer" />
 
-          {/* Take content — identical structure for all perspectives */}
-          {!currentTake ? (
-            <div className="take-skeleton">
-              <div className="skeleton-line" />
-              <div className="skeleton-line" />
-              <div className="skeleton-line medium" />
-              <div className="skeleton-line short" />
-            </div>
-          ) : (
+        {/* ── Bottom panel: title + perspective + text ── */}
+        <div className="card-bottom-panel">
+
+          {/* Topic title */}
+          <h2 className="card-title-overlay">{topic.title}</h2>
+
+          {!isPreview && (
             <>
-              <div className="take-text">
-                {displayedText.split('\n\n').map((p, i) => (
-                  <p key={i}><JargonText>{p.trim()}</JargonText></p>
-                ))}
+              {/* Subtle swipe hint — moved from bottom nav bar to here */}
+              <div className="card-swipe-hint">
+                <span className="card-swipe-arrow" style={{ color: lColor }}>◀</span>
+                <span className="card-swipe-label">
+                  {takesLoading
+                    ? <span className="spinner-ring-sm" />
+                    : 'SWIPE PERSPECTIVE'
+                  }
+                </span>
+                <span className="card-swipe-arrow" style={{ color: rColor }}>▶</span>
               </div>
-              {renderSources(currentTake.sources)}
+
+              {/* Spectrum bar embedded below the swipe hint */}
+              {spectrumBar && (
+                <div className="card-spectrum-embed">
+                  {spectrumBar}
+                </div>
+              )}
+
+              {/* Scrollable take text */}
+              <div className="card-take-panel" ref={takePanelRef}>
+
+                {/* Perspective badge */}
+                <div
+                  className="perspective-badge"
+                  style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
+                >
+                  {meta.label} Perspective
+                </div>
+
+                {/* Neutral summary blurb */}
+                {isNeutral && topic.summary && (
+                  <p className="neutral-blurb">{topic.summary}</p>
+                )}
+
+                {/* Take content or skeleton */}
+                {!currentTake ? (
+                  <div className="take-skeleton">
+                    <div className="skeleton-line" />
+                    <div className="skeleton-line" />
+                    <div className="skeleton-line medium" />
+                    <div className="skeleton-line short" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="take-text">
+                      {displayedText.split('\n\n').map((p, i) => (
+                        <p key={i}><JargonText>{p.trim()}</JargonText></p>
+                      ))}
+                    </div>
+                    {renderSources(currentTake.sources)}
+                  </>
+                )}
+              </div>
             </>
           )}
         </div>
       </div>
-
-      {navArrows}
     </div>
   );
 }
