@@ -70,7 +70,7 @@ const TAKE_POSITIONS = [
 
 const SPORTS_VOICE = {
   '-2': { label: 'Fan',      voice: `You are writing from a FAN perspective. This is about passion, team loyalty, emotional investment, player storylines, and the experience of following a sport. What would a lifelong fan who lives and dies by their team actually care about here? Capture the energy, the stakes, the heartbreak or joy of the moment.` },
-   '0': { label: 'Analyst',  voice: `You are writing from an ANALYST perspective. Focus on statistics, strategy, performance metrics, historical context, coaching decisions, and what the numbers actually show. No hype, no business talk — just cold analysis of what's happening on the field/court/ice and why.` },
+   '0': { label: 'Neutral',  voice: `You are writing from a NEUTRAL, straight-news perspective. Report exactly what happened in this sports story — the facts, the result, the context — the way a wire service reporter would cover it. No fan enthusiasm, no business angle, no deep stats. Just clear, factual, fair-minded coverage that tells the reader what they need to know.` },
    '2': { label: 'Business', voice: `You are writing from a BUSINESS perspective. Focus on contracts, salaries, cap space, revenue, ownership decisions, league policy, sponsorship impact, and the financial machinery behind the sport. What are the business and organizational implications here?` },
 };
 const TECH_VOICE = {
