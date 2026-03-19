@@ -68,69 +68,74 @@ export default function CardStack({
 
       const rawDx = e.touches[0].clientX - startXRef.current;
       const rawDy = e.touches[0].clientY - startYRef.current;
+      const isVertical = Math.abs(rawDy) > Math.abs(rawDx);
 
-      // ── Early intercept: when canSwipeNext is unlocked, prevent the browser
-      // from starting its overscroll animation before our 8px axis-lock fires.
-      // Without this, the browser steals the first 8px of upward swipe as
-      // overscroll bounce and won't release it even after e.preventDefault().
+      // ── Scroll boundary snapshot (reused for both early-intercept and allow) ──
+      const target = startTargetRef.current;
+      const panel  = target?.closest?.('.card-scroll-inner');
+      const atTop  = !panel || panel.scrollTop <= 2;
+      const atBot  = !panel || panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 4;
+
+      // ── Early intercept — prevent browser from stealing the gesture ──────────
+      // Must happen before the 8px axis-lock delay, otherwise the browser
+      // starts its own overscroll animation and won't release it afterward.
+      //   • Upward swipe when unlocked: prevent browser overscroll-up
+      //   • Downward pull at scroll-bottom: prevent browser overscroll-down
       const card = el.querySelector('.swipe-card');
-      if (
-        card?.dataset?.atBottom === '1' &&
-        rawDy < -2 &&
-        Math.abs(rawDy) > Math.abs(rawDx)
-      ) {
+      const isUnlocked = card?.dataset?.atBottom === '1';
+      if (isVertical && (
+        (rawDy < -2 && isUnlocked) ||   // up swipe (unlocked) → we'll handle
+        (rawDy >  2 && atBot)           // down pull at bottom → we'll handle as next
+      )) {
         e.preventDefault();
       }
 
       // Commit to axis once we've moved 8px
       if (!axisRef.current) {
         if (Math.abs(rawDx) < 8 && Math.abs(rawDy) < 8) return;
-        axisRef.current = Math.abs(rawDx) > Math.abs(rawDy) ? 'h' : 'v';
+        axisRef.current = isVertical ? 'v' : 'h';
       }
 
       // Horizontal: let the browser / React handle (no card translation)
       if (axisRef.current === 'h') return;
 
-      // Vertical: decide once if this gesture translates cards
+      // ── Vertical: decide once if this gesture translates the card stack ──────
       if (!cardDragRef.current) {
-        const target   = startTargetRef.current;
-        const panel    = target?.closest?.('.card-scroll-inner');
-        const isHero   = !panel;
-        const atTop    = !panel || panel.scrollTop <= 2;
-        const atBottom = !panel ||
-          panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 4;
+        const panelAtBottom = isUnlocked; // already read above
 
-        // Only allow next-card if scroll container has been read to bottom
-        const card           = el.querySelector('.swipe-card');
-        const panelAtBottom  = card?.dataset?.atBottom === '1';
-
-        // Pulling down from scroll-bottom → fluid "keep going" into next card
-        const isBottomPull = !isHero && rawDy > 0 && atBottom && panelAtBottom;
-        if (isBottomPull) bottomPullRef.current = true;
+        // Down pull at scroll bottom → elastic → next card
+        // Works from ANYWHERE (photo or text), no zone restriction
+        // No canSwipeNext gate needed to START the drag (elastic is immediate);
+        // commit to next card is gated later in onTouchEnd.
+        const isBottomOverscroll = rawDy > 0 && atBot;
+        if (isBottomOverscroll) bottomPullRef.current = true;
 
         const allow =
-          (panelAtBottom  && rawDy < 0) ||          // anywhere, swipe up → next (unlocked)
-          (isHero         && rawDy > 0) ||           // photo area swipe down → prev (always)
-          (!isHero        && rawDy > 0 && atTop) ||  // content top, swipe down → prev
-          isBottomPull;                              // content bottom, pull down → next (bounce-thru)
+          (rawDy < 0 && panelAtBottom)     ||  // swipe up (unlocked) → next
+          (rawDy > 0 && atTop && !atBot)   ||  // pull down at scroll-top only → prev
+          isBottomOverscroll;                   // pull down at bottom → elastic → next
 
         if (allow) cardDragRef.current = true;
       }
 
-      if (!cardDragRef.current) return; // let the take panel scroll natively
+      if (!cardDragRef.current) return; // let content scroll natively
 
       // Prevent page scroll while translating the card stack
       e.preventDefault();
 
       const { prevTopic: prev, nextTopic: next } = cbRef.current;
 
-      // Rubber-band resistance at feed edges and bottom-pull gesture
       let dy = rawDy;
-      if (!prev && rawDy > 0) dy = Math.min(Math.sqrt(rawDy) * 9, 130);
-      if (!next && rawDy < 0) dy = Math.max(-Math.sqrt(-rawDy) * 9, -130);
-      // Bottom-pull: resist downward drag (feels like pulling against elastic)
-      // so user knows they're overscrolling into next-card territory
-      if (bottomPullRef.current) dy = Math.min(Math.sqrt(rawDy) * 7, 90);
+      if (bottomPullRef.current) {
+        // Elastic resistance for bottom-pull → next gesture
+        dy = Math.min(Math.sqrt(rawDy) * 7, 90);
+      } else if (!prev && rawDy > 0) {
+        // Rubber-band at top of feed (no prev card)
+        dy = Math.min(Math.sqrt(rawDy) * 9, 130);
+      } else if (!next && rawDy < 0) {
+        // Rubber-band at bottom of feed (no next card)
+        dy = Math.max(-Math.sqrt(-rawDy) * 9, -130);
+      }
 
       setDragY(dy);
     }
@@ -178,29 +183,34 @@ export default function CardStack({
       const vh       = window.innerHeight;
       const velocity = Math.abs(rawDy) / dt;
 
-      // Bottom-pull: user scrolled to end then kept pulling down — treat as
-      // next-card with a moderate pull threshold (100px raw, any speed).
-      // Loading state: require very deliberate swipe to avoid accidental nav.
+      // Bottom-pull: elastic-down gesture commits at 100px raw pull.
+      // Loading: require very deliberate swipe to avoid accidental nav.
       // Normal: 28% vh OR quick flick.
       const crossed = isBottomPull
-        ? rawDy > 100                                           // bottom-pull → next: just 100px down
+        ? rawDy > 100                                           // elastic pull: 100px raw
         : loading
-          ? (Math.abs(rawDy) > 200 && velocity > 0.8)          // streaming: hard threshold
+          ? (Math.abs(rawDy) > 200 && velocity > 0.8)          // streaming: deliberate only
           : (Math.abs(rawDy) > vh * SNAP_THRESHOLD || velocity > 0.55); // normal
+
+      // Re-read canSwipeNext at commit time for bottom-pull gate
+      const cardEl      = el.querySelector('.swipe-card');
+      const canGoNext   = cardEl?.dataset?.atBottom === '1';
 
       setSnapping(true);
 
-      // Bottom-pull that crossed threshold snaps FORWARD (upward animation) to next
-      if (isBottomPull && crossed && next) {
+      // ── Bottom-pull → NEXT card (upward animation regardless of drag dir) ──
+      if (isBottomPull && crossed && next && canGoNext) {
         setDragY(-vh);
         setTimeout(() => { setDragY(0); setSnapping(false); goNext(); }, 300);
         return;
       }
 
+      // ── Standard upward swipe → next ────────────────────────────────────
       if (crossed && rawDy < 0 && next) {
         setDragY(-vh);
         setTimeout(() => { setDragY(0); setSnapping(false); goNext(); }, 300);
-      } else if (crossed && rawDy > 0 && prev) {
+      // ── Downward at scroll top → prev ───────────────────────────────────
+      } else if (crossed && rawDy > 0 && !isBottomPull && prev) {
         setDragY(vh);
         setTimeout(() => { setDragY(0); setSnapping(false); goPrev(); }, 300);
       } else if (!prev && rawDy > 120 && doRefresh) {
