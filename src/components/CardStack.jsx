@@ -41,7 +41,7 @@ export default function CardStack({
   // Keep callback refs so event listeners always call the latest version
   const cbRef = useRef({});
   cbRef.current = {
-    prevTopic, nextTopic, snapping,
+    prevTopic, nextTopic, snapping, takesLoading,
     onNextTopic, onPrevTopic, onTakeLeft, onTakeRight, onRefreshOrder,
   };
 
@@ -66,6 +66,19 @@ export default function CardStack({
 
       const rawDx = e.touches[0].clientX - startXRef.current;
       const rawDy = e.touches[0].clientY - startYRef.current;
+
+      // ── Early intercept: when canSwipeNext is unlocked, prevent the browser
+      // from starting its overscroll animation before our 8px axis-lock fires.
+      // Without this, the browser steals the first 8px of upward swipe as
+      // overscroll bounce and won't release it even after e.preventDefault().
+      const card = el.querySelector('.swipe-card');
+      if (
+        card?.dataset?.atBottom === '1' &&
+        rawDy < -2 &&
+        Math.abs(rawDy) > Math.abs(rawDx)
+      ) {
+        e.preventDefault();
+      }
 
       // Commit to axis once we've moved 8px
       if (!axisRef.current) {
@@ -128,7 +141,8 @@ export default function CardStack({
       const { prevTopic: prev, nextTopic: next,
               onNextTopic: goNext, onPrevTopic: goPrev,
               onTakeLeft: goLeft, onTakeRight: goRight,
-              onRefreshOrder: doRefresh } = cbRef.current;
+              onRefreshOrder: doRefresh,
+              takesLoading: loading } = cbRef.current;
 
       // ── Horizontal swipe → perspective ──────────────────────────────────
       if (axis === 'h') {
@@ -148,9 +162,14 @@ export default function CardStack({
       if (!isCard) { setDragY(0); return; }
 
       // ── Vertical: snap decision ──────────────────────────────────────────
+      // While perspective text is still streaming, require a very deliberate
+      // swipe (200 px + fast flick) to avoid accidental topic navigation.
+      // Once loaded, normal threshold (28% vh or quick flick) applies.
       const vh       = window.innerHeight;
       const velocity = Math.abs(rawDy) / dt;
-      const crossed  = Math.abs(rawDy) > vh * SNAP_THRESHOLD || velocity > 0.55;
+      const crossed  = loading
+        ? (Math.abs(rawDy) > 200 && velocity > 0.8)   // loading: hard to trigger
+        : (Math.abs(rawDy) > vh * SNAP_THRESHOLD || velocity > 0.55); // normal
 
       setSnapping(true);
 
