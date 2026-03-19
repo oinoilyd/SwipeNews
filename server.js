@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ override: true }); // override shell env vars so .env values always take effect
 
 const app = express();
 app.use(cors());
@@ -721,6 +721,42 @@ app.post('/api/generate-takes', async (req, res) => {
     console.error('generate-takes error:', err);
     return res.status(500).json({ error: err.message || 'Failed to generate take' });
   }
+});
+
+// ── /api/stream-take — SSE streaming fallback for on-demand take generation ────
+app.post('/api/stream-take', async (req, res) => {
+  const { topic, position } = req.body || {};
+
+  if (!topic?.title || !Array.isArray(topic?.articles)) {
+    return res.status(400).json({ error: 'Request body must include topic.title and topic.articles[]' });
+  }
+  if (!Number.isInteger(position) || position < -3 || position > 3) {
+    return res.status(400).json({ error: 'position must be an integer from -3 to 3' });
+  }
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Check cache first
+  const key    = takesCacheKey(topic, position);
+  const cached = getsCached(key);
+  if (cached) {
+    res.write(`data: ${JSON.stringify({ done: true, take: cached })}\n\n`);
+    return res.end();
+  }
+
+  try {
+    const take = await generateTake(topic, position);
+    setsCached(key, take);
+    res.write(`data: ${JSON.stringify({ done: true, take })}\n\n`);
+  } catch (err) {
+    console.error('stream-take error:', err);
+    res.write(`data: ${JSON.stringify({ error: err.message || 'Failed to generate take' })}\n\n`);
+  }
+  res.end();
 });
 
 // ── /api/pregenerate — manually trigger pregeneration for current topics ───────

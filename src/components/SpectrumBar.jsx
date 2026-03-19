@@ -92,15 +92,15 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
       <div className="spectrum-labels">
         {isSports ? (
           <>
-            <span className="spectrum-label-left">🏆 Sports</span>
+            <span className="spectrum-label-left">◀ Fan</span>
             <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
-            <span className="spectrum-label-right">Fan · Neutral · Business</span>
+            <span className="spectrum-label-right">Business ▶</span>
           </>
         ) : isTech ? (
           <>
-            <span className="spectrum-label-left">💻 Tech</span>
+            <span className="spectrum-label-left">◀ Optimist</span>
             <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
-            <span className="spectrum-label-right">Opt · Ske · Neu · Ind</span>
+            <span className="spectrum-label-right">Industry ▶</span>
           </>
         ) : isEntertainment ? (
           <>
