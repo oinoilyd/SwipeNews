@@ -88,17 +88,56 @@ export default function SwipeCard({
   perspectiveMode = 'full',
   spectrumBar    = null,   // rendered only on the active card, below title
   isPreview      = false,  // preview cards show only image + title
+  onScrollChange = null,   // (isScrolled: bool) → collapse/restore header
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [atBottom,    setAtBottom]    = useState(false);
   const takePanelRef = useRef(null);
+  const bgImageRef   = useRef(null);
 
   const displayedText = useStreamingText(isPreview ? '' : (currentTake?.text ?? ''));
 
-  // Reset scroll + sources when topic changes
+  // Reset scroll + sources + parallax when topic changes
   useEffect(() => {
     setSourcesOpen(false);
+    setAtBottom(false);
     if (takePanelRef.current) takePanelRef.current.scrollTop = 0;
+    if (bgImageRef.current)   bgImageRef.current.style.transform = '';
+    if (onScrollChange) onScrollChange(false);
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When a take loads, check if it fits without scrolling — if so, mark at bottom
+  useEffect(() => {
+    if (!currentTake) return;
+    const id = setTimeout(() => {
+      const el = takePanelRef.current;
+      if (!el) return;
+      const scrollMax = el.scrollHeight - el.clientHeight;
+      if (scrollMax <= 0) setAtBottom(true);
+    }, 80); // wait one paint for content to render
+    return () => clearTimeout(id);
+  }, [currentTake]);
+
+  // ── Take-panel scroll → parallax + header collapse ───────────────────────
+  function handlePanelScroll(e) {
+    const el        = e.currentTarget;
+    const scrollTop = el.scrollTop;
+    const scrollMax = el.scrollHeight - el.clientHeight;
+    const isBottom  = scrollMax <= 0 || scrollTop >= scrollMax - 6;
+
+    // Parallax: translate bg image upward as panel scrolls (max 55px)
+    if (bgImageRef.current && scrollMax > 0) {
+      const pct      = Math.min(scrollTop / scrollMax, 1);
+      const parallax = -(pct * 55);
+      bgImageRef.current.style.transform = `translateY(${parallax}px)`;
+    }
+
+    // Header collapse
+    if (onScrollChange) onScrollChange(scrollTop > 8);
+
+    // Track whether user has reached the bottom (unlocks next-card drag)
+    setAtBottom(isBottom);
+  }
 
   // ── Derived metadata ─────────────────────────────────────────────────────
   const override =
@@ -154,11 +193,16 @@ export default function SwipeCard({
   }
 
   return (
-    <div className="swipe-card" style={{ '--accent': accent, '--card-tint': tint }}>
+    <div
+      className="swipe-card"
+      style={{ '--accent': accent, '--card-tint': tint }}
+      data-at-bottom={atBottom ? '1' : '0'}
+    >
 
       {/* ── Full-screen background ── */}
       {topic.urlToImage ? (
         <img
+          ref={bgImageRef}
           src={topic.urlToImage}
           alt={topic.title}
           className="card-bg-image"
@@ -218,7 +262,7 @@ export default function SwipeCard({
               )}
 
               {/* Scrollable take text */}
-              <div className="card-take-panel" ref={takePanelRef}>
+              <div className="card-take-panel" ref={takePanelRef} onScroll={handlePanelScroll}>
 
                 {/* Perspective badge */}
                 <div

@@ -20,6 +20,7 @@ export default function CardStack({
   onPrevTopic,
   perspectiveMode,
   onRefreshOrder,
+  onScrollChange,
 }) {
   const containerRef   = useRef(null);
 
@@ -84,9 +85,17 @@ export default function CardStack({
         const atBottom = !panel ||
           panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 4;
 
-        if (isHero || (rawDy > 0 && atTop) || (rawDy < 0 && atBottom)) {
-          cardDragRef.current = true;
-        }
+        // For hero→up (intent: next card), only allow if take panel is at bottom
+        const card           = el.querySelector('.swipe-card');
+        const panelAtBottom  = card?.dataset?.atBottom === '1';
+
+        const allow =
+          (isHero  && rawDy > 0) ||                    // hero swipe down → prev (always ok)
+          (isHero  && rawDy < 0 && panelAtBottom) ||   // hero swipe up → next (only if read)
+          (!isHero && rawDy > 0 && atTop)    ||        // panel swipe down at top → prev
+          (!isHero && rawDy < 0 && atBottom);          // panel swipe up at bottom → next
+
+        if (allow) cardDragRef.current = true;
       }
 
       if (!cardDragRef.current) return; // let the take panel scroll natively
@@ -214,6 +223,7 @@ export default function CardStack({
           takesLoading={takesLoading}
           perspectiveMode={perspectiveMode}
           spectrumBar={specBar}
+          onScrollChange={onScrollChange}
         />
       </div>
 

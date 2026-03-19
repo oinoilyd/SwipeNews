@@ -285,11 +285,13 @@ body {
 /* ── Full-screen background image ── */
 .card-bg-image {
   position: absolute;
-  inset: 0;
+  top: -8%;
+  left: 0;
   width: 100%;
-  height: 100%;
+  height: 116%;        /* extra room so parallax shift never reveals bg */
   object-fit: cover;
   z-index: 0;
+  will-change: transform;
 }
 
 /* Solid dark background for topics with no image */

@@ -572,6 +572,7 @@ export default function App() {
             onPrevTopic={handlePrevTopic}
             perspectiveMode={perspectiveMode}
             onRefreshOrder={handleRefreshOrder}
+            onScrollChange={handleScrollChange}
           />
         )}
       </main>
