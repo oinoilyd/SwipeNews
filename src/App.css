@@ -273,17 +273,17 @@ body {
 @keyframes slide-in-bottom { from {} to {} }
 @keyframes slide-in-top    { from {} to {} }
 
-/* ── Bottom-reached bounce — nudges content up, hinting "swipe for next" ── */
+/* ── Bottom-reached bounce — content sinks then springs back up ── */
 @keyframes bounce-bottom {
   0%   { transform: translateY(0); }
-  25%  { transform: translateY(-14px); }
-  52%  { transform: translateY(6px);  }
-  72%  { transform: translateY(-4px); }
-  87%  { transform: translateY(2px);  }
+  28%  { transform: translateY(10px); }
+  55%  { transform: translateY(-4px); }
+  75%  { transform: translateY(2px);  }
+  90%  { transform: translateY(-1px); }
   100% { transform: translateY(0); }
 }
-.card-scroll-inner.bounce-bottom {
-  animation: bounce-bottom 0.62s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+.card-content-section.bounce-bottom {
+  animation: bounce-bottom 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ── Swipe card — TikTok full-screen ─────────────────────────────────────── */

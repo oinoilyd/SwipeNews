@@ -245,7 +245,7 @@ export default function SwipeCard({
     >
       {/* One scrollable column: [photo section] ↓ [content section] */}
       <div
-        className={`card-scroll-inner${bouncing ? ' bounce-bottom' : ''}`}
+        className="card-scroll-inner"
         ref={scrollRef}
         onScroll={handleScroll}
       >
@@ -276,7 +276,7 @@ export default function SwipeCard({
         </div>
 
         {/* ── Content section — spectrum bar + narrative ── */}
-        <div className="card-content-section" style={{ '--accent': accent }}>
+        <div className={`card-content-section${bouncing ? ' bounce-bottom' : ''}`} style={{ '--accent': accent }}>
 
           {spectrumBar && (
             <div className="card-spectrum-embed">{spectrumBar}</div>

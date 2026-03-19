@@ -91,9 +91,9 @@ export default function CardStack({
 
         const allow =
           (isHero  && rawDy > 0) ||                    // hero swipe down → prev (always ok)
-          (isHero  && rawDy < 0 && panelAtBottom) ||   // hero swipe up → next (only if read)
+          (isHero  && rawDy < 0 && panelAtBottom) ||   // hero swipe up → next (only if read+delay)
           (!isHero && rawDy > 0 && atTop)    ||        // panel swipe down at top → prev
-          (!isHero && rawDy < 0 && atBottom);          // panel swipe up at bottom → next
+          (!isHero && rawDy < 0 && panelAtBottom);     // panel swipe up at bottom → next (same gate)
 
         if (allow) cardDragRef.current = true;
       }
