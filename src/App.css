@@ -442,6 +442,12 @@ body {
   gap: 10px;
 }
 
+/* Preview card body — dark fill below the 25% photo section */
+.card-preview-body {
+  background: #0f0f13;
+  pointer-events: none;
+}
+
 /* Preview card still uses overlay layout */
 .card-overlay {
   position: absolute;

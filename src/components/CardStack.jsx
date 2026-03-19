@@ -90,10 +90,9 @@ export default function CardStack({
         const panelAtBottom  = card?.dataset?.atBottom === '1';
 
         const allow =
-          (isHero  && rawDy > 0) ||                    // hero swipe down → prev (always ok)
-          (isHero  && rawDy < 0 && panelAtBottom) ||   // hero swipe up → next (only if read+delay)
-          (!isHero && rawDy > 0 && atTop)    ||        // panel swipe down at top → prev
-          (!isHero && rawDy < 0 && panelAtBottom);     // panel swipe up at bottom → next (same gate)
+          (panelAtBottom  && rawDy < 0) ||          // anywhere on card, swipe up → next (unlocked)
+          (isHero         && rawDy > 0) ||           // photo area swipe down → prev (always)
+          (!isHero        && rawDy > 0 && atTop);    // content swipe down at scroll-top → prev
 
         if (allow) cardDragRef.current = true;
       }

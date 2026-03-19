@@ -208,22 +208,22 @@ export default function SwipeCard({
     <div className="card-bg-solid" />
   );
 
-  // ── Preview card (prev/next slot) ─────────────────────────────────────────
+  // ── Preview card (prev/next slot) — same layout as active so no snap on transition ──
   if (isPreview) {
     return (
       <div className="swipe-card" style={{ '--accent': accent, '--card-tint': tint }}>
-        {photoEl}
-        <div className="card-bg-gradient" />
-        <div className="card-tint-overlay" />
-        <div className="card-overlay">
+        <div className="card-photo-section">
+          {photoEl}
+          <div className="card-photo-gradient" />
+          <div className="card-tint-overlay" />
           <div className="card-top-row">
             {topic.category && <span className="topic-category-badge">{topic.category}</span>}
           </div>
-          <div className="card-drag-spacer" />
-          <div className="card-bottom-panel">
+          <div className="card-photo-footer">
             <h2 className="card-title-overlay">{topic.title}</h2>
           </div>
         </div>
+        <div className="card-scroll-inner card-preview-body" />
       </div>
     );
   }
