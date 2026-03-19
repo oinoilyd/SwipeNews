@@ -292,12 +292,33 @@ body {
   inset: 0;
   overflow: hidden;
   background: var(--bg);
+  display: flex;
+  flex-direction: column;
 }
 
-/* ── Single scroll container: [photo] → [spectrum bar] → [take text] ── */
-.card-scroll-inner {
+/* ── Photo section — fixed 25% of card height, never scrolls ── */
+.card-photo-section {
+  position: relative;
+  height: 25%;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Photo: fills photo section, no parallax ── */
+.card-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+/* ── Content scroll container — takes remaining 75% of card ── */
+.card-scroll-inner {
+  flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -305,27 +326,6 @@ body {
   scrollbar-width: none;
 }
 .card-scroll-inner::-webkit-scrollbar { display: none; }
-
-/* ── Photo section — takes up ~68% of card height initially ── */
-.card-photo-section {
-  position: relative;
-  height: 68%;          /* leaves ~32% of content visible below = teaser */
-  flex-shrink: 0;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-/* Photo: extra tall so parallax translateY never reveals gap at bottom */
-.card-bg-image {
-  position: absolute;
-  top: -10%;
-  left: 0;
-  width: 100%;
-  height: 120%;
-  object-fit: cover;
-  z-index: 0;
-  will-change: transform;
-}
 
 /* Solid bg for topics with no image */
 .card-bg-solid {

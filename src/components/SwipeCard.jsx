@@ -92,8 +92,7 @@ export default function SwipeCard({
   const [canSwipeNext, setCanSwipeNext] = useState(false);
   const [bouncing,     setBouncing]     = useState(false);
 
-  const scrollRef       = useRef(null);   // the single scroll container
-  const bgImageRef      = useRef(null);   // photo img — for parallax
+  const scrollRef       = useRef(null);   // scroll container for content
   const swipeTimerRef   = useRef(null);
   const bounceTimerRef  = useRef(null);
   const swipeAllowedRef = useRef(false);  // fire bounce+timer only once per topic
@@ -109,8 +108,7 @@ export default function SwipeCard({
     swipeAllowedRef.current = false;
     clearTimeout(swipeTimerRef.current);
     clearTimeout(bounceTimerRef.current);
-    if (scrollRef.current)  scrollRef.current.scrollTop = 0;
-    if (bgImageRef.current) bgImageRef.current.style.transform = '';
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
     if (onScrollChange) onScrollChange(false);
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -139,16 +137,11 @@ export default function SwipeCard({
     swipeTimerRef.current = setTimeout(() => setCanSwipeNext(true), 1500);
   }, [atBottom]);
 
-  // ── Scroll handler: parallax photo + header collapse + at-bottom ─────────
+  // ── Scroll handler: header collapse + at-bottom detection ───────────────
   function handleScroll(e) {
     const el        = e.currentTarget;
     const scrollTop = el.scrollTop;
     const scrollMax = el.scrollHeight - el.clientHeight;
-
-    // Parallax: photo drifts up faster than the scroll (0.25× extra)
-    if (bgImageRef.current) {
-      bgImageRef.current.style.transform = `translateY(${-scrollTop * 0.25}px)`;
-    }
 
     // Collapse header once user starts reading
     if (onScrollChange) onScrollChange(scrollTop > 10);
@@ -206,7 +199,6 @@ export default function SwipeCard({
   // ── Shared photo element ──────────────────────────────────────────────────
   const photoEl = topic.urlToImage ? (
     <img
-      ref={bgImageRef}
       src={topic.urlToImage}
       alt={topic.title}
       className="card-bg-image"
@@ -236,46 +228,44 @@ export default function SwipeCard({
     );
   }
 
-  // ── Active card — single scroll container ─────────────────────────────────
+  // ── Active card — fixed photo top + scrollable content below ─────────────
   return (
     <div
       className="swipe-card"
       style={{ '--accent': accent, '--card-tint': tint }}
       data-at-bottom={canSwipeNext ? '1' : '0'}
     >
-      {/* One scrollable column: [photo section] ↓ [content section] */}
+      {/* ── Photo section — fixed 25%, never scrolls ── */}
+      <div className="card-photo-section">
+        {photoEl}
+        <div className="card-photo-gradient" />
+        <div className="card-tint-overlay" />
+
+        {/* Badge + timestamp pinned to top of photo */}
+        <div className="card-top-row">
+          {topic.category && <span className="topic-category-badge">{topic.category}</span>}
+          {timestamp && <span className="card-timestamp-overlay">{timestamp}</span>}
+        </div>
+
+        {/* Title + swipe hint anchored to bottom of photo */}
+        <div className="card-photo-footer">
+          <h2 className="card-title-overlay">{topic.title}</h2>
+          <div className="card-swipe-hint">
+            <span className="card-swipe-arrow" style={{ color: lColor }}>◀</span>
+            <span className="card-swipe-label">
+              {takesLoading ? <span className="spinner-ring-sm" /> : 'SWIPE PERSPECTIVE'}
+            </span>
+            <span className="card-swipe-arrow" style={{ color: rColor }}>▶</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Scrollable content — spectrum bar + narrative ── */}
       <div
         className="card-scroll-inner"
         ref={scrollRef}
         onScroll={handleScroll}
       >
-
-        {/* ── Photo section — scrolls up as user reads ── */}
-        <div className="card-photo-section">
-          {photoEl}
-          <div className="card-photo-gradient" />
-          <div className="card-tint-overlay" />
-
-          {/* Badge + timestamp pinned to top of photo */}
-          <div className="card-top-row">
-            {topic.category && <span className="topic-category-badge">{topic.category}</span>}
-            {timestamp && <span className="card-timestamp-overlay">{timestamp}</span>}
-          </div>
-
-          {/* Title + swipe hint anchored to bottom of photo */}
-          <div className="card-photo-footer">
-            <h2 className="card-title-overlay">{topic.title}</h2>
-            <div className="card-swipe-hint">
-              <span className="card-swipe-arrow" style={{ color: lColor }}>◀</span>
-              <span className="card-swipe-label">
-                {takesLoading ? <span className="spinner-ring-sm" /> : 'SWIPE PERSPECTIVE'}
-              </span>
-              <span className="card-swipe-arrow" style={{ color: rColor }}>▶</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Content section — spectrum bar + narrative ── */}
         <div className={`card-content-section${bouncing ? ' bounce-bottom' : ''}`} style={{ '--accent': accent }}>
 
           {spectrumBar && (
@@ -319,7 +309,6 @@ export default function SwipeCard({
           {/* Extra bottom padding so content clears safe area */}
           <div style={{ height: `calc(env(safe-area-inset-bottom, 0px) + 20px)` }} />
         </div>
-
       </div>
     </div>
   );
