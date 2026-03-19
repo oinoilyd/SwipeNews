@@ -273,18 +273,22 @@ export default function SwipeCard({
           )}
 
           <div className="card-take-content">
-            {/* Perspective badge */}
-            <div
-              className="perspective-badge"
-              style={{ color: accent, borderLeftColor: accent, background: `${accent}18` }}
-            >
-              {meta.label} Perspective
-            </div>
-
-            {/* Neutral summary blurb */}
-            {isNeutral && topic.summary && (
-              <p className="neutral-blurb">{topic.summary}</p>
+            {/* Topic context — always shown, lighter weight */}
+            {topic.summary && (
+              <p className="card-summary-context">{topic.summary}</p>
             )}
+
+            {/* Section divider with perspective label */}
+            <div className="perspective-divider">
+              <span className="perspective-divider-line" />
+              <span
+                className="perspective-divider-label"
+                style={{ color: accent }}
+              >
+                {meta.label.toUpperCase()}
+              </span>
+              <span className="perspective-divider-line" />
+            </div>
 
             {/* Take text or skeleton */}
             {!currentTake ? (

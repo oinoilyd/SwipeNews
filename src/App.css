@@ -489,7 +489,37 @@ body {
 .card-image-title     { display: none; }
 .card-take-panel      { display: contents; } /* no longer a scroll container */
 
-/* ── Perspective badge ── */
+/* ── Topic context — appears above perspective divider, lighter weight ── */
+.card-summary-context {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.45);
+  margin: 0;
+  padding-top: 10px;
+  font-style: italic;
+}
+
+/* ── Perspective section divider ── */
+.perspective-divider {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 0 8px;
+}
+.perspective-divider-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+}
+.perspective-divider-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+/* ── Perspective badge (legacy stub) ── */
 .perspective-badge {
   display: inline-flex;
   align-items: center;
@@ -503,16 +533,17 @@ body {
   text-transform: uppercase;
 }
 
-/* ── Take text ── */
+/* ── Take text — heavier, full-opacity opinion voice ── */
 .take-text {
   flex: 1;
 }
 
 .take-text p {
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: rgba(255,255,255,0.92);
-  margin-bottom: 8px;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.93);
+  margin-bottom: 10px;
+  font-weight: 400;
 }
 
 .take-text p:last-child { margin-bottom: 0; }

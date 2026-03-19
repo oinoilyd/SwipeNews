@@ -32,6 +32,7 @@ export default function CardStack({
   const isDragging     = useRef(false);
   const axisRef        = useRef(null);     // 'v' | 'h' | null
   const cardDragRef    = useRef(false);    // true = translating the card stack
+  const bottomPullRef  = useRef(false);    // true = pulling down from scroll-bottom → next
   const lastHSwipe     = useRef(0);
 
   // Rendering state (these drive the actual card positions)
@@ -55,6 +56,7 @@ export default function CardStack({
       isDragging.current     = true;
       axisRef.current        = null;
       cardDragRef.current    = false;
+      bottomPullRef.current  = false;
       startXRef.current      = e.touches[0].clientX;
       startYRef.current      = e.touches[0].clientY;
       startTimeRef.current   = Date.now();
@@ -102,10 +104,15 @@ export default function CardStack({
         const card           = el.querySelector('.swipe-card');
         const panelAtBottom  = card?.dataset?.atBottom === '1';
 
+        // Pulling down from scroll-bottom → fluid "keep going" into next card
+        const isBottomPull = !isHero && rawDy > 0 && atBottom && panelAtBottom;
+        if (isBottomPull) bottomPullRef.current = true;
+
         const allow =
-          (panelAtBottom  && rawDy < 0) ||          // anywhere on card, swipe up → next (unlocked)
+          (panelAtBottom  && rawDy < 0) ||          // anywhere, swipe up → next (unlocked)
           (isHero         && rawDy > 0) ||           // photo area swipe down → prev (always)
-          (!isHero        && rawDy > 0 && atTop);    // content swipe down at scroll-top → prev
+          (!isHero        && rawDy > 0 && atTop) ||  // content top, swipe down → prev
+          isBottomPull;                              // content bottom, pull down → next (bounce-thru)
 
         if (allow) cardDragRef.current = true;
       }
@@ -117,10 +124,13 @@ export default function CardStack({
 
       const { prevTopic: prev, nextTopic: next } = cbRef.current;
 
-      // Rubber-band resistance at feed edges
+      // Rubber-band resistance at feed edges and bottom-pull gesture
       let dy = rawDy;
       if (!prev && rawDy > 0) dy = Math.min(Math.sqrt(rawDy) * 9, 130);
       if (!next && rawDy < 0) dy = Math.max(-Math.sqrt(-rawDy) * 9, -130);
+      // Bottom-pull: resist downward drag (feels like pulling against elastic)
+      // so user knows they're overscrolling into next-card territory
+      if (bottomPullRef.current) dy = Math.min(Math.sqrt(rawDy) * 7, 90);
 
       setDragY(dy);
     }
@@ -159,19 +169,33 @@ export default function CardStack({
         return;
       }
 
+      const isBottomPull = bottomPullRef.current;
+      bottomPullRef.current = false;
+
       if (!isCard) { setDragY(0); return; }
 
       // ── Vertical: snap decision ──────────────────────────────────────────
-      // While perspective text is still streaming, require a very deliberate
-      // swipe (200 px + fast flick) to avoid accidental topic navigation.
-      // Once loaded, normal threshold (28% vh or quick flick) applies.
       const vh       = window.innerHeight;
       const velocity = Math.abs(rawDy) / dt;
-      const crossed  = loading
-        ? (Math.abs(rawDy) > 200 && velocity > 0.8)   // loading: hard to trigger
-        : (Math.abs(rawDy) > vh * SNAP_THRESHOLD || velocity > 0.55); // normal
+
+      // Bottom-pull: user scrolled to end then kept pulling down — treat as
+      // next-card with a moderate pull threshold (100px raw, any speed).
+      // Loading state: require very deliberate swipe to avoid accidental nav.
+      // Normal: 28% vh OR quick flick.
+      const crossed = isBottomPull
+        ? rawDy > 100                                           // bottom-pull → next: just 100px down
+        : loading
+          ? (Math.abs(rawDy) > 200 && velocity > 0.8)          // streaming: hard threshold
+          : (Math.abs(rawDy) > vh * SNAP_THRESHOLD || velocity > 0.55); // normal
 
       setSnapping(true);
+
+      // Bottom-pull that crossed threshold snaps FORWARD (upward animation) to next
+      if (isBottomPull && crossed && next) {
+        setDragY(-vh);
+        setTimeout(() => { setDragY(0); setSnapping(false); goNext(); }, 300);
+        return;
+      }
 
       if (crossed && rawDy < 0 && next) {
         setDragY(-vh);
