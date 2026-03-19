@@ -74,7 +74,9 @@ export default function CardStack({
       const target = startTargetRef.current;
       const panel  = target?.closest?.('.card-scroll-inner');
       const atTop  = !panel || panel.scrollTop <= 2;
-      const atBot  = !panel || panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 4;
+      // Generous threshold: 40px from bottom counts as "at bottom"
+      // so sources accordion / padding don't block the gesture
+      const atBot  = !panel || panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 40;
 
       // ── Early intercept — prevent browser from stealing the gesture ──────────
       // Must happen before the 8px axis-lock delay, otherwise the browser
@@ -192,14 +194,11 @@ export default function CardStack({
           ? (Math.abs(rawDy) > 200 && velocity > 0.8)          // streaming: deliberate only
           : (Math.abs(rawDy) > vh * SNAP_THRESHOLD || velocity > 0.55); // normal
 
-      // Re-read canSwipeNext at commit time for bottom-pull gate
-      const cardEl      = el.querySelector('.swipe-card');
-      const canGoNext   = cardEl?.dataset?.atBottom === '1';
-
       setSnapping(true);
 
       // ── Bottom-pull → NEXT card (upward animation regardless of drag dir) ──
-      if (isBottomPull && crossed && next && canGoNext) {
+      // No canSwipeNext gate here — 100px elastic pull is intentional enough
+      if (isBottomPull && crossed && next) {
         setDragY(-vh);
         setTimeout(() => { setDragY(0); setSnapping(false); goNext(); }, 300);
         return;

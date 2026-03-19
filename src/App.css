@@ -167,14 +167,14 @@ body {
 
 .spectrum-track {
   position: relative;
-  height: 20px;
+  height: 14px;
   display: flex;
   align-items: center;
 }
 
 .spectrum-gradient {
   position: absolute;
-  inset: 6px 0;
+  inset: 4px 0;
   border-radius: 99px;
   background: linear-gradient(
     to right,
@@ -212,8 +212,8 @@ body {
 .spectrum-pip {
   position: absolute;
   transform: translateX(-50%);
-  width: 16px;
-  height: 16px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -222,8 +222,8 @@ body {
 }
 .spectrum-pip:hover { transform: translateX(-50%) scale(1.25); }
 .spectrum-pip.active {
-  width: 22px;
-  height: 22px;
+  width: 15px;
+  height: 15px;
   z-index: 2;
 }
 
@@ -240,7 +240,7 @@ body {
 .spectrum-label-right { color: rgba(252, 165, 165, 0.85); }
 
 .spectrum-current-label {
-  font-size: 0.8rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -429,7 +429,7 @@ body {
 
 /* ── SpectrumBar embedded at top of content section ── */
 .card-spectrum-embed {
-  padding: 6px 10px 8px;
+  padding: 4px 10px 5px;
   background: #141419;
   border-bottom: 1px solid rgba(255,255,255,0.07);
 }
