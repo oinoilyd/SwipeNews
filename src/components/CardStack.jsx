@@ -99,13 +99,20 @@ export default function CardStack({
       }
 
       // ── Early intercept — prevent browser overscroll stealing the gesture ────
-      const card = el.querySelector('.swipe-card');
+      // Must select the ACTIVE card (has data-at-bottom attr); preview cards don't
+      const card = el.querySelector('.swipe-card[data-at-bottom]');
       const isUnlocked = card?.dataset?.atBottom === '1';
       if (
         (isVertical && rawDy < -2 && isUnlocked) || // unlocked upward swipe
         (atBot && localDy > 1)                       // any downward frame at bottom
       ) {
         e.preventDefault();
+      }
+
+      // ── Bottom-pull can commit card drag before axis lock (no lag on elastic) ─
+      if (!cardDragRef.current && overscrollRef.current > 0) {
+        cardDragRef.current = true;
+        if (!axisRef.current) axisRef.current = 'v';
       }
 
       // Commit to axis once we've moved 8px
@@ -191,11 +198,11 @@ export default function CardStack({
       const vh       = window.innerHeight;
       const velocity = Math.abs(rawDy) / dt;
 
-      // Bottom-pull: commit when accumulated overscroll exceeds 70px.
+      // Bottom-pull: commit when accumulated overscroll reaches 40px.
       // Loading: require very deliberate swipe to avoid accidental nav.
       // Normal: 28% vh OR quick flick.
       const crossed = isBottomPull
-        ? overscrollPx > 70                                     // local overscroll threshold
+        ? overscrollPx >= 40                                    // local overscroll threshold
         : loading
           ? (Math.abs(rawDy) > 200 && velocity > 0.8)          // streaming: deliberate only
           : (Math.abs(rawDy) > vh * SNAP_THRESHOLD || velocity > 0.55); // normal
