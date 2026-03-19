@@ -87,15 +87,13 @@ export default function SwipeCard({
   isPreview       = false,
   onScrollChange  = null,
 }) {
-  const [sourcesOpen,  setSourcesOpen]  = useState(false);
-  const [atBottom,     setAtBottom]     = useState(false);
-  const [canSwipeNext, setCanSwipeNext] = useState(false);
-  const [bouncing,     setBouncing]     = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [atBottom,    setAtBottom]    = useState(false);
+  const [bouncing,    setBouncing]    = useState(false);
 
-  const scrollRef       = useRef(null);   // scroll container for content
-  const swipeTimerRef   = useRef(null);
-  const bounceTimerRef  = useRef(null);
-  const swipeAllowedRef = useRef(false);  // fire bounce+timer only once per topic
+  const scrollRef      = useRef(null);   // scroll container for content
+  const bounceTimerRef = useRef(null);
+  const bounceFiredRef = useRef(false);  // fire bounce once per bottom-reach
 
   const displayedText = useStreamingText(isPreview ? '' : (currentTake?.text ?? ''));
 
@@ -103,38 +101,30 @@ export default function SwipeCard({
   useEffect(() => {
     setSourcesOpen(false);
     setAtBottom(false);
-    setCanSwipeNext(false);
     setBouncing(false);
-    swipeAllowedRef.current = false;
-    clearTimeout(swipeTimerRef.current);
+    bounceFiredRef.current = false;
     clearTimeout(bounceTimerRef.current);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     if (onScrollChange) onScrollChange(false);
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-unlock when content fits without scrolling
+  // Auto-detect bottom for short content that doesn't need scrolling
   useEffect(() => {
     if (!currentTake) return;
     const id = setTimeout(() => {
       const el = scrollRef.current;
-      if (!el) return;
-      if (el.scrollHeight - el.clientHeight <= 0) setAtBottom(true);
+      if (el && el.scrollHeight - el.clientHeight <= 0) setAtBottom(true);
     }, 80);
     return () => clearTimeout(id);
   }, [currentTake]);
 
-  // ── Bounce + 1.5s swipe gate when user first reaches the bottom ──────────
+  // ── Bounce hint when user reaches the bottom ──────────────────────────────
   useEffect(() => {
-    if (!atBottom || swipeAllowedRef.current) return;
-    swipeAllowedRef.current = true;
-
-    // Spring bounce: nudge content upward (hints "swipe up for next")
+    if (!atBottom) { bounceFiredRef.current = false; return; }
+    if (bounceFiredRef.current) return;
+    bounceFiredRef.current = true;
     setBouncing(true);
     bounceTimerRef.current = setTimeout(() => setBouncing(false), 620);
-
-    // Allow next-card swipe after 1.5s — prevents premature swipes while
-    // content is still loading or the user is checking sources
-    swipeTimerRef.current = setTimeout(() => setCanSwipeNext(true), 1500);
   }, [atBottom]);
 
   // ── Scroll handler: header collapse + at-bottom detection ───────────────
@@ -233,7 +223,6 @@ export default function SwipeCard({
     <div
       className="swipe-card"
       style={{ '--accent': accent, '--card-tint': tint }}
-      data-at-bottom={canSwipeNext ? '1' : '0'}
     >
       {/* ── Photo section — fixed 25%, never scrolls ── */}
       <div className="card-photo-section">
