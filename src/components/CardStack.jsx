@@ -79,13 +79,13 @@ export default function CardStack({
       // Vertical: decide once if this gesture translates cards
       if (!cardDragRef.current) {
         const target   = startTargetRef.current;
-        const panel    = target?.closest?.('.card-take-panel');
+        const panel    = target?.closest?.('.card-scroll-inner');
         const isHero   = !panel;
         const atTop    = !panel || panel.scrollTop <= 2;
         const atBottom = !panel ||
           panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 4;
 
-        // For hero→up (intent: next card), only allow if take panel is at bottom
+        // Only allow next-card if scroll container has been read to bottom
         const card           = el.querySelector('.swipe-card');
         const panelAtBottom  = card?.dataset?.atBottom === '1';
 
