@@ -87,10 +87,16 @@ export default function SwipeCard({
   isPreview       = false,
   onScrollChange  = null,
 }) {
-  const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [atBottom,    setAtBottom]    = useState(false);
-  const scrollRef  = useRef(null);   // the single scroll container
-  const bgImageRef = useRef(null);   // photo img — for parallax
+  const [sourcesOpen,  setSourcesOpen]  = useState(false);
+  const [atBottom,     setAtBottom]     = useState(false);
+  const [canSwipeNext, setCanSwipeNext] = useState(false);
+  const [bouncing,     setBouncing]     = useState(false);
+
+  const scrollRef       = useRef(null);   // the single scroll container
+  const bgImageRef      = useRef(null);   // photo img — for parallax
+  const swipeTimerRef   = useRef(null);
+  const bounceTimerRef  = useRef(null);
+  const swipeAllowedRef = useRef(false);  // fire bounce+timer only once per topic
 
   const displayedText = useStreamingText(isPreview ? '' : (currentTake?.text ?? ''));
 
@@ -98,6 +104,11 @@ export default function SwipeCard({
   useEffect(() => {
     setSourcesOpen(false);
     setAtBottom(false);
+    setCanSwipeNext(false);
+    setBouncing(false);
+    swipeAllowedRef.current = false;
+    clearTimeout(swipeTimerRef.current);
+    clearTimeout(bounceTimerRef.current);
     if (scrollRef.current)  scrollRef.current.scrollTop = 0;
     if (bgImageRef.current) bgImageRef.current.style.transform = '';
     if (onScrollChange) onScrollChange(false);
@@ -114,6 +125,20 @@ export default function SwipeCard({
     return () => clearTimeout(id);
   }, [currentTake]);
 
+  // ── Bounce + 1.5s swipe gate when user first reaches the bottom ──────────
+  useEffect(() => {
+    if (!atBottom || swipeAllowedRef.current) return;
+    swipeAllowedRef.current = true;
+
+    // Spring bounce: nudge content upward (hints "swipe up for next")
+    setBouncing(true);
+    bounceTimerRef.current = setTimeout(() => setBouncing(false), 620);
+
+    // Allow next-card swipe after 1.5s — prevents premature swipes while
+    // content is still loading or the user is checking sources
+    swipeTimerRef.current = setTimeout(() => setCanSwipeNext(true), 1500);
+  }, [atBottom]);
+
   // ── Scroll handler: parallax photo + header collapse + at-bottom ─────────
   function handleScroll(e) {
     const el        = e.currentTarget;
@@ -128,7 +153,7 @@ export default function SwipeCard({
     // Collapse header once user starts reading
     if (onScrollChange) onScrollChange(scrollTop > 10);
 
-    // Unlock next-card when fully scrolled
+    // Detect bottom (sets atBottom, which triggers bounce+timer above)
     setAtBottom(scrollMax <= 0 || scrollTop >= scrollMax - 6);
   }
 
@@ -216,10 +241,14 @@ export default function SwipeCard({
     <div
       className="swipe-card"
       style={{ '--accent': accent, '--card-tint': tint }}
-      data-at-bottom={atBottom ? '1' : '0'}
+      data-at-bottom={canSwipeNext ? '1' : '0'}
     >
       {/* One scrollable column: [photo section] ↓ [content section] */}
-      <div className="card-scroll-inner" ref={scrollRef} onScroll={handleScroll}>
+      <div
+        className={`card-scroll-inner${bouncing ? ' bounce-bottom' : ''}`}
+        ref={scrollRef}
+        onScroll={handleScroll}
+      >
 
         {/* ── Photo section — scrolls up as user reads ── */}
         <div className="card-photo-section">
