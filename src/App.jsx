@@ -591,6 +591,7 @@ export default function App() {
             onRefreshOrder={handleRefreshOrder}
             onScrollChange={handleScrollChange}
             onExpandHeader={() => setHeaderCollapsed(false)}
+            headerCollapsed={headerCollapsed}
           />
         )}
       </main>

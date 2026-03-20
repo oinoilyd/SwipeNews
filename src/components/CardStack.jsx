@@ -25,6 +25,7 @@ export default function CardStack({
   onRefreshOrder,
   onScrollChange,
   onExpandHeader,
+  headerCollapsed,
 }) {
   const containerRef = useRef(null);
 
@@ -46,7 +47,7 @@ export default function CardStack({
   // ── Stable callback ref — listeners always see latest props ─────────────
   const cbRef = useRef({});
   cbRef.current = {
-    prevTopic, nextTopic, snapping,
+    prevTopic, nextTopic, snapping, headerCollapsed,
     onNextTopic, onPrevTopic, onTakeLeft, onTakeRight, onRefreshOrder, onExpandHeader,
   };
 
@@ -152,11 +153,12 @@ export default function CardStack({
               onNextTopic: goNext, onPrevTopic: goPrev,
               onTakeLeft: goLeft, onTakeRight: goRight,
               onRefreshOrder: doRefresh,
-              onExpandHeader: expandHeader } = cbRef.current;
+              onExpandHeader: expandHeader,
+              headerCollapsed: isCollapsed } = cbRef.current;
 
-      // ── Tap in photo section → restore header ─────────────────────────────
+      // ── Tap in photo section → restore header (only when it's actually hidden) ──
       const totalMove = Math.sqrt(dx * dx + dy * dy);
-      if (totalMove < 12 && inPhotoRef.current && phase !== 'card') {
+      if (totalMove < 12 && inPhotoRef.current && phase !== 'card' && isCollapsed) {
         expandHeader?.();
         return;
       }
