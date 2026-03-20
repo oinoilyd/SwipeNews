@@ -590,6 +590,7 @@ export default function App() {
             perspectiveMode={perspectiveMode}
             onRefreshOrder={handleRefreshOrder}
             onScrollChange={handleScrollChange}
+            onExpandHeader={() => setHeaderCollapsed(false)}
           />
         )}
       </main>

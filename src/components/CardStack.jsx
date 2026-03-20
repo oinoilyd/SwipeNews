@@ -24,6 +24,7 @@ export default function CardStack({
   perspectiveMode,
   onRefreshOrder,
   onScrollChange,
+  onExpandHeader,
 }) {
   const containerRef = useRef(null);
 
@@ -37,6 +38,7 @@ export default function CardStack({
   const phaseRef       = useRef('idle');
   const isDragging     = useRef(false);
   const lastHSwipe     = useRef(0);
+  const inPhotoRef     = useRef(false); // did touch start inside the photo section?
 
   const [dragY,    setDragY]    = useState(0);
   const [snapping, setSnapping] = useState(false);
@@ -45,7 +47,7 @@ export default function CardStack({
   const cbRef = useRef({});
   cbRef.current = {
     prevTopic, nextTopic, snapping,
-    onNextTopic, onPrevTopic, onTakeLeft, onTakeRight, onRefreshOrder,
+    onNextTopic, onPrevTopic, onTakeLeft, onTakeRight, onRefreshOrder, onExpandHeader,
   };
 
   useEffect(() => {
@@ -66,6 +68,9 @@ export default function CardStack({
       const panel = e.target.closest?.('.card-scroll-inner') ?? null;
       panelRef.current       = panel;
       startScrollRef.current = panel?.scrollTop ?? 0;
+
+      // Track whether touch started in the photo section
+      inPhotoRef.current = !!e.target.closest?.('.card-photo-section');
     }
 
     // ── Touch move: the core logic ───────────────────────────────────────────
@@ -146,7 +151,15 @@ export default function CardStack({
       const { prevTopic: prev, nextTopic: next,
               onNextTopic: goNext, onPrevTopic: goPrev,
               onTakeLeft: goLeft, onTakeRight: goRight,
-              onRefreshOrder: doRefresh } = cbRef.current;
+              onRefreshOrder: doRefresh,
+              onExpandHeader: expandHeader } = cbRef.current;
+
+      // ── Tap in photo section → restore header ─────────────────────────────
+      const totalMove = Math.sqrt(dx * dx + dy * dy);
+      if (totalMove < 12 && inPhotoRef.current && phase !== 'card') {
+        expandHeader?.();
+        return;
+      }
 
       // ── Horizontal → perspective ───────────────────────────────────────────
       if (phase === 'h') {
