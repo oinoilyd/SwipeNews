@@ -512,12 +512,40 @@ body {
   height: 1px;
   background: rgba(255,255,255,0.1);
 }
+.perspective-divider-center {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
 .perspective-divider-label {
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   white-space: nowrap;
   opacity: 0.9;
+}
+.source-warning-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: #f59e0b;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+.source-warning-btn:hover { opacity: 1; }
+.source-warning-msg {
+  font-size: 0.72rem;
+  color: rgba(245, 158, 11, 0.85);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 6px;
+  padding: 7px 10px;
+  margin: 0 0 8px;
+  line-height: 1.5;
 }
 
 /* ── Perspective badge (legacy stub) ── */

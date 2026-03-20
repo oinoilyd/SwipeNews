@@ -150,6 +150,8 @@ Return ONLY valid JSON:
         const parsed = JSON.parse(match[0]);
         if (parsed.take) {
           const take = { ...parsed.take, color: meta.color };
+          // Flag when no articles exist for this perspective's primary tier
+          if (primaryArts.length === 0) take.limitedSources = true;
           await redis.set(rKey, take, { ex: 7200 });
           send(res, { done: true, take });
         }

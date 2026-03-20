@@ -87,9 +87,10 @@ export default function SwipeCard({
   isPreview       = false,
   onScrollChange  = null,
 }) {
-  const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [atBottom,    setAtBottom]    = useState(false);
-  const [bouncing,    setBouncing]    = useState(false);
+  const [sourcesOpen,      setSourcesOpen]      = useState(false);
+  const [atBottom,         setAtBottom]         = useState(false);
+  const [bouncing,         setBouncing]          = useState(false);
+  const [sourceWarningOpen, setSourceWarningOpen] = useState(false);
 
   const scrollRef      = useRef(null);   // scroll container for content
   const bounceTimerRef = useRef(null);
@@ -102,11 +103,15 @@ export default function SwipeCard({
     setSourcesOpen(false);
     setAtBottom(false);
     setBouncing(false);
+    setSourceWarningOpen(false);
     bounceFiredRef.current = false;
     clearTimeout(bounceTimerRef.current);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     if (onScrollChange) onScrollChange(false);
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close source warning when perspective changes
+  useEffect(() => { setSourceWarningOpen(false); }, [currentTakeIndex]);
 
   // Auto-detect bottom for short content that doesn't need scrolling
   useEffect(() => {
@@ -270,14 +275,30 @@ export default function SwipeCard({
             {/* Section divider with perspective label */}
             <div className="perspective-divider">
               <span className="perspective-divider-line" />
-              <span
-                className="perspective-divider-label"
-                style={{ color: accent }}
-              >
-                {meta.label.toUpperCase()}
+              <span className="perspective-divider-center">
+                <span
+                  className="perspective-divider-label"
+                  style={{ color: accent }}
+                >
+                  {meta.label.toUpperCase()}
+                </span>
+                {currentTake?.limitedSources && (
+                  <button
+                    className="source-warning-btn"
+                    onClick={() => setSourceWarningOpen(o => !o)}
+                    title="Limited source coverage"
+                  >
+                    ⚠
+                  </button>
+                )}
               </span>
               <span className="perspective-divider-line" />
             </div>
+            {sourceWarningOpen && (
+              <p className="source-warning-msg">
+                Limited coverage: few or no articles from this perspective's primary sources. The take is generated from available reporting but may not fully reflect this viewpoint's typical framing.
+              </p>
+            )}
 
             {/* Take text or skeleton */}
             {!currentTake ? (
