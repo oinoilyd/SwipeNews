@@ -39,13 +39,20 @@ function buildCacheKey(topicId, publishedAt, position) {
   return `${CACHE_PREFIX}:${topicId}:${publishedAt ?? 'x'}:${position}`;
 }
 
+const WEAK_TAKE_PHRASES = ['cannot verify', 'appears to be false'];
+function isWeakTake(take) {
+  const t = (take?.text || '').toLowerCase();
+  return WEAK_TAKE_PHRASES.some(p => t.includes(p));
+}
+
 function loadCachedTake(topicId, publishedAt, position) {
   try {
-    const raw = localStorage.getItem(buildCacheKey(topicId, publishedAt, position));
+    const key = buildCacheKey(topicId, publishedAt, position);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const { take, ts } = JSON.parse(raw);
-    if (Date.now() - ts > CACHE_MAX_AGE) {
-      localStorage.removeItem(buildCacheKey(topicId, publishedAt, position));
+    if (Date.now() - ts > CACHE_MAX_AGE || isWeakTake(take)) {
+      localStorage.removeItem(key);
       return null;
     }
     return take;
@@ -53,6 +60,7 @@ function loadCachedTake(topicId, publishedAt, position) {
 }
 
 function saveCachedTake(topicId, publishedAt, position, take) {
+  if (isWeakTake(take)) return; // never cache bad takes
   try {
     const key = buildCacheKey(topicId, publishedAt, position);
     localStorage.setItem(key, JSON.stringify({ take, ts: Date.now() }));
