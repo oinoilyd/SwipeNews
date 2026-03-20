@@ -405,6 +405,11 @@ export default function App() {
         ...t,
         perspectiveMode: getPerspectiveMode(t.category),
       }));
+      // Shuffle order on every load so the feed feels fresh
+      for (let i = processedTopics.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [processedTopics[i], processedTopics[j]] = [processedTopics[j], processedTopics[i]];
+      }
       setTopicShells(processedTopics);
       setCurrentTopicIndex(0);
       setCurrentTakeIndex(3);
