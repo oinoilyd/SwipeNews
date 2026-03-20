@@ -159,6 +159,10 @@ export default function SwipeCard({
 
   const isNeutral = currentTakeIndex === 3;
   const timestamp = formatAge(topic.latestPublishedAt);
+
+  const WEAK_PHRASES = ['cannot verify','do not contain information','sources do not contain','no information about','cannot confirm','not able to verify','no relevant sources','provided sources do not'];
+  const takeTextLower = (currentTake?.text || '').toLowerCase();
+  const hasWeakTake = currentTake?.limitedSources || WEAK_PHRASES.some(p => takeTextLower.includes(p));
   const lColor    = LEFT_COLOR[perspectiveMode]  || LEFT_COLOR.full;
   const rColor    = RIGHT_COLOR[perspectiveMode] || RIGHT_COLOR.full;
 
@@ -282,11 +286,11 @@ export default function SwipeCard({
                 >
                   {meta.label.toUpperCase()}
                 </span>
-                {currentTake?.limitedSources && (
+                {hasWeakTake && (
                   <button
                     className="source-warning-btn"
                     onClick={() => setSourceWarningOpen(o => !o)}
-                    title="Limited source coverage"
+                    title="Limited source coverage for this perspective"
                   >
                     ⚠
                   </button>
@@ -296,7 +300,7 @@ export default function SwipeCard({
             </div>
             {sourceWarningOpen && (
               <p className="source-warning-msg">
-                Limited coverage: few or no articles from this perspective's primary sources. The take is generated from available reporting but may not fully reflect this viewpoint's typical framing.
+                <strong>Heads up:</strong> This perspective may be based on limited or mismatched source coverage. The take reflects the available reporting but might not fully capture this viewpoint's typical framing of the story.
               </p>
             )}
 
