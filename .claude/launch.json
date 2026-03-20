@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "swipenews",
+      "name": "swipenews-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
-    },
-    {
-      "name": "swipenews-api",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["vercel", "dev", "--listen", "3001", "--yes"],
-      "port": 3001
     }
   ]
 }

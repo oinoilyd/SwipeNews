@@ -162,7 +162,7 @@ export default function SwipeCard({
 
   const WEAK_PHRASES = ['cannot verify','do not contain information','sources do not contain','no information about','cannot confirm','not able to verify','no relevant sources','provided sources do not'];
   const takeTextLower = (currentTake?.text || '').toLowerCase();
-  const hasWeakTake = currentTake?.limitedSources || WEAK_PHRASES.some(p => takeTextLower.includes(p));
+  const hasWeakTake = WEAK_PHRASES.some(p => takeTextLower.includes(p));
   const lColor    = LEFT_COLOR[perspectiveMode]  || LEFT_COLOR.full;
   const rColor    = RIGHT_COLOR[perspectiveMode] || RIGHT_COLOR.full;
 
