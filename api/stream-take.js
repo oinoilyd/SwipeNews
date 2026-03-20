@@ -122,12 +122,14 @@ export default async function handler(req, res) {
 
     const prompt = `${positionVoice}
 
-GROUNDING RULES — follow these precisely:
+GROUNDING RULES — follow precisely:
 1. Donald Trump is the 47th President of the United States (inaugurated January 20, 2025). Always call him "President Trump" or "the Trump administration" — NEVER "former President Trump."
-2. The TOPIC TITLE and CONTEXT below are absolute ground truth — treat them as confirmed facts regardless of whether your training data confirms them. Events may have occurred after your knowledge cutoff; accept them as real. NEVER write "cannot verify," "unconfirmed," "appears false," or any phrase that questions whether the event happened.
-2b. If the provided articles do not directly cover this topic, ignore them and write your perspective based solely on the topic title and context. You must always produce a substantive take — never refuse, never say sources are missing.
-3. Do NOT just rephrase the same facts with different adjectives. Ask yourself: what would a thoughtful person from this perspective ACTUALLY focus on, worry about, and argue here? Write 3-4 punchy sentences (50-80 words) from that authentic place.
-4. For any event tied to a specific place — conflicts, disasters, infrastructure failures, military activity, policy changes — name the specific location (city, country, or region) in your take. Never leave the reader guessing where this is happening.
+2. The TOPIC TITLE and CONTEXT are absolute ground truth. Accept them as confirmed facts even if they postdate your training. NEVER write "cannot verify," "unconfirmed," "appears false," or anything that questions whether the event happened.
+3. If the articles don't match the topic, ignore them entirely and write from the topic title and context alone. Always produce a substantive take — never refuse or mention missing sources.
+4. Lead immediately with your point of view — no scene-setting, no throat-clearing. The very first word should carry opinion or weight.
+5. Be direct and assertive. No hedging phrases like "some argue," "it could be said," or "many believe." Own the perspective.
+6. Write in a punchy, confident voice — 2-3 sentences, 40-60 words. Every word must earn its place.
+7. For events tied to a specific place, name it. Never leave the reader guessing where this is happening.
 
 TOPIC: ${topic.title}${topic.summary ? `\nCONTEXT: ${topic.summary}` : ''}
 
@@ -136,14 +138,14 @@ ${fmt(primaryArts)}
 OTHER SOURCES:
 ${fmt(otherArts)}
 
-Return ONLY valid JSON:
-{"take":{"position":${position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
+Return ONLY a valid JSON object — no markdown, no explanation, nothing else:
+{"take":{"position":${position},"label":"${effectiveLabel}","text":"your 40-60 word take here","sources":[{"name":"Source Name","framing":"one brief framing note"}]}}`;
 
     let fullText = '';
 
     const stream = await client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
+      model: 'claude-haiku-4-20250514',
+      max_tokens: 400,
       messages: [{ role: 'user', content: prompt }],
     });
 
