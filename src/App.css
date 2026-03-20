@@ -313,7 +313,11 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center top;
   z-index: 0;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  image-rendering: -webkit-optimize-contrast;
 }
 
 /* ── Content scroll container — takes remaining 75% of card ── */

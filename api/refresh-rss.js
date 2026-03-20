@@ -95,22 +95,33 @@ function validImageUrl(raw) {
   return url.startsWith('http') ? url : null;
 }
 
+const SMALL_IMAGE_RE = /thumb|thumbnail|icon|logo|avatar|16x9_120|16x9_240|_50x|_100x|_120x|_150x|_200x|width=1[0-9]{2}&|w=1[0-9]{2}&/i;
+function isLargeEnough(u) { return u && !SMALL_IMAGE_RE.test(u); }
+
 function extractRSSImage(itemXml) {
   let m, url;
+  // og:image first — usually the full-size article hero
+  m = itemXml.match(/<og:image[^>]*>([^<]+)<\/og:image>/i);
+  if (m && (url = validImageUrl(m[1])) && isLargeEnough(url)) return url;
+  // media:content — prefer ones with a width attribute >= 400
+  const mcMatches = [...itemXml.matchAll(/<media:content[^>]+url=["']([^"']+)["'][^>]*>/gi)];
+  for (const mc of mcMatches) {
+    const wm = mc[0].match(/width=["']?(\d+)/i);
+    const w = wm ? parseInt(wm[1], 10) : 9999;
+    if (w >= 400 && (url = validImageUrl(mc[1])) && isLargeEnough(url)) return url;
+  }
+  // enclosure image
+  m = itemXml.match(/<enclosure[^>]+type=["']image\/[^"']*["'][^>]+url=["']([^"']+)["']/i)
+    || itemXml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']*["']/i);
+  if (m && (url = validImageUrl(m[1])) && isLargeEnough(url)) return url;
+  // content:encoded inline img — often a large image
+  const rawCE = extractXMLTag(itemXml, 'content:encoded') || '';
+  m = decodeEntities(rawCE).match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (m && (url = validImageUrl(m[1])) && isLargeEnough(url)) return url;
+  // fallback: any media:content or media:thumbnail
   m = itemXml.match(/<media:content[^>]+url=["']([^"']+)["']/i);
   if (m && (url = validImageUrl(m[1]))) return url;
   m = itemXml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i);
-  if (m && (url = validImageUrl(m[1]))) return url;
-  m = itemXml.match(/<enclosure[^>]+type=["']image\/[^"']*["'][^>]+url=["']([^"']+)["']/i)
-    || itemXml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']*["']/i);
-  if (m && (url = validImageUrl(m[1]))) return url;
-  m = itemXml.match(/<og:image[^>]*>([^<]+)<\/og:image>/i);
-  if (m && (url = validImageUrl(m[1]))) return url;
-  const rawDesc = extractXMLTag(itemXml, 'description') || '';
-  m = decodeEntities(rawDesc).match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (m && (url = validImageUrl(m[1]))) return url;
-  const rawCE = extractXMLTag(itemXml, 'content:encoded') || '';
-  m = decodeEntities(rawCE).match(/<img[^>]+src=["']([^"']+)["']/i);
   if (m && (url = validImageUrl(m[1]))) return url;
   return null;
 }

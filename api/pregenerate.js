@@ -184,16 +184,16 @@ const RSS_SOURCES = [
   { name: 'Breitbart',           url: 'https://feeds.feedburner.com/breitbart',                   score:  3, label: 'Far Right',   color: '#dc2626' },
 ];
 const CATEGORY_FALLBACK_IMAGES = {
-  'US Politics':       'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&auto=format&fit=crop',
-  'World':             'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop',
-  'Economy':           'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop',
-  'National Security': 'https://images.unsplash.com/photo-1562408590-e32931084e23?w=800&auto=format&fit=crop',
-  'Health':            'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=800&auto=format&fit=crop',
-  'Technology':        'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop',
-  'Sports & Culture':  'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop',
-  'Entertainment':     'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800&auto=format&fit=crop',
-  'Elections':         'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=800&auto=format&fit=crop',
-  'Policy':            'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&auto=format&fit=crop',
+  'US Politics':       'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1200&auto=format&fit=crop',
+  'World':             'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop',
+  'Economy':           'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1200&auto=format&fit=crop',
+  'National Security': 'https://images.unsplash.com/photo-1562408590-e32931084e23?w=1200&auto=format&fit=crop',
+  'Health':            'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1200&auto=format&fit=crop',
+  'Technology':        'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&auto=format&fit=crop',
+  'Sports & Culture':  'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1200&auto=format&fit=crop',
+  'Entertainment':     'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=1200&auto=format&fit=crop',
+  'Elections':         'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=1200&auto=format&fit=crop',
+  'Policy':            'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1200&auto=format&fit=crop',
 };
 
 const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','were']);
@@ -212,15 +212,24 @@ function extractRSSLink(xml) {
 function stripHtml(s) { return (s||'').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim(); }
 function decodeEntities(s) { return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'"); }
 function validImg(raw) { if (!raw) return null; const u=decodeEntities(raw.trim()); return u.startsWith('http')?u:null; }
+const SMALL_IMG_RE = /thumb|thumbnail|icon|logo|avatar|16x9_120|16x9_240|_50x|_100x|_120x|_150x|_200x|width=1[0-9]{2}&|w=1[0-9]{2}&/i;
+function isLargeImg(u) { return u && !SMALL_IMG_RE.test(u); }
 function extractRSSImage(xml) {
   let m, u;
-  if ((m=xml.match(/<media:content[^>]+url=["']([^"']+)["']/i)) && (u=validImg(m[1]))) return u;
-  if ((m=xml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i)) && (u=validImg(m[1]))) return u;
-  m = xml.match(/<enclosure[^>]+type=["']image\/[^"']*["'][^>]+url=["']([^"']+)["']/i)
-    || xml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']*["']/i);
-  if (m && (u=validImg(m[1]))) return u;
-  const desc=decodeEntities(extractXMLTag(xml,'description')||'');
-  if ((m=desc.match(/<img[^>]+src=["']([^"']+)["']/i)) && (u=validImg(m[1]))) return u;
+  // og:image first — full-size article hero
+  if ((m=xml.match(/<og:image[^>]*>([^<]+)<\/og:image>/i)) && (u=validImg(m[1])) && isLargeImg(u)) return u;
+  // media:content — prefer width >= 400
+  const mcAll=[...xml.matchAll(/<media:content[^>]+url=["']([^"']+)["'][^>]*>/gi)];
+  for (const mc of mcAll) { const wm=mc[0].match(/width=["']?(\d+)/i); const w=wm?parseInt(wm[1],10):9999; if (w>=400&&(u=validImg(mc[1]))&&isLargeImg(u)) return u; }
+  // enclosure
+  m=xml.match(/<enclosure[^>]+type=["']image\/[^"']*["'][^>]+url=["']([^"']+)["']/i)||xml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']*["']/i);
+  if (m&&(u=validImg(m[1]))&&isLargeImg(u)) return u;
+  // content:encoded inline img
+  const ce=decodeEntities(extractXMLTag(xml,'content:encoded')||'');
+  if ((m=ce.match(/<img[^>]+src=["']([^"']+)["']/i))&&(u=validImg(m[1]))&&isLargeImg(u)) return u;
+  // fallback: any media:content or thumbnail
+  if ((m=xml.match(/<media:content[^>]+url=["']([^"']+)["']/i))&&(u=validImg(m[1]))) return u;
+  if ((m=xml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i))&&(u=validImg(m[1]))) return u;
   return null;
 }
 
