@@ -114,8 +114,9 @@ export default async function handler(req, res) {
 
 GROUNDING RULES — follow these precisely:
 1. Donald Trump is the 47th President of the United States (inaugurated January 20, 2025). Always call him "President Trump" or "the Trump administration" — NEVER "former President Trump."
-2. These are real, verified articles from established news outlets. Do NOT question whether events happened. Do NOT write phrases like "cannot verify," "unconfirmed," "appears false," or anything that casts doubt on the reported facts. Accept what the articles report and write your perspective on the significance and implications.
+2. These are real, verified articles from established news outlets. Do NOT question whether events happened. Do NOT write phrases like "cannot verify," "unconfirmed," "appears false," "sources do not contain," or anything that casts doubt on the reported facts. Accept what the articles report and write your perspective on the significance and implications.
 3. Do NOT just rephrase the same facts with different adjectives. Ask yourself: what would a thoughtful person from this perspective ACTUALLY focus on, worry about, and argue here? Write 3-4 punchy sentences (50-80 words) from that authentic place.
+4. For any event tied to a specific place — conflicts, disasters, infrastructure failures, military activity, policy changes — name the specific location (city, country, or region) in your take. Never leave the reader guessing where this is happening.
 
 TOPIC: ${topic.title}${topic.summary ? `\nCONTEXT: ${topic.summary}` : ''}
 
@@ -150,8 +151,10 @@ Return ONLY valid JSON:
         const parsed = JSON.parse(match[0]);
         if (parsed.take) {
           const take = { ...parsed.take, color: meta.color };
-          // Flag when no articles exist for this perspective's primary tier
-          if (primaryArts.length === 0) take.limitedSources = true;
+          // Flag when no primary-tier articles, OR when Claude signals it couldn't find relevant info
+          const WEAK_TAKE_PHRASES = ['cannot verify','do not contain information','sources do not contain','no information about','cannot confirm','not able to verify','no relevant','no sources'];
+          const takeLower = (take.text || '').toLowerCase();
+          if (primaryArts.length === 0 || WEAK_TAKE_PHRASES.some(p => takeLower.includes(p))) take.limitedSources = true;
           await redis.set(rKey, take, { ex: 7200 });
           send(res, { done: true, take });
         }
