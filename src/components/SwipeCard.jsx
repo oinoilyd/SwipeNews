@@ -300,7 +300,7 @@ export default function SwipeCard({
             </div>
             {sourceWarningOpen && (
               <p className="source-warning-msg">
-                <strong>Heads up:</strong> This perspective may be based on limited or mismatched source coverage. The take reflects the available reporting but might not fully capture this viewpoint's typical framing of the story.
+                Pending primary source for validation.
               </p>
             )}
 
