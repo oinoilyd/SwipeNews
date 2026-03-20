@@ -160,7 +160,7 @@ export default function SwipeCard({
   const isNeutral = currentTakeIndex === 3;
   const timestamp = formatAge(topic.latestPublishedAt);
 
-  const WEAK_PHRASES = ['cannot verify','do not contain information','sources do not contain','no information about','cannot confirm','not able to verify','no relevant sources','provided sources do not'];
+  const WEAK_PHRASES = ['cannot verify', 'appears to be false'];
   const takeTextLower = (currentTake?.text || '').toLowerCase();
   const hasWeakTake = WEAK_PHRASES.some(p => takeTextLower.includes(p));
   const lColor    = LEFT_COLOR[perspectiveMode]  || LEFT_COLOR.full;

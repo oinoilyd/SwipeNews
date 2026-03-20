@@ -87,17 +87,27 @@ export default async function handler(req, res) {
 
   const meta = TAKE_POSITIONS.find(p => p.position === position);
 
+  const WEAK_PHRASES = ['cannot verify', 'appears to be false'];
+  const isWeakTake = (take) => {
+    const t = (take?.text || '').toLowerCase();
+    return WEAK_PHRASES.some(p => t.includes(p));
+  };
+
   // ── Cache check: in-memory → Redis → Claude ──────────────────────────────
   const key = cacheKey(topic, position);
   const inMem = getCached(key);
-  if (inMem) return res.json({ take: inMem, fromCache: true });
+  if (inMem && !isWeakTake(inMem)) return res.json({ take: inMem, fromCache: true });
+  if (inMem && isWeakTake(inMem)) takesCache.delete(key);
 
   const rKey = takeKey(topic, position);
   try {
     const rCached = await redis.get(rKey);
-    if (rCached) {
+    if (rCached && !isWeakTake(rCached)) {
       setCached(key, rCached);
       return res.json({ take: rCached, fromCache: true });
+    }
+    if (rCached && isWeakTake(rCached)) {
+      await redis.del(rKey).catch(() => {});
     }
   } catch (err) {
     console.warn('Redis read failed, falling back to Claude:', err.message);

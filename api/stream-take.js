@@ -65,13 +65,23 @@ export default async function handler(req, res) {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders?.();
 
+  const WEAK_PHRASES = ['cannot verify', 'appears to be false'];
+  const isWeakTake = (take) => {
+    const t = (take?.text || '').toLowerCase();
+    return WEAK_PHRASES.some(p => t.includes(p));
+  };
+
   try {
-    // Check Redis cache first — if found, send immediately as a done event
+    // Check Redis cache first — if found and not a bad take, send immediately
     const rKey = takeKey(topic, position);
     const cached = await redis.get(rKey);
-    if (cached) {
+    if (cached && !isWeakTake(cached)) {
       send(res, { done: true, take: cached });
       return res.end();
+    }
+    // Bad cached take: delete it and regenerate
+    if (cached && isWeakTake(cached)) {
+      await redis.del(rKey).catch(() => {});
     }
 
     // Stream from Claude
