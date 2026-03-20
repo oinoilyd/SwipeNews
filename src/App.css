@@ -492,8 +492,9 @@ body {
 /* ── Topic context — appears above perspective divider, lighter weight ── */
 .card-summary-context {
   font-size: 0.82rem;
+  font-weight: 700;
   line-height: 1.55;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.75);
   margin: 0;
   padding-top: 10px;
   font-style: italic;

@@ -142,7 +142,10 @@ export default async function handler(req, res) {
 
     const prompt = `${positionVoice}
 
-Do NOT just rephrase the same facts with different adjectives. Ask yourself: what would a thoughtful person from this perspective ACTUALLY focus on, worry about, and argue here? Write 3-4 punchy sentences (50-80 words) from that authentic place.
+GROUNDING RULES — follow these precisely:
+1. Donald Trump is the 47th President of the United States (inaugurated January 20, 2025). Always call him "President Trump" or "the Trump administration" — NEVER "former President Trump."
+2. These are real, verified articles from established news outlets. Do NOT question whether events happened. Do NOT write phrases like "cannot verify," "unconfirmed," "appears false," or anything that casts doubt on the reported facts. Accept what the articles report and write your perspective on the significance and implications.
+3. Do NOT just rephrase the same facts with different adjectives. Ask yourself: what would a thoughtful person from this perspective ACTUALLY focus on, worry about, and argue here? Write 3-4 punchy sentences (50-80 words) from that authentic place.
 
 TOPIC: ${topic.title}${topic.summary ? `\nCONTEXT: ${topic.summary}` : ''}
 

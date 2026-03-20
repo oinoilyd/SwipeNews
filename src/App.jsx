@@ -365,6 +365,7 @@ export default function App() {
     setError(null);
 
     const timer1 = setTimeout(() => setLoadingStage(1), 2500);
+    let keepLoading = false; // when true, finally won't clear isLoading
 
     try {
       const url = forceRefresh ? '/api/clustered-news?refresh=1' : '/api/clustered-news';
@@ -373,11 +374,14 @@ export default function App() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Cache warming state — pregenerate is running in the background
+      // Cache warming state — pregenerate is running in the background.
+      // Set keepLoading so the finally block doesn't clear isLoading,
+      // which would cause the "No topics found" screen to flash.
       if (data.loading) {
+        keepLoading = true;
         setLoadingStage(1); // show "Building perspectives…" stage
         setTimeout(() => fetchTopicShells(false), 30000); // retry in 30s
-        return; // keep isLoading: true, LoadingScreen stays visible
+        return; // LoadingScreen stays visible
       }
 
       if (!data.topics?.length) throw new Error('No topics returned');
@@ -405,7 +409,7 @@ export default function App() {
       clearTimeout(timer1);
       setError(err.message || 'Failed to load news');
     } finally {
-      setIsLoading(false);
+      if (!keepLoading) setIsLoading(false);
     }
   }, []);
 

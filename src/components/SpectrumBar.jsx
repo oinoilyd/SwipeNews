@@ -93,25 +93,25 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
         {isSports ? (
           <>
             <span className="spectrum-label-left">◀ Fan</span>
-            <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
+            <span className="spectrum-current-label">Neutral</span>
             <span className="spectrum-label-right">Business ▶</span>
           </>
         ) : isTech ? (
           <>
             <span className="spectrum-label-left">◀ Optimist</span>
-            <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
+            <span className="spectrum-current-label">Neutral</span>
             <span className="spectrum-label-right">Industry ▶</span>
           </>
         ) : isEntertainment ? (
           <>
             <span className="spectrum-label-left">◀ Progressive</span>
-            <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
+            <span className="spectrum-current-label">Neutral</span>
             <span className="spectrum-label-right">Traditional ▶</span>
           </>
         ) : (
           <>
             <span className="spectrum-label-left">◀ Liberal</span>
-            <span className="spectrum-current-label" style={{ color: current.color }}>{current.label}</span>
+            <span className="spectrum-current-label">Neutral</span>
             <span className="spectrum-label-right">Conservative ▶</span>
           </>
         )}
