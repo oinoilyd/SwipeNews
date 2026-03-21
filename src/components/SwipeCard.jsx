@@ -106,7 +106,6 @@ export default function SwipeCard({
     bounceFiredRef.current = false;
     clearTimeout(bounceTimerRef.current);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
-    if (onScrollChange) onScrollChange(false);
   }, [topic.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close source warning when perspective changes
@@ -136,9 +135,6 @@ export default function SwipeCard({
     const el        = e.currentTarget;
     const scrollTop = el.scrollTop;
     const scrollMax = el.scrollHeight - el.clientHeight;
-
-    // Collapse header once user starts reading
-    if (onScrollChange) onScrollChange(scrollTop > 10);
 
     // Detect bottom (sets atBottom, which triggers bounce+timer above)
     setAtBottom(scrollMax <= 0 || scrollTop >= scrollMax - 6);

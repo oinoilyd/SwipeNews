@@ -197,8 +197,9 @@ export default function App() {
     }
   }, [headerCollapsed]);
 
+  // Only collapse — expand happens exclusively via deliberate top-tap
   const handleScrollChange = useCallback((collapsed) => {
-    setHeaderCollapsed(collapsed);
+    if (collapsed) setHeaderCollapsed(true);
   }, []);
 
   // ── Store a completed take into state + localStorage cache ───────────────
