@@ -25,7 +25,7 @@ const indexToPosition = (i) => i - 3;
 
 // ── Limited-mode indices ───────────────────────────────────────────────────────
 const LIMITED_INDICES = [1, 3, 5];         // Left, Neutral, Right (sports / limited)
-const TECH_INDICES    = [1, 2, 3, 5];      // Optimist(-2), Skeptic(-1), Neutral(0), Industry(2)
+const TECH_INDICES    = [1, 3, 5];         // Optimist(-2), Neutral(0), Industry(2)
 
 function getActiveIndices(pm) {
   return pm === 'tech' ? TECH_INDICES : LIMITED_INDICES;
@@ -197,9 +197,8 @@ export default function App() {
     }
   }, [headerCollapsed]);
 
-  // Only collapse on scroll — user must deliberately restore the header
   const handleScrollChange = useCallback((collapsed) => {
-    if (collapsed) setHeaderCollapsed(true);
+    setHeaderCollapsed(collapsed);
   }, []);
 
   // ── Store a completed take into state + localStorage cache ───────────────

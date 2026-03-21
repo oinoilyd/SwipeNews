@@ -53,7 +53,6 @@ const SPORTS_META_OVERRIDE = {
 };
 const TECH_META_OVERRIDE = {
   1: { label: 'Optimist', color: '#3b82f6' },
-  2: { label: 'Skeptic',  color: '#f59e0b' },
   3: { label: 'Neutral',  color: '#a78bfa' },
   5: { label: 'Industry', color: '#10b981' },
 };

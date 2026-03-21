@@ -18,7 +18,7 @@ const SPORTS_VOICE = {
 };
 const TECH_VOICE = {
   '-2': { label: 'Optimist', voice: `You are writing from a TECH OPTIMIST perspective. Focus on innovation potential, new capabilities unlocked, democratization of access, scientific progress, and the transformative upside. What's the best-case path this technology enables? Sound like a researcher or entrepreneur genuinely excited about where this leads.` },
-  '-1': { label: 'Skeptic',  voice: `You are writing from a TECH SKEPTIC perspective. Focus on privacy risks, surveillance concerns, job displacement, algorithmic bias, ethical blind spots, unintended consequences, and why the hype may be outpacing reality. What are the legitimate concerns being glossed over by optimists and industry alike?` },
+   '0': { label: 'Neutral',  voice: `You are writing a NEUTRAL, strictly factual analysis of this tech story. Report what happened, what experts say, and where genuine disagreement exists — without framing it toward hype or fear. Acknowledge trade-offs without advocating for either side. Sound like a wire reporter covering technology: no boosterism, no doom. Just the facts and context.` },
    '2': { label: 'Industry', voice: `You are writing from an INDUSTRY/BUSINESS perspective. Focus on market impact, competitive dynamics, investment implications, enterprise adoption, vendor landscapes, and what this means for tech companies and the broader business ecosystem. Sound like a tech analyst or VC.` },
 };
 const ENTERTAINMENT_VOICE = {

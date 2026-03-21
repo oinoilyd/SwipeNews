@@ -21,11 +21,10 @@ const SPORTS_POSITIONS = [
 // Tech perspectives
 const TECH_POSITIONS = [
   { index: 1, label: 'Optimist', color: '#3b82f6' },
-  { index: 2, label: 'Skeptic',  color: '#f59e0b' },
   { index: 3, label: 'Neutral',  color: '#a78bfa' },
   { index: 5, label: 'Industry', color: '#10b981' },
 ];
-const TECH_INDICES_ARR = [1, 2, 3, 5];
+const TECH_INDICES_ARR = [1, 3, 5];
 
 // Entertainment perspectives
 const ENTERTAINMENT_POSITIONS = [

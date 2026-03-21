@@ -48,7 +48,7 @@ export default function CardStack({
   const cbRef = useRef({});
   cbRef.current = {
     prevTopic, nextTopic, snapping, headerCollapsed,
-    onNextTopic, onPrevTopic, onTakeLeft, onTakeRight, onRefreshOrder, onExpandHeader,
+    onNextTopic, onPrevTopic, onTakeLeft, onTakeRight, onRefreshOrder, onExpandHeader, onScrollChange,
   };
 
   useEffect(() => {
@@ -123,6 +123,7 @@ export default function CardStack({
       // Upgrade scroll → card-drag once boundary is passed by 8 px
       if (phaseRef.current === 'scroll' && Math.abs(rawCardDy) > 8) {
         phaseRef.current = 'card';
+        cbRef.current.onScrollChange?.(true); // collapse header on topic swipe
       }
 
       if (phaseRef.current !== 'card') return;
@@ -156,9 +157,10 @@ export default function CardStack({
               onExpandHeader: expandHeader,
               headerCollapsed: isCollapsed } = cbRef.current;
 
-      // ── Tap in photo section → restore header (only when it's actually hidden) ──
+      // ── Tap in very top of card → restore header (only when hidden) ──────────
       const totalMove = Math.sqrt(dx * dx + dy * dy);
-      if (totalMove < 12 && inPhotoRef.current && phase !== 'card' && isCollapsed) {
+      const inTopZone = startYRef.current < (containerRef.current?.getBoundingClientRect().top ?? 0) + 110;
+      if (totalMove < 12 && inTopZone && phase !== 'card' && isCollapsed) {
         expandHeader?.();
         return;
       }
