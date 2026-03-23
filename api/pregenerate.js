@@ -145,6 +145,7 @@ const TOPICS_TS_KEY = `sn:topics:ts:${CACHE_VERSION}`;
 const TAKES_TTL_S   = 25 * 60 * 60;
 // Topics TTL: 25h (RSS refresh resets to 4h each cycle)
 const TOPICS_TTL_S  = 25 * 60 * 60;
+const WARM_TS_KEY   = 'sn:takes:warmed-at';
 
 // ── Article fetch helpers (moved from clustered-news.js) ──────────────────────
 const MEDIA_BIAS = {
@@ -388,6 +389,7 @@ export default async function handler(req, res) {
       if (!topics?.length) return res.json({ ok: false, message: 'No cached topics to warm' });
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const stats = await seedAllTakes(client, topics);
+      await redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 });
       console.log('pregenerate warm:', stats);
       return res.json({ ok: true, warm: true, ...stats });
     } catch (err) {
@@ -471,6 +473,7 @@ export default async function handler(req, res) {
     // ── 5. Seed ALL perspective takes for every topic ─────────────────────────
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const stats = await seedAllTakes(client, topics);
+    await redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 });
     console.log('pregenerate takes:', stats);
 
     return res.json({ ok:true, topics:topics.length, takes: stats });
