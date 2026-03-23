@@ -29,8 +29,13 @@ const SPORTS_VOICE = {
 };
 const TECH_VOICE = {
   '-2': { label: 'Optimist', voice: `You are writing from a TECH OPTIMIST perspective. Focus on innovation potential, new capabilities unlocked, democratization of access, scientific progress, and the transformative upside. What's the best-case path this technology enables? Sound like a researcher or entrepreneur genuinely excited about where this leads.` },
-  '-1': { label: 'Skeptic',  voice: `You are writing from a TECH SKEPTIC perspective. Focus on privacy risks, surveillance concerns, job displacement, algorithmic bias, ethical blind spots, unintended consequences, and why the hype may be outpacing reality. What are the legitimate concerns being glossed over by optimists and industry alike?` },
+   '0': { label: 'Neutral',  voice: `You are writing a NEUTRAL, strictly factual analysis of this tech story. Report what happened, what experts say, and where genuine disagreement exists — without framing it toward hype or fear. Acknowledge trade-offs without advocating for either side. Sound like a wire reporter covering technology: no boosterism, no doom. Just the facts and context.` },
    '2': { label: 'Industry', voice: `You are writing from an INDUSTRY/BUSINESS perspective. Focus on market impact, competitive dynamics, investment implications, enterprise adoption, vendor landscapes, and what this means for tech companies and the broader business ecosystem. Sound like a tech analyst or VC.` },
+};
+const ENTERTAINMENT_VOICE = {
+  '-2': { label: 'Progressive', voice: `You are writing from a PROGRESSIVE entertainment perspective. Champion representation, diverse casting, and stories updated to reflect modern values. When studios push boundaries or reimagine classics with new voices, frame it as culture evolving. Call out nostalgia-driven backlash as resistance to change. Sound like a culture critic at Vulture or The Atlantic.` },
+   '0': { label: 'Neutral',     voice: `You are writing from a NEUTRAL, strictly factual perspective on this entertainment story. Report what happened — the creative decisions, audience response, box office, critical reception — without taking sides on cultural debates. Sound like an entertainment wire reporter: no advocacy, just the facts.` },
+   '2': { label: 'Traditional', voice: `You are writing from a TRADITIONAL entertainment perspective. Champion faithful storytelling, respect for source material, and craft over cultural agenda. When beloved properties are rebooted, focus on whether the original spirit has been honored — or diluted. Sound like a film critic who loved the originals and believes a great story doesn't need to be a lecture.` },
 };
 const POSITION_VOICE = {
   '-3': `You are writing from a FAR LEFT worldview. Center your analysis on class struggle, systemic oppression, corporate power, and anti-imperialism. On immigration: migrants are displaced by US foreign policy and corporate exploitation — enforcement is state violence against the vulnerable. On economy: inequality is a feature, not a bug, of capitalism. On national security: the military-industrial complex profits from endless war. Sound like a democratic socialist who reads Jacobin and The Intercept.`,
@@ -41,6 +46,20 @@ const POSITION_VOICE = {
    '2': `You are writing from a RIGHT CONSERVATIVE worldview. Emphasize American sovereignty, strong borders, traditional values, free enterprise, and personal responsibility. On immigration: illegal entry is a crime; costs to taxpayers are real; deportation of criminal aliens is non-negotiable. On economy: cut taxes, cut spending, get government out of the way. Sound like mainstream Fox News conservatism or a Heritage Foundation policy brief.`,
    '3': `You are writing from a FAR RIGHT NATIONALIST worldview. Lead with America First, populist skepticism of globalism, elites, and institutions. On immigration: frame it as an invasion; demand the wall, mass deportation, and zero tolerance. On national security: hawkish military posture, nuclear deterrence, protect critical infrastructure from China and adversaries; domestic enemies are real. On economy: economic nationalism, tariffs, bring back manufacturing. Sound like someone who reads Breitbart and believes the GOP establishment has sold out the American people.`,
 };
+
+// Positions to generate per category
+function getPerspectivePositions(category) {
+  if (['Sports & Culture', 'Technology', 'Entertainment'].includes(category)) {
+    return [-2, 0, 2]; // 3 perspectives
+  }
+  return [-3, -2, -1, 0, 1, 2, 3]; // 7 political perspectives
+}
+
+const WEAK_TAKE_PHRASES = ['cannot verify', 'appears to be false'];
+function isWeakTake(take) {
+  const t = (take?.text || '').toLowerCase();
+  return WEAK_TAKE_PHRASES.some(p => t.includes(p));
+}
 
 async function batch(items, fn, concurrency = 10) {
   const results = [];
@@ -70,12 +89,13 @@ async function generateTake(client, topic, meta) {
   let positionVoice, effectiveLabel;
   if (category === 'Sports & Culture' && SPORTS_VOICE[String(meta.position)]) {
     const sv = SPORTS_VOICE[String(meta.position)];
-    effectiveLabel = sv.label;
-    positionVoice  = sv.voice;
+    effectiveLabel = sv.label; positionVoice = sv.voice;
   } else if (category === 'Technology' && TECH_VOICE[String(meta.position)]) {
     const tv = TECH_VOICE[String(meta.position)];
-    effectiveLabel = tv.label;
-    positionVoice  = tv.voice;
+    effectiveLabel = tv.label; positionVoice = tv.voice;
+  } else if (category === 'Entertainment' && ENTERTAINMENT_VOICE[String(meta.position)]) {
+    const ev = ENTERTAINMENT_VOICE[String(meta.position)];
+    effectiveLabel = ev.label; positionVoice = ev.voice;
   } else {
     effectiveLabel = meta.label;
     positionVoice  = POSITION_VOICE[String(meta.position)] || `Write a ${meta.label} perspective on this topic.`;
@@ -83,7 +103,13 @@ async function generateTake(client, topic, meta) {
 
   const prompt = `${positionVoice}
 
-Do NOT just rephrase the same facts with different adjectives. Ask yourself: what would a thoughtful person from this perspective ACTUALLY focus on, worry about, and argue here? Write 3-4 punchy sentences (50-80 words) from that authentic place.
+GROUNDING RULES — follow precisely:
+1. Donald Trump is the 47th President (inaugurated Jan 20, 2025). Always "President Trump" — NEVER "former President Trump."
+2. The TOPIC TITLE and CONTEXT are absolute ground truth — even if after your training cutoff. NEVER write "cannot verify," "unconfirmed," "appears false," or anything doubting the event.
+2b. If provided articles don't match this topic, ignore them and write from general knowledge. Always produce a substantive take — never refuse.
+3. Be direct and assertive. No hedging ("some argue," "it could be said"). Lead with the point. No throat-clearing opener.
+4. Write 2-3 punchy sentences (40-60 words).
+5. For events tied to a specific place, name the location.
 
 TOPIC: ${topic.title}${topic.summary ? `\nCONTEXT: ${topic.summary}` : ''}
 
@@ -92,12 +118,12 @@ ${fmt(primaryArts)}
 OTHER SOURCES:
 ${fmt(otherArts)}
 
-Return ONLY valid JSON:
-{"take":{"position":${meta.position},"label":"${effectiveLabel}","text":"3-4 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
+Return ONLY valid JSON, nothing else:
+{"take":{"position":${meta.position},"label":"${effectiveLabel}","text":"2-3 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
   const msg  = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 500,
+    model: 'claude-haiku-4-20250514',
+    max_tokens: 400,
     messages: [{ role: 'user', content: prompt }],
   });
 
@@ -319,6 +345,33 @@ function buildTopics(clusters, articles) {
   }).filter(Boolean);
 }
 
+// ── Shared: generate all missing takes for a list of topics ──────────────────
+async function seedAllTakes(client, topics) {
+  const jobs = [];
+  for (const topic of topics) {
+    const positions = getPerspectivePositions(topic.category || '');
+    for (const pos of positions) {
+      const meta = TAKE_POSITIONS.find(p => p.position === pos);
+      if (meta) jobs.push({ topic, meta });
+    }
+  }
+  let generated = 0, alreadyCached = 0, errors = 0;
+  await batch(jobs, async ({ topic, meta }) => {
+    const rKey = takeKey(topic, meta.position);
+    try {
+      const existing = await redis.get(rKey);
+      if (existing && !isWeakTake(existing)) { alreadyCached++; return; }
+      const take = await generateTake(client, topic, meta);
+      await redis.set(rKey, take, { ex: TAKES_TTL_S });
+      generated++;
+    } catch (err) {
+      console.warn(`take failed "${topic.title}" pos=${meta.position}:`, err.message);
+      errors++;
+    }
+  }, 15); // high concurrency — Haiku is fast
+  return { generated, alreadyCached, errors, total: jobs.length };
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -326,6 +379,23 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   if (!process.env.ANTHROPIC_API_KEY) return res.json({ ok:false, message:'ANTHROPIC_API_KEY not configured' });
+
+  // ── Warm-only mode: skip article fetch, just fill missing takes ──────────
+  const warmOnly = req.query?.warm === '1' || req.body?.warm === true;
+  if (warmOnly) {
+    try {
+      const topics = await redis.get(TOPICS_KEY);
+      if (!topics?.length) return res.json({ ok: false, message: 'No cached topics to warm' });
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const stats = await seedAllTakes(client, topics);
+      console.log('pregenerate warm:', stats);
+      return res.json({ ok: true, warm: true, ...stats });
+    } catch (err) {
+      console.error('pregenerate warm error:', err);
+      return res.json({ ok: false, message: err.message });
+    }
+  }
+
   if (!process.env.NEWSDATA_API_KEY)  return res.json({ ok:false, message:'NEWSDATA_API_KEY not configured' });
 
   try {
@@ -398,28 +468,12 @@ export default async function handler(req, res) {
     await redis.set(TOPICS_TS_KEY, new Date().toISOString());
     console.log(`pregenerate: saved ${topics.length} topics to Redis`);
 
-    // ── 5. Seed neutral (position=0) takes for all topics within budget ───────
-    // Neutral is the default view — pre-warming it eliminates the first-load
-    // spinner for 100% of users. Full pregeneration runs separately if desired.
+    // ── 5. Seed ALL perspective takes for every topic ─────────────────────────
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const neutralMeta = TAKE_POSITIONS.find(p => p.position === 0);
-    let generated=0, alreadyCached=0, errors=0;
+    const stats = await seedAllTakes(client, topics);
+    console.log('pregenerate takes:', stats);
 
-    await batch(topics, async (topic) => {
-      const rKey = takeKey(topic, 0);
-      try {
-        const existing = await redis.get(rKey);
-        if (existing) { alreadyCached++; return; }
-        const take = await generateTake(client, topic, neutralMeta);
-        await redis.set(rKey, take, { ex: TAKES_TTL_S });
-        generated++;
-      } catch (err) {
-        console.warn(`pregenerate take failed "${topic.title}":`, err.message);
-        errors++;
-      }
-    }, 5); // concurrency=5 to stay within 60s budget
-
-    return res.json({ ok:true, topics:topics.length, neutralTakes:{ generated, alreadyCached, errors } });
+    return res.json({ ok:true, topics:topics.length, takes: stats });
 
   } catch (err) {
     console.error('pregenerate error:', err);

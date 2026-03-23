@@ -418,6 +418,19 @@ export default function App() {
 
       // Clean up stale cache entries
       pruneOldCache(data.topics);
+
+      // ── Option B: silent background warm-up if takes cache is cold ──────────
+      // Check if first topic has any takes in localStorage. If not → fire warm.
+      const firstTopic = processedTopics[0];
+      if (firstTopic) {
+        const hasAnyTake = [-3,-2,-1,0,1,2,3].some(pos =>
+          loadCachedTake(firstTopic.id, firstTopic.latestPublishedAt, pos)
+        );
+        if (!hasAnyTake) {
+          // Fire-and-forget — user never sees this
+          fetch('/api/pregenerate?warm=1', { method: 'POST' }).catch(() => {});
+        }
+      }
     } catch (err) {
       clearTimeout(timer1);
       setError(err.message || 'Failed to load news');
