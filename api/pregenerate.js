@@ -381,12 +381,15 @@ export default async function handler(req, res) {
 
   if (!process.env.ANTHROPIC_API_KEY) return res.json({ ok:false, message:'ANTHROPIC_API_KEY not configured' });
 
-  // ── Warm-only mode: skip article fetch, just fill missing takes ──────────
+  // ── Warm-only mode: fill any missing takes for already-cached topics ─────
+  // Topics in Redis are slim (no articles) — takes use general knowledge for
+  // cache misses, which is fine since cron pre-generates all takes upfront.
   const warmOnly = req.query?.warm === '1' || req.body?.warm === true;
   if (warmOnly) {
     try {
       const topics = await redis.get(TOPICS_KEY);
       if (!topics?.length) return res.json({ ok: false, message: 'No cached topics to warm' });
+      console.log(`pregenerate warm: ${topics.length} topics (slim, no articles)`);
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const stats = await seedAllTakes(client, topics);
       await redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 });
@@ -465,18 +468,22 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── 4. Save topics to Redis ───────────────────────────────────────────────
-    await redis.set(TOPICS_KEY,    topics,                  { ex: TOPICS_TTL_S });
-    await redis.set(TOPICS_TS_KEY, new Date().toISOString());
-    console.log(`pregenerate: saved ${topics.length} topics to Redis`);
-
-    // ── 5. Seed ALL perspective takes for every topic ─────────────────────────
+    // ── 4. Generate ALL takes first (while full article data is in memory) ───
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const stats = await seedAllTakes(client, topics);
-    await redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 });
     console.log('pregenerate takes:', stats);
 
-    return res.json({ ok:true, topics:topics.length, takes: stats });
+    // ── 5. Save slim topics to Redis (strip articles — avoids 1MB entry limit)
+    // Articles are only needed for take generation (done above). Stored topics
+    // are display-only shells; stream-take receives full topic from client anyway.
+    const slimTopics = topics.map(({ articles: _a, ...rest }) => rest);
+    const slimJson   = JSON.stringify(slimTopics);
+    console.log(`pregenerate: saving ${slimTopics.length} slim topics (${Math.round(slimJson.length/1024)}KB)`);
+    await redis.set(TOPICS_KEY,    slimTopics,               { ex: TOPICS_TTL_S });
+    await redis.set(TOPICS_TS_KEY, new Date().toISOString());
+    await redis.set(WARM_TS_KEY,   new Date().toISOString(), { ex: 3600 });
+
+    return res.json({ ok:true, topics:topics.length, slimKB: Math.round(slimJson.length/1024), takes: stats });
 
   } catch (err) {
     console.error('pregenerate error:', err);
