@@ -173,7 +173,7 @@ Return ONLY a valid JSON object — no markdown, no explanation, nothing else:
 {"take":{"position":${position},"label":"${effectiveLabel}","text":"your 40-60 word take here","sources":[{"name":"Source Name","framing":"one brief framing note"}]}}`;
 
     const msg  = await client.messages.create({
-      model: 'claude-haiku-4-20250514',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,
       messages: [{ role: 'user', content: prompt }],
     });

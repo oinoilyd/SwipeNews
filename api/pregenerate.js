@@ -123,7 +123,7 @@ Return ONLY valid JSON, nothing else:
 {"take":{"position":${meta.position},"label":"${effectiveLabel}","text":"2-3 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
 
   const msg  = await client.messages.create({
-    model: 'claude-haiku-4-20250514',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 400,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -318,7 +318,7 @@ async function clusterArticles(articles) {
     return `[${i}] ${tier}:${a.source}${hint}${age} | ${a.title}`;
   }).join('\n');
   const msg = await client.messages.create({
-    model:'claude-sonnet-4-20250514', max_tokens:6000,
+    model:'claude-sonnet-4-6', max_tokens:6000,
     messages:[{ role:'user', content:`Cluster these ${articles.length} news articles into topics for a news app.\n\nReturn ONLY valid JSON, no markdown:\n{"topics":[{"title":"Short neutral topic (max 6 words)","summary":"One factual sentence","category":"US Politics|World|Policy|Economy|National Security|Elections|Technology|Health|Sports & Culture|Entertainment","articleIndices":[0,1,2,3]}]}\n\nTARGET: 40-52 topics total. Categories: US Politics, World, Policy, Economy, National Security, Elections, Technology, Health, Sports & Culture (live sports only), Entertainment (movies/TV/awards/celebrity). Neutral factual titles only. Single-article topics are fine.\n\nArticles:\n${list}` }],
   });
   const text=msg.content[0]?.text||''; const m=text.match(/\{[\s\S]*\}/);
