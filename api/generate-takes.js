@@ -116,9 +116,10 @@ export default async function handler(req, res) {
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
-    const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
-    const rightArts  = topic.articles.filter(a => (a.bias?.score ?? 0) >= 1);
+    const arts       = topic.articles || [];
+    const leftArts   = arts.filter(a => (a.bias?.score ?? 0) <= -1);
+    const centerArts = arts.filter(a => (a.bias?.score ?? 0) === 0);
+    const rightArts  = arts.filter(a => (a.bias?.score ?? 0) >= 1);
 
     const fmt = (arr) => arr.length === 0
       ? '(none)'

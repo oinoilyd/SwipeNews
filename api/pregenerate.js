@@ -71,9 +71,10 @@ async function batch(items, fn, concurrency = 10) {
 }
 
 async function generateTake(client, topic, meta) {
-  const leftArts   = topic.articles.filter(a => (a.bias?.score ?? 0) <= -1);
-  const centerArts = topic.articles.filter(a => (a.bias?.score ?? 0) === 0);
-  const rightArts  = topic.articles.filter(a => (a.bias?.score ?? 0) >= 1);
+  const arts       = topic.articles || [];
+  const leftArts   = arts.filter(a => (a.bias?.score ?? 0) <= -1);
+  const centerArts = arts.filter(a => (a.bias?.score ?? 0) === 0);
+  const rightArts  = arts.filter(a => (a.bias?.score ?? 0) >= 1);
 
   const fmt = (arr) => arr.length === 0
     ? '(none)'
