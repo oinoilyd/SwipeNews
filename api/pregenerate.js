@@ -382,20 +382,28 @@ export default async function handler(req, res) {
 
   if (!process.env.ANTHROPIC_API_KEY) return res.json({ ok:false, message:'ANTHROPIC_API_KEY not configured' });
 
-  // ── Warm-only mode: fill any missing takes for already-cached topics ─────
-  // Topics in Redis are slim (no articles) — takes use general knowledge for
-  // cache misses, which is fine since cron pre-generates all takes upfront.
+  // ── Warm-only mode: fill missing takes for a chunk of cached topics ──────
+  // Chunked so each request handles ~30 topics (~15s) — well within 60s limit.
+  // clustered-news fires TOTAL_CHUNKS parallel requests to cover all topics.
   const warmOnly = req.query?.warm === '1' || req.body?.warm === true;
   if (warmOnly) {
     try {
-      const topics = await redis.get(TOPICS_KEY);
-      if (!topics?.length) return res.json({ ok: false, message: 'No cached topics to warm' });
-      console.log(`pregenerate warm: ${topics.length} topics (slim, no articles)`);
+      const allTopics = await redis.get(TOPICS_KEY);
+      if (!allTopics?.length) return res.json({ ok: false, message: 'No cached topics to warm' });
+
+      // Chunk support: ?chunk=0&chunks=3  (defaults to full list if omitted)
+      const chunk  = parseInt(req.query.chunk  ?? '0');
+      const chunks = parseInt(req.query.chunks ?? '1');
+      const start  = Math.floor(chunk * allTopics.length / chunks);
+      const end    = Math.floor((chunk + 1) * allTopics.length / chunks);
+      const topics = allTopics.slice(start, end);
+
+      console.log(`pregenerate warm chunk ${chunk}/${chunks}: topics ${start}-${end-1} (${topics.length} topics)`);
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const stats = await seedAllTakes(client, topics);
-      await redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 });
-      console.log('pregenerate warm:', stats);
-      return res.json({ ok: true, warm: true, ...stats });
+      const stats  = await seedAllTakes(client, topics);
+      if (chunk === 0) await redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 });
+      console.log(`pregenerate warm chunk ${chunk} done:`, stats);
+      return res.json({ ok: true, warm: true, chunk, chunks, ...stats });
     } catch (err) {
       console.error('pregenerate warm error:', err);
       return res.json({ ok: false, message: err.message });
@@ -469,10 +477,30 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── 4. Generate ALL takes first (while full article data is in memory) ───
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const stats = await seedAllTakes(client, topics);
-    console.log('pregenerate takes:', stats);
+    // ── 4. Seed Neutral takes while article data is in memory ────────────────
+    // Neutral (pos=0) is the default view — pre-warm it now with real articles.
+    // All other positions are filled by background warm chunks (no article data
+    // needed — they use general knowledge via grounding rule 2b).
+    // This keeps the cron well within the 60s limit: 95 × 1 pos @ concurrency=15
+    // = 7 batches × ~1.4s = ~10s, vs 44s for all positions.
+    const client     = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const neutralMeta = TAKE_POSITIONS.find(p => p.position === 0);
+    let generated = 0, alreadyCached = 0, errors = 0;
+    await batch(topics, async (topic) => {
+      const rKey = takeKey(topic, 0);
+      try {
+        const existing = await redis.get(rKey);
+        if (existing && !isWeakTake(existing)) { alreadyCached++; return; }
+        const take = await generateTake(client, topic, neutralMeta);
+        await redis.set(rKey, take, { ex: TAKES_TTL_S });
+        generated++;
+      } catch (err) {
+        console.warn(`neutral take failed "${topic.title}":`, err.message);
+        errors++;
+      }
+    }, 15);
+    const stats = { generated, alreadyCached, errors, total: topics.length };
+    console.log('pregenerate neutral takes:', stats);
 
     // ── 5. Save slim topics to Redis (strip articles — avoids 1MB entry limit)
     // Articles are only needed for take generation (done above). Stored topics

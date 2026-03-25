@@ -36,16 +36,20 @@ export default async function handler(req, res) {
       console.log(`clustered-news: cache hit — ${topics.length} topics, ${ageMin}min old`);
 
       // ── Background take warm: fire if not warmed recently ─────────────────
+      // Split into 3 parallel chunks so each finishes in ~15s (well under 60s).
       const lastWarm  = warmedAt ? new Date(warmedAt).getTime() : 0;
       const needsWarm = (Date.now() - lastWarm) > WARM_INTERVAL;
       if (needsWarm) {
         const host  = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3001';
         const proto = req.headers['x-forwarded-proto'] || (process.env.VERCEL ? 'https' : 'http');
-        console.log('clustered-news: firing background take warm');
-        // Update timestamp first so concurrent requests don't double-fire
+        console.log('clustered-news: firing 3 parallel warm chunks');
+        // Stamp immediately so concurrent requests don't double-fire
         redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 }).catch(() => {});
-        fetch(`${proto}://${host}/api/pregenerate?warm=1`, { method: 'POST' })
-          .catch(err => console.warn('Background warm failed:', err.message));
+        const CHUNKS = 3;
+        for (let i = 0; i < CHUNKS; i++) {
+          fetch(`${proto}://${host}/api/pregenerate?warm=1&chunk=${i}&chunks=${CHUNKS}`, { method: 'POST' })
+            .catch(err => console.warn(`Background warm chunk ${i} failed:`, err.message));
+        }
       }
 
       return res.json({ topics, fromCache: true });
