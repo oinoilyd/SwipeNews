@@ -50,8 +50,8 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const { topic, position } = req.body || {};
-  if (!topic?.title || !Array.isArray(topic?.articles)) {
-    return res.status(400).json({ error: 'topic.title and topic.articles[] required' });
+  if (!topic?.title) {
+    return res.status(400).json({ error: 'topic.title required' });
   }
   if (!Number.isInteger(position) || position < -3 || position > 3) {
     return res.status(400).json({ error: 'position must be -3 to 3' });

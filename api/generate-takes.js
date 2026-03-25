@@ -78,8 +78,8 @@ export default async function handler(req, res) {
 
   const { topic, position } = req.body || {};
 
-  if (!topic?.title || !Array.isArray(topic?.articles)) {
-    return res.status(400).json({ error: 'Request body must include topic.title and topic.articles[]' });
+  if (!topic?.title) {
+    return res.status(400).json({ error: 'Request body must include topic.title' });
   }
   if (!Number.isInteger(position) || position < -3 || position > 3) {
     return res.status(400).json({ error: 'position must be an integer from -3 to 3' });
