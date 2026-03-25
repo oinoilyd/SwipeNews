@@ -60,11 +60,43 @@ export const JARGON = {
   'DOGE':               'Department of Government Efficiency — an advisory body created to identify government waste and spending cuts.',
   'sanctions':          'Economic penalties (trade restrictions, asset freezes) imposed on a country or individual to change their behavior.',
 
-  // ── Foreign policy ─────────────────────────────────────────────────────────
+  // ── Foreign policy / Military ──────────────────────────────────────────────
   'two-state solution': 'The proposed resolution to the Israeli-Palestinian conflict: an independent Israeli state alongside an independent Palestinian state.',
   'NATO':               'North Atlantic Treaty Organization — a military alliance of 32 countries that agree to defend each other from attack.',
   'G7':                 'A group of 7 major democracies (US, UK, Canada, France, Germany, Italy, Japan) that coordinate on global economic policy.',
   'UN Security Council':'A 15-member UN body with power to authorize military action and impose sanctions. The US, UK, France, China, and Russia have veto power.',
+  'AUMF':               'Authorization for Use of Military Force — a congressional resolution giving the president power to use the military in a specific conflict.',
+  'deterrence':         'The strategy of threatening military retaliation to discourage an adversary from attacking.',
+  'ceasefire':          'A temporary halt to fighting agreed upon by warring parties, not a permanent peace deal.',
+  'classified':         'Government information restricted from public release due to national security concerns.',
+  'intelligence':       'In a government context: information gathered about foreign threats, adversaries, or security risks, often by agencies like the CIA or NSA.',
+  'IAEA':               'International Atomic Energy Agency — the UN body that monitors nuclear programs worldwide to prevent weapons development.',
+
+  // ── Healthcare ─────────────────────────────────────────────────────────────
+  'ACA':                'Affordable Care Act (also called Obamacare) — the 2010 law that expanded health insurance coverage and added consumer protections.',
+  'Medicaid':           'Government health insurance for low-income Americans, jointly funded by states and the federal government.',
+  'Medicare':           'Federal health insurance for Americans 65 and older, and for some people with disabilities.',
+  'single-payer':       'A healthcare system where one government entity (instead of private insurers) pays all medical bills.',
+  'public option':      'A government-run health insurance plan that would compete alongside private insurance.',
+  'FDA':                'Food and Drug Administration — the federal agency that approves and regulates drugs, medical devices, and food safety.',
+
+  // ── Immigration ────────────────────────────────────────────────────────────
+  'DACA':               'Deferred Action for Childhood Arrivals — an Obama-era program protecting undocumented immigrants brought to the US as children ("Dreamers") from deportation.',
+  'asylum':             'Legal protection granted to someone who has fled their home country due to persecution, war, or violence.',
+  'TPS':                'Temporary Protected Status — allows nationals of certain crisis-hit countries to live and work in the US temporarily.',
+  'sanctuary city':     'A city that limits cooperation with federal immigration enforcement to protect undocumented residents.',
+  'expedited removal':  'A fast-track deportation process that allows immigration officials to remove certain people without a court hearing.',
+
+  // ── Environment ────────────────────────────────────────────────────────────
+  'Paris Agreement':    'A 2015 international treaty where countries committed to limiting global warming to 1.5–2°C above pre-industrial levels.',
+  'carbon credit':      'A permit allowing a company to emit one ton of CO₂, which can be bought and sold — meant to create a market incentive to reduce emissions.',
+  'ESG':                'Environmental, Social, and Governance — investment criteria measuring a company\'s ethics and sustainability, increasingly politicized.',
+  'EPA':                'Environmental Protection Agency — the federal agency that sets and enforces pollution and environmental standards.',
+
+  // ── Elections ──────────────────────────────────────────────────────────────
+  'ranked choice':      'A voting method where voters rank candidates by preference. If no one wins outright, the lowest vote-getter is eliminated and their voters\' second choices are counted.',
+  'voter ID':           'Laws requiring voters to show identification at the polls — supporters call it fraud prevention, critics call it voter suppression.',
+  'dark money':         'Political spending by nonprofits that don\'t have to disclose their donors, making the funding source anonymous.',
 
   // ── Media / DC ─────────────────────────────────────────────────────────────
   'deep state':         'A theory that career government officials secretly work against elected leaders. Used as a political term, its meaning varies widely.',

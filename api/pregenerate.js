@@ -61,6 +61,24 @@ function isWeakTake(take) {
   return WEAK_TAKE_PHRASES.some(p => t.includes(p));
 }
 
+function getTopicFocus(category, position) {
+  const side = position < 0 ? 'left' : position > 0 ? 'right' : 'neutral';
+  const cat  = (category || '').toLowerCase();
+  const focus = {
+    'national security': { left: 'Focus on civilian casualties, the human cost of military action, endless wars, and defense industry profits. Question whether force actually creates safety.', neutral: 'Report the military or security facts plainly — troop movements, diplomatic status, official statements — without editorial framing.', right: 'Focus on deterrence, projecting strength, protecting allies, and the consequences of weakness. A strong military posture prevents conflict.' },
+    'world':             { left: 'Focus on humanitarian impact, civilian suffering, US foreign policy\'s role in instability, and diplomacy over military solutions.', neutral: 'Report the geopolitical facts — what happened, who said what, what\'s at stake — without advocating for a particular stance.', right: 'Focus on US national interest, alliance reliability, adversary threats, and why projecting strength matters globally.' },
+    'economy':           { left: 'Focus on working families, wage stagnation, growing wealth gaps, and corporate power. Call out policies that benefit the wealthy at everyone else\'s expense.', neutral: 'Report the economic data and expert forecasts without partisan framing. Include both upside and downside risks.', right: 'Focus on growth, job creation, and what happens when government steps back. Lower taxes and less regulation produce better outcomes than intervention.' },
+    'health':            { left: 'Focus on access and affordability — who can\'t get care, who goes bankrupt. Healthcare is a right, not a product. Defend the ACA, Medicaid, and public options.', neutral: 'Report the health policy facts — coverage numbers, cost data, what the legislation does — without pushing single-payer or free-market agendas.', right: 'Focus on patient choice and competition. Government-controlled healthcare reduces quality and innovation; markets deliver better outcomes.' },
+    'elections':         { left: 'Focus on voter access, suppression, dark money, and protecting democratic participation. Warn about gerrymandering and ID laws that restrict the vote.', neutral: 'Report electoral facts — results, legal challenges, procedural changes — without taking a side on integrity debates.', right: 'Focus on election integrity, secure voting systems, and rule of law. Confidence in elections requires verifiable, fraud-resistant processes.' },
+    'immigration':       { left: 'Focus on human stories — families separated, asylum seekers at risk, and immigrants\' economic contributions. Frame aggressive enforcement as cruel and counterproductive.', neutral: 'Report what the policy change is, who it affects, and what supporters and critics each say without endorsing either extreme.', right: 'Focus on rule of law, border security, and the costs of illegal immigration. Sovereign nations have the right and obligation to control entry.' },
+    'policy':            { left: 'Focus on who this policy helps or hurts among ordinary people, and whether it expands or contracts rights and access.', neutral: 'Report what the policy does, what it costs, and what evidence from similar policies shows.', right: 'Focus on whether this policy grows government power, raises costs, or restricts individual and economic freedom.' },
+  };
+  for (const [key, sides] of Object.entries(focus)) {
+    if (cat.includes(key)) return sides[side] || '';
+  }
+  return '';
+}
+
 async function batch(items, fn, concurrency = 10) {
   const results = [];
   for (let i = 0; i < items.length; i += concurrency) {
@@ -102,7 +120,8 @@ async function generateTake(client, topic, meta) {
     positionVoice  = POSITION_VOICE[String(meta.position)] || `Write a ${meta.label} perspective on this topic.`;
   }
 
-  const prompt = `${positionVoice}
+  const topicFocus = getTopicFocus(category, meta.position);
+  const prompt = `${positionVoice}${topicFocus ? `\n\nFor this specific story: ${topicFocus}` : ''}
 
 GROUNDING RULES — follow precisely:
 1. Donald Trump is the 47th President (inaugurated Jan 20, 2025). Always "President Trump" — NEVER "former President Trump."

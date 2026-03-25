@@ -223,6 +223,7 @@ export default function CardStack({
     };
   }, []); // stable — reads live values through cbRef
 
+
   // Springy return animation at feed ends; normal snap otherwise
   const isEdge     = (!prevTopic && dragY > 0) || (!nextTopic && dragY < 0);
   const snapTrans  = 'transform 0.30s cubic-bezier(0.25, 0.46, 0.45, 0.94)';

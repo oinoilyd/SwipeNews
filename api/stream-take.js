@@ -36,6 +36,57 @@ const POSITION_VOICE = {
    '3': `You are writing from a FAR RIGHT NATIONALIST worldview. Lead with America First, populist skepticism of globalism, elites, and institutions. On immigration: frame it as an invasion; demand the wall, mass deportation, and zero tolerance. On national security: hawkish military posture, nuclear deterrence, protect critical infrastructure from China and adversaries; domestic enemies are real. On economy: economic nationalism, tariffs, bring back manufacturing. Sound like someone who reads Breitbart and believes the GOP establishment has sold out the American people.`,
 };
 
+// Returns 1-2 sentences of topic-specific focus to append to the base position voice.
+// Ensures a military story and an economy story get genuinely different left/right angles.
+function getTopicFocus(category, position) {
+  const side = position < 0 ? 'left' : position > 0 ? 'right' : 'neutral';
+  const cat  = (category || '').toLowerCase();
+
+  const focus = {
+    'national security': {
+      left:    'Focus on civilian casualties, the human cost of military action, the danger of endless wars, and whether force actually makes Americans safer. Question military spending and the defense industry\'s role.',
+      neutral: 'Report the military or security facts plainly — troop movements, diplomatic status, official statements. Let the reader assess risk without editorial framing.',
+      right:   'Focus on deterrence, projecting strength, protecting allies, and the consequences of weakness. Argue that a strong military posture prevents conflict rather than causing it.',
+    },
+    'world': {
+      left:    'Focus on humanitarian impact, civilian suffering, US foreign policy\'s role in causing instability, and the importance of diplomacy over military solutions.',
+      neutral: 'Report the geopolitical facts — what happened, who said what, what\'s at stake — without advocating for a particular foreign policy stance.',
+      right:   'Focus on US national interest, the reliability of American alliances, the threat posed by adversaries, and why projecting strength matters on the world stage.',
+    },
+    'economy': {
+      left:    'Focus on who gets hurt — working families, wage stagnation, growing wealth gaps. Call out corporate power, billionaire influence, and policies that benefit the wealthy at everyone else\'s expense.',
+      neutral: 'Report the economic data and expert forecasts without partisan framing. Include both the upside and downside risks.',
+      right:   'Focus on growth, job creation, and what happens when government gets out of the way. Argue that lower taxes, less regulation, and free markets produce better outcomes than government intervention.',
+    },
+    'health': {
+      left:    'Focus on access and affordability — who can\'t get care, who goes bankrupt from medical bills, and why healthcare should be a right not a product. Defend the ACA, Medicaid, and public options.',
+      neutral: 'Report the health policy facts — coverage numbers, cost data, what the legislation actually does — without pushing a single-payer or free-market agenda.',
+      right:   'Focus on patient choice, competition, and the danger of government-controlled healthcare. Argue that market forces drive innovation and that bureaucratic systems reduce quality.',
+    },
+    'elections': {
+      left:    'Focus on voter access, suppression, dark money, and protecting democratic participation. Warn about gerrymandering, ID laws, and attempts to restrict the vote.',
+      neutral: 'Report the electoral facts — results, legal challenges, procedural changes — without taking a side on election integrity debates.',
+      right:   'Focus on election integrity, the importance of secure voting systems, and the rule of law. Argue that confidence in elections requires verifiable processes.',
+    },
+    'immigration': {
+      left:    'Focus on the human stories — families separated, asylum seekers in danger, and the economic contributions of immigrants. Frame enforcement as cruel and counterproductive.',
+      neutral: 'Report what the policy change is, who it affects, and what supporters and critics each say — without endorsing either open borders or mass deportation.',
+      right:   'Focus on rule of law, border security, and the costs of illegal immigration. Argue that sovereign nations have both the right and obligation to control who enters.',
+    },
+    'policy': {
+      left:    'Focus on who this policy helps or hurts among ordinary people, and whether it expands or contracts rights and access.',
+      neutral: 'Report what the policy does, what it costs, and what the evidence says about similar policies elsewhere.',
+      right:   'Focus on whether this policy grows government power, raises costs, or restricts individual and economic freedom.',
+    },
+  };
+
+  // Match category (partial match OK — "National Security" → 'national security')
+  for (const [key, sides] of Object.entries(focus)) {
+    if (cat.includes(key)) return sides[side] || '';
+  }
+  return '';
+}
+
 function send(res, data) {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
@@ -121,7 +172,8 @@ export default async function handler(req, res) {
       positionVoice  = POSITION_VOICE[String(position)] || `Write a ${meta.label} perspective on this topic.`;
     }
 
-    const prompt = `${positionVoice}
+    const topicFocus = getTopicFocus(category, position);
+    const prompt = `${positionVoice}${topicFocus ? `\n\nFor this specific story: ${topicFocus}` : ''}
 
 GROUNDING RULES — follow precisely:
 1. Donald Trump is the 47th President of the United States (inaugurated January 20, 2025). Always call him "President Trump" or "the Trump administration" — NEVER "former President Trump."
