@@ -135,26 +135,26 @@ export default function App() {
 
   // ── Time-filtered topic list (by recency window) ──────────────────────────
   const timeFilteredTopics = useMemo(() => {
-    const hours  = { '24h': 24, '48h': 48, '72h': 72 }[timeFilter] ?? 48;
-    const cutoff = Date.now() - hours * 60 * 60 * 1000;
-    const result = filteredTopics.filter(t => {
-      if (!t.latestPublishedAt) {
-        console.log(`[TimeFilter] PASS (no timestamp): "${t.title}"`);
-        return true;
-      }
+    const HOT_MIN = 11; // Hot feed always shows at least this many stories
+    const isHot   = activeCategories.includes('Hot');
+    const hours   = { '24h': 24, '48h': 48, '72h': 72 }[timeFilter] ?? 48;
+    const cutoff  = Date.now() - hours * 60 * 60 * 1000;
+    const result  = filteredTopics.filter(t => {
+      if (!t.latestPublishedAt) return true;
       const ms = new Date(t.latestPublishedAt).getTime();
-      if (isNaN(ms)) {
-        console.log(`[TimeFilter] PASS (bad timestamp "${t.latestPublishedAt}"): "${t.title}"`);
-        return true;
-      }
-      const ageHours = ((Date.now() - ms) / 3600000).toFixed(1);
-      const passes   = ms >= cutoff;
-      console.log(`[TimeFilter] ${passes ? 'PASS' : 'FAIL'} (${ageHours}h old, limit ${hours}h): "${t.title}" — ${t.latestPublishedAt}`);
-      return passes;
+      if (isNaN(ms)) return true;
+      return ms >= cutoff;
     });
-    console.log(`[TimeFilter] ${timeFilter}: ${result.length}/${filteredTopics.length} topics pass`);
+    // For Hot: if the time window is too aggressive, pad with the next-oldest
+    // stories from the full sorted list until we reach the minimum count.
+    if (isHot && result.length < HOT_MIN) {
+      const seen    = new Set(result.map(t => t.id));
+      const extras  = filteredTopics.filter(t => !seen.has(t.id));
+      const needed  = HOT_MIN - result.length;
+      return [...result, ...extras.slice(0, needed)];
+    }
     return result;
-  }, [filteredTopics, timeFilter]);
+  }, [filteredTopics, timeFilter, activeCategories]);
 
   // ── Derived values ────────────────────────────────────────────────────────
   const currentTopic       = timeFilteredTopics[currentTopicIndex] ?? null;
