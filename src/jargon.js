@@ -103,6 +103,31 @@ export const JARGON = {
   'executive order':    'A presidential directive that has the force of law without requiring Congressional approval.',
   'executive privilege':'The president\'s claimed right to keep some White House communications confidential from Congress or courts.',
   'emoluments clause':  'A constitutional rule banning federal officials from accepting gifts or payments from foreign governments.',
+  'whistleblower':      'Someone who exposes illegal or unethical activity inside an organization, often with legal protection from retaliation.',
+  'surveillance':       'Systematic monitoring of people\'s communications, movements, or activities — often by government agencies.',
+  'PAC':                'Political Action Committee — an organization that raises and spends money to influence elections, separate from a candidate\'s official campaign.',
+  'lobbying':           'Paid efforts to influence lawmakers — typically by corporations, unions, or interest groups — to support specific policies.',
+
+  // ── Governance & policy language ───────────────────────────────────────────
+  'deregulation':       'The removal of government rules and oversight from an industry, typically to promote competition and reduce costs.',
+  'privatization':      'Transferring ownership or control of a public service (like schools or prisons) from the government to private companies.',
+  'austerity':          'Government spending cuts and tax increases meant to reduce debt — often at the cost of public services.',
+  'subsidy':            'Government money given to a company or industry to lower costs, boost production, or serve a public goal.',
+  'bailout':            'Emergency government funds given to a failing company or industry to prevent collapse.',
+  'stimulus':           'Government spending or tax cuts designed to boost the economy during a slowdown.',
+  'mandate':            'A requirement — either a popular vote giving a leader authority to act, or a law requiring people to do something.',
+  'sovereignty':        'A country\'s or state\'s right to govern itself without outside interference.',
+  'appropriations':     'The congressional process of officially allocating money for specific government programs.',
+  'continuing resolution': 'A temporary measure that keeps the government funded at existing levels when Congress hasn\'t passed a full budget.',
+  'national debt':      'The total amount of money the U.S. federal government owes — currently over $33 trillion.',
+  'populist':           'A political style that pits ordinary people against a corrupt elite. Can come from the left or right.',
+  'authoritarian':      'A governing style that concentrates power, restricts opposition, and limits civil liberties in favor of order and control.',
+  'oligarchy':          'A system where a small group of wealthy or powerful people control the government.',
+  'impeachment':        'The process by which Congress formally charges a president or official with misconduct. Impeachment doesn\'t remove them — a Senate conviction does.',
+  'precedent':          'A court ruling that guides how similar cases must be decided in the future.',
+  'judicial review':    'The Supreme Court\'s power to strike down laws that violate the Constitution.',
+  'trade war':          'A cycle of countries imposing tariffs and restrictions on each other\'s goods in retaliation.',
+  'supply chain':       'The network of suppliers, manufacturers, and distributors that moves a product from raw material to consumer.',
 };
 
 // Pre-build a sorted list of terms (longest first) for efficient matching
