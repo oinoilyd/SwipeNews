@@ -108,19 +108,25 @@ export default function App() {
 
   // ── Filtered topic list (by category) ────────────────────────────────────
   // "Politics" is a meta-category — it expands to all political sub-categories.
-  // "Hot" shows the most popular news, world & politics stories (trending + HOT_CATS).
+  // "Hot" shows all popular news, world & politics stories (HOT_CATS), boosting
+  //   trending titles to the top so the most-relevant stories appear first.
   const filteredTopics = useMemo(() => {
     if (activeCategories.length === 0) return topicShells;
     const hasPoliticsMeta = activeCategories.includes('Politics');
     const hasHot          = activeCategories.includes('Hot');
+    if (hasHot) {
+      // Include every topic that belongs to a "news" category
+      const hotTopics = topicShells.filter(t => HOT_CATS.includes(t.category || 'US Politics'));
+      // Sort: trending titles first, then by article count descending
+      return [...hotTopics].sort((a, b) => {
+        const aTrending = trendingTitles.has(a.title) ? 1 : 0;
+        const bTrending = trendingTitles.has(b.title) ? 1 : 0;
+        if (bTrending !== aTrending) return bTrending - aTrending;
+        return (b.articles?.length ?? 0) - (a.articles?.length ?? 0);
+      });
+    }
     return topicShells.filter(t => {
       const cat = t.category || 'US Politics';
-      if (hasHot) {
-        // Must be in a news/politics/world category
-        if (!HOT_CATS.includes(cat)) return false;
-        // Prefer trending, but fall back to all HOT_CATS if no trending data yet
-        return trendingTitles.size === 0 || trendingTitles.has(t.title);
-      }
       if (activeCategories.includes(cat)) return true;
       if (hasPoliticsMeta && POLITICAL_CATS.includes(cat)) return true;
       return false;
@@ -419,7 +425,6 @@ export default function App() {
       setTopicShells(processedTopics);
       setCurrentTopicIndex(0);
       setCurrentTakeIndex(3);
-      setActiveCategories([]);
       setLoadingStage(2);
 
       // Clean up stale cache entries
