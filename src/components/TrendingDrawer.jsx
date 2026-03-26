@@ -36,7 +36,7 @@ export default function TrendingDrawer({ topics, onClose, onSelectTopic }) {
     <div className="trending-overlay" onClick={onClose}>
       <div className="trending-drawer" onClick={e => e.stopPropagation()}>
         <div className="trending-header">
-          <span className="trending-title">🔥 Top 10 Trending</span>
+          <span className="trending-title">🔥 Hot Trending</span>
           <button className="trending-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
 

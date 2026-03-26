@@ -4,7 +4,7 @@ import Header from './components/Header';
 import LoadingScreen from './components/LoadingScreen';
 import TopicDrawer from './components/TopicDrawer';
 import TrendingDrawer from './components/TrendingDrawer';
-import CategoryFilter, { POLITICAL_CATS } from './components/CategoryFilter';
+import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryFilter';
 import TimeFilter from './components/TimeFilter';
 import './App.css';
 
@@ -90,7 +90,7 @@ export default function App() {
   const [loadingSet, setLoadingSet]             = useState(new Set());
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
   const [currentTakeIndex, setCurrentTakeIndex]   = useState(3); // 3 = Neutral
-  const [activeCategories, setActiveCategories] = useState([]); // [] = show all
+  const [activeCategories, setActiveCategories] = useState(['Hot']); // default to Hot feed
   const [timeFilter, setTimeFilter]             = useState('48h');
   const [isLoading, setIsLoading]               = useState(true);
   const [loadingStage, setLoadingStage]         = useState(0);
@@ -108,13 +108,19 @@ export default function App() {
 
   // ── Filtered topic list (by category) ────────────────────────────────────
   // "Politics" is a meta-category — it expands to all political sub-categories.
+  // "Hot" shows the most popular news, world & politics stories (trending + HOT_CATS).
   const filteredTopics = useMemo(() => {
     if (activeCategories.length === 0) return topicShells;
     const hasPoliticsMeta = activeCategories.includes('Politics');
-    const hasTop10        = activeCategories.includes('Top 10');
+    const hasHot          = activeCategories.includes('Hot');
     return topicShells.filter(t => {
       const cat = t.category || 'US Politics';
-      if (hasTop10 && trendingTitles.has(t.title)) return true;
+      if (hasHot) {
+        // Must be in a news/politics/world category
+        if (!HOT_CATS.includes(cat)) return false;
+        // Prefer trending, but fall back to all HOT_CATS if no trending data yet
+        return trendingTitles.size === 0 || trendingTitles.has(t.title);
+      }
       if (activeCategories.includes(cat)) return true;
       if (hasPoliticsMeta && POLITICAL_CATS.includes(cat)) return true;
       return false;

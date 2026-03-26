@@ -11,7 +11,7 @@ export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, tim
 
   const items = [
     { label: 'Profile',             icon: '👤', disabled: true,  note: 'Coming soon' },
-    { label: '🔥 Top 10 Trending',  disabled: false, action: () => { onShowTrending(); onClose(); } },
+    { label: '🔥 Hot Trending',      disabled: false, action: () => { onShowTrending(); onClose(); } },
     { label: 'Settings',            icon: '⚙️', disabled: true,  note: 'Coming soon' },
     { label: 'Contact Us',          icon: '✉️', disabled: true,  note: 'Coming soon' },
     { label: 'About / Disclaimer',  icon: 'ℹ️', disabled: false, action: () => { onShowInfo(); onClose(); } },

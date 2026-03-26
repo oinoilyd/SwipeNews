@@ -8,6 +8,17 @@ export const POLITICAL_CATS = [
   'Elections',
 ];
 
+// Categories included in the "Hot" feed (news/world/politics — no sports/tech/entertainment)
+export const HOT_CATS = [
+  'US Politics',
+  'World',
+  'Policy',
+  'Economy',
+  'National Security',
+  'Elections',
+  'Health',
+];
+
 export const CATEGORIES = [
   'All',
   'Politics',           // ← combined meta-category for all political sub-categories
@@ -32,12 +43,12 @@ export default function CategoryFilter({ activeCategories, onToggle, topicShells
   }, {});
   const totalCount    = topicShells.length;
   const politicsCount = POLITICAL_CATS.reduce((sum, c) => sum + (counts[c] || 0), 0);
-  const allActive     = activeCategories.length === 0;
-  const top10Active   = activeCategories.includes('Top 10');
+  const allActive  = activeCategories.length === 0;
+  const hotActive  = activeCategories.includes('Hot');
 
   return (
     <div className="category-filter" role="tablist" aria-label="Filter by category">
-      {/* Top 10 pill — always first after All */}
+      {/* All pill */}
       <button
         role="tab"
         aria-selected={allActive}
@@ -48,13 +59,14 @@ export default function CategoryFilter({ activeCategories, onToggle, topicShells
         {totalCount > 0 && <span className="cat-count">{totalCount}</span>}
       </button>
 
+      {/* Hot pill — popular news, world & politics */}
       <button
         role="tab"
-        aria-selected={top10Active}
-        className={`cat-pill cat-pill-trending ${top10Active ? 'active' : ''}`}
-        onClick={() => onToggle('Top 10')}
+        aria-selected={hotActive}
+        className={`cat-pill cat-pill-trending ${hotActive ? 'active' : ''}`}
+        onClick={() => onToggle('Hot')}
       >
-        🔥 Top 10
+        🔥 Hot
         {trendingCount > 0 && <span className="cat-count">{trendingCount}</span>}
       </button>
 
