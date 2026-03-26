@@ -11,41 +11,7 @@ export const maxDuration = 60; // Vercel hobby plan max (seconds)
 
 import Anthropic from '@anthropic-ai/sdk';
 import { redis, takeKey } from '../lib/redis.js';
-
-const TAKE_POSITIONS = [
-  { position: -3, label: 'Far Left',     color: '#1d4ed8', tier: 'left'   },
-  { position: -2, label: 'Left',         color: '#3b82f6', tier: 'left'   },
-  { position: -1, label: 'Center-Left',  color: '#818cf8', tier: 'left'   },
-  { position:  0, label: 'Neutral',      color: '#a78bfa', tier: 'center' },
-  { position:  1, label: 'Center-Right', color: '#f97316', tier: 'right'  },
-  { position:  2, label: 'Right',        color: '#ef4444', tier: 'right'  },
-  { position:  3, label: 'Far Right',    color: '#dc2626', tier: 'right'  },
-];
-
-const SPORTS_VOICE = {
-  '-2': { label: 'Fan',      voice: `You are writing from a FAN perspective. This is about passion, team loyalty, emotional investment, player storylines, and the experience of following a sport. What would a lifelong fan who lives and dies by their team actually care about here? Capture the energy, the stakes, the heartbreak or joy of the moment.` },
-   '0': { label: 'Neutral',  voice: `You are writing from a NEUTRAL, straight-news perspective. Report exactly what happened in this sports story — the facts, the result, the context — the way a wire service reporter would cover it. No fan enthusiasm, no business angle, no deep stats. Just clear, factual, fair-minded coverage that tells the reader what they need to know.` },
-   '2': { label: 'Business', voice: `You are writing from a BUSINESS perspective. Focus on contracts, salaries, cap space, revenue, ownership decisions, league policy, sponsorship impact, and the financial machinery behind the sport. What are the business and organizational implications here?` },
-};
-const TECH_VOICE = {
-  '-2': { label: 'Optimist', voice: `You are writing from a TECH OPTIMIST perspective. Focus on innovation potential, new capabilities unlocked, democratization of access, scientific progress, and the transformative upside. What's the best-case path this technology enables? Sound like a researcher or entrepreneur genuinely excited about where this leads.` },
-   '0': { label: 'Neutral',  voice: `You are writing a NEUTRAL, strictly factual analysis of this tech story. Report what happened, what experts say, and where genuine disagreement exists — without framing it toward hype or fear. Acknowledge trade-offs without advocating for either side. Sound like a wire reporter covering technology: no boosterism, no doom. Just the facts and context.` },
-   '2': { label: 'Industry', voice: `You are writing from an INDUSTRY/BUSINESS perspective. Focus on market impact, competitive dynamics, investment implications, enterprise adoption, vendor landscapes, and what this means for tech companies and the broader business ecosystem. Sound like a tech analyst or VC.` },
-};
-const ENTERTAINMENT_VOICE = {
-  '-2': { label: 'Progressive', voice: `You are writing from a PROGRESSIVE entertainment perspective. Champion representation, diverse casting, and stories updated to reflect modern values. When studios push boundaries or reimagine classics with new voices, frame it as culture evolving. Call out nostalgia-driven backlash as resistance to change. Sound like a culture critic at Vulture or The Atlantic.` },
-   '0': { label: 'Neutral',     voice: `You are writing from a NEUTRAL, strictly factual perspective on this entertainment story. Report what happened — the creative decisions, audience response, box office, critical reception — without taking sides on cultural debates. Sound like an entertainment wire reporter: no advocacy, just the facts.` },
-   '2': { label: 'Traditional', voice: `You are writing from a TRADITIONAL entertainment perspective. Champion faithful storytelling, respect for source material, and craft over cultural agenda. When beloved properties are rebooted, focus on whether the original spirit has been honored — or diluted. Sound like a film critic who loved the originals and believes a great story doesn't need to be a lecture.` },
-};
-const POSITION_VOICE = {
-  '-3': `You are writing from a FAR LEFT worldview. Center your analysis on class struggle, systemic oppression, corporate power, and anti-imperialism. On immigration: migrants are displaced by US foreign policy and corporate exploitation — enforcement is state violence against the vulnerable. On economy: inequality is a feature, not a bug, of capitalism. On national security: the military-industrial complex profits from endless war. Sound like a democratic socialist who reads Jacobin and The Intercept.`,
-  '-2': `You are writing from a LEFT-LIBERAL worldview. Emphasize systemic racism, climate urgency, healthcare and housing as human rights, and immigration as both a humanitarian obligation and economic asset. On immigration: highlight family separation, DACA, economic contributions. On economy: the rich aren't paying their fair share; invest in people. Sound like a mainstream progressive Democrat — think AOC or a New York Times opinion columnist.`,
-  '-1': `You are writing from a CENTER-LEFT worldview. Favor evidence-based, pragmatic reform over ideological purity. Support regulated capitalism with robust social safety nets. On immigration: back comprehensive reform with managed enforcement and clear legal pathways. On economy: fiscal responsibility paired with smart investment in public goods. Sound like a thoughtful Brookings Institution analyst or a moderate Senate Democrat.`,
-   '0': `You are writing a NEUTRAL, strictly factual analysis. Report what happened, what experts say, and where genuine disagreement exists — without framing it toward any side. Acknowledge multiple valid perspectives without endorsing any. Sound like an AP wire reporter or a nonpartisan CBO report. Zero spin. Zero advocacy.`,
-   '1': `You are writing from a CENTER-RIGHT worldview. Prioritize fiscal conservatism, rule of law, individual liberty, and limited government. On immigration: support legal immigration pathways while opposing illegal border crossing; favor managed enforcement. On economy: markets over mandates, debt matters, deregulation creates growth. Sound like a Wall Street Journal editorial board member or a Romney-era Republican.`,
-   '2': `You are writing from a RIGHT CONSERVATIVE worldview. Emphasize American sovereignty, strong borders, traditional values, free enterprise, and personal responsibility. On immigration: illegal entry is a crime; costs to taxpayers are real; deportation of criminal aliens is non-negotiable. On economy: cut taxes, cut spending, get government out of the way. Sound like mainstream Fox News conservatism or a Heritage Foundation policy brief.`,
-   '3': `You are writing from a FAR RIGHT NATIONALIST worldview. Lead with America First, populist skepticism of globalism, elites, and institutions. On immigration: frame it as an invasion; demand the wall, mass deportation, and zero tolerance. On national security: hawkish military posture, nuclear deterrence, protect critical infrastructure from China and adversaries; domestic enemies are real. On economy: economic nationalism, tariffs, bring back manufacturing. Sound like someone who reads Breitbart and believes the GOP establishment has sold out the American people.`,
-};
+import { TAKE_POSITIONS, isWeakTake, buildPrompt } from '../lib/perspectives.js';
 
 // Positions to generate per category
 function getPerspectivePositions(category) {
@@ -53,30 +19,6 @@ function getPerspectivePositions(category) {
     return [-2, 0, 2]; // 3 perspectives
   }
   return [-3, -2, -1, 0, 1, 2, 3]; // 7 political perspectives
-}
-
-const WEAK_TAKE_PHRASES = ['cannot verify', 'appears to be false'];
-function isWeakTake(take) {
-  const t = (take?.text || '').toLowerCase();
-  return WEAK_TAKE_PHRASES.some(p => t.includes(p));
-}
-
-function getTopicFocus(category, position) {
-  const side = position < 0 ? 'left' : position > 0 ? 'right' : 'neutral';
-  const cat  = (category || '').toLowerCase();
-  const focus = {
-    'national security': { left: 'Focus on civilian casualties, the human cost of military action, endless wars, and defense industry profits. Question whether force actually creates safety.', neutral: 'Report the military or security facts plainly — troop movements, diplomatic status, official statements — without editorial framing.', right: 'Focus on deterrence, projecting strength, protecting allies, and the consequences of weakness. A strong military posture prevents conflict.' },
-    'world':             { left: 'Focus on humanitarian impact, civilian suffering, US foreign policy\'s role in instability, and diplomacy over military solutions.', neutral: 'Report the geopolitical facts — what happened, who said what, what\'s at stake — without advocating for a particular stance.', right: 'Focus on US national interest, alliance reliability, adversary threats, and why projecting strength matters globally.' },
-    'economy':           { left: 'Focus on working families, wage stagnation, growing wealth gaps, and corporate power. Call out policies that benefit the wealthy at everyone else\'s expense.', neutral: 'Report the economic data and expert forecasts without partisan framing. Include both upside and downside risks.', right: 'Focus on growth, job creation, and what happens when government steps back. Lower taxes and less regulation produce better outcomes than intervention.' },
-    'health':            { left: 'Focus on access and affordability — who can\'t get care, who goes bankrupt. Healthcare is a right, not a product. Defend the ACA, Medicaid, and public options.', neutral: 'Report the health policy facts — coverage numbers, cost data, what the legislation does — without pushing single-payer or free-market agendas.', right: 'Focus on patient choice and competition. Government-controlled healthcare reduces quality and innovation; markets deliver better outcomes.' },
-    'elections':         { left: 'Focus on voter access, suppression, dark money, and protecting democratic participation. Warn about gerrymandering and ID laws that restrict the vote.', neutral: 'Report electoral facts — results, legal challenges, procedural changes — without taking a side on integrity debates.', right: 'Focus on election integrity, secure voting systems, and rule of law. Confidence in elections requires verifiable, fraud-resistant processes.' },
-    'immigration':       { left: 'Focus on human stories — families separated, asylum seekers at risk, and immigrants\' economic contributions. Frame aggressive enforcement as cruel and counterproductive.', neutral: 'Report what the policy change is, who it affects, and what supporters and critics each say without endorsing either extreme.', right: 'Focus on rule of law, border security, and the costs of illegal immigration. Sovereign nations have the right and obligation to control entry.' },
-    'policy':            { left: 'Focus on who this policy helps or hurts among ordinary people, and whether it expands or contracts rights and access.', neutral: 'Report what the policy does, what it costs, and what evidence from similar policies shows.', right: 'Focus on whether this policy grows government power, raises costs, or restricts individual and economic freedom.' },
-  };
-  for (const [key, sides] of Object.entries(focus)) {
-    if (cat.includes(key)) return sides[side] || '';
-  }
-  return '';
 }
 
 async function batch(items, fn, concurrency = 10) {
@@ -89,62 +31,12 @@ async function batch(items, fn, concurrency = 10) {
 }
 
 async function generateTake(client, topic, meta) {
-  const arts       = topic.articles || [];
-  const leftArts   = arts.filter(a => (a.bias?.score ?? 0) <= -1);
-  const centerArts = arts.filter(a => (a.bias?.score ?? 0) === 0);
-  const rightArts  = arts.filter(a => (a.bias?.score ?? 0) >= 1);
+  const { prompt } = buildPrompt(topic, meta);
 
-  const fmt = (arr) => arr.length === 0
-    ? '(none)'
-    : arr.map(a => `  • ${a.source}: "${a.title}"`).join('\n');
-
-  const primaryTier = meta.tier;
-  const primaryArts = primaryTier === 'left' ? leftArts : primaryTier === 'right' ? rightArts : centerArts;
-  const otherArts   = primaryTier === 'left' ? [...centerArts, ...rightArts]
-                    : primaryTier === 'right' ? [...centerArts, ...leftArts]
-                    : [...leftArts, ...rightArts];
-
-  const category = topic.category || '';
-  let positionVoice, effectiveLabel;
-  if (category === 'Sports & Culture' && SPORTS_VOICE[String(meta.position)]) {
-    const sv = SPORTS_VOICE[String(meta.position)];
-    effectiveLabel = sv.label; positionVoice = sv.voice;
-  } else if (category === 'Technology' && TECH_VOICE[String(meta.position)]) {
-    const tv = TECH_VOICE[String(meta.position)];
-    effectiveLabel = tv.label; positionVoice = tv.voice;
-  } else if (category === 'Entertainment' && ENTERTAINMENT_VOICE[String(meta.position)]) {
-    const ev = ENTERTAINMENT_VOICE[String(meta.position)];
-    effectiveLabel = ev.label; positionVoice = ev.voice;
-  } else {
-    effectiveLabel = meta.label;
-    positionVoice  = POSITION_VOICE[String(meta.position)] || `Write a ${meta.label} perspective on this topic.`;
-  }
-
-  const topicFocus = getTopicFocus(category, meta.position);
-  const prompt = `${positionVoice}${topicFocus ? `\n\nFor this specific story: ${topicFocus}` : ''}
-
-GROUNDING RULES — follow precisely:
-1. Donald Trump is the 47th President (inaugurated Jan 20, 2025). Always "President Trump" — NEVER "former President Trump."
-2. The TOPIC TITLE and CONTEXT are absolute ground truth — even if after your training cutoff. NEVER write "cannot verify," "unconfirmed," "appears false," or anything doubting the event.
-2b. If provided articles don't match this topic, ignore them and write from general knowledge. Always produce a substantive take — never refuse.
-3. Be direct and assertive. No hedging ("some argue," "it could be said"). Lead with the point. No throat-clearing opener.
-4. Write 2-3 punchy sentences (40-60 words).
-5. For events tied to a specific place, name the location.
-
-TOPIC: ${topic.title}${topic.summary ? `\nCONTEXT: ${topic.summary}` : ''}
-
-PRIMARY SOURCES:
-${fmt(primaryArts)}
-OTHER SOURCES:
-${fmt(otherArts)}
-
-Return ONLY valid JSON, nothing else:
-{"take":{"position":${meta.position},"label":"${effectiveLabel}","text":"2-3 sentence take here","sources":[{"name":"Source Name","framing":"One brief framing note"}]}}`;
-
-  const msg  = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 400,
-    messages: [{ role: 'user', content: prompt }],
+  const msg = await client.messages.create({
+    model:      'claude-haiku-4-5-20251001',
+    max_tokens: 500,
+    messages:   [{ role: 'user', content: prompt }],
   });
 
   const text  = msg.content[0]?.text || '';
