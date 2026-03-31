@@ -259,11 +259,13 @@ function buildTopics(clusters, articles) {
 }
 
 // ── Shared: generate all missing takes for a list of topics ──────────────────
-async function seedAllTakes(client, topics) {
+// positionFilter: optional number[] — if provided, only generate those positions
+async function seedAllTakes(client, topics, positionFilter = null) {
   const jobs = [];
   for (const topic of topics) {
     const positions = getPerspectivePositions(topic.category || '');
-    for (const pos of positions) {
+    const filtered  = positionFilter ? positions.filter(p => positionFilter.includes(p)) : positions;
+    for (const pos of filtered) {
       const meta = TAKE_POSITIONS.find(p => p.position === pos);
       if (meta) jobs.push({ topic, meta });
     }
@@ -281,7 +283,7 @@ async function seedAllTakes(client, topics) {
       console.warn(`take failed "${topic.title}" pos=${meta.position}:`, err.message);
       errors++;
     }
-  }, 15); // high concurrency — Haiku is fast
+  }, 15);
   return { generated, alreadyCached, errors, total: jobs.length };
 }
 
@@ -309,12 +311,18 @@ export default async function handler(req, res) {
       const end    = Math.floor((chunk + 1) * allTopics.length / chunks);
       const topics = allTopics.slice(start, end);
 
-      console.log(`pregenerate warm chunk ${chunk}/${chunks}: topics ${start}-${end-1} (${topics.length} topics)`);
+      // Optional position filter: ?positions=-1,1  or  ?positions=-2,2
+      const positionsParam  = req.query.positions;
+      const positionFilter  = positionsParam
+        ? positionsParam.split(',').map(Number).filter(n => !isNaN(n))
+        : null;
+
+      console.log(`pregenerate warm chunk ${chunk}/${chunks}: topics ${start}-${end-1} (${topics.length} topics)${positionFilter ? ` positions=[${positionFilter}]` : ''}`);
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const stats  = await seedAllTakes(client, topics);
+      const stats  = await seedAllTakes(client, topics, positionFilter);
       if (chunk === 0) await redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 });
       console.log(`pregenerate warm chunk ${chunk} done:`, stats);
-      return res.json({ ok: true, warm: true, chunk, chunks, ...stats });
+      return res.json({ ok: true, warm: true, chunk, chunks, positions: positionFilter, ...stats });
     } catch (err) {
       console.error('pregenerate warm error:', err);
       return res.json({ ok: false, message: err.message });
@@ -388,30 +396,37 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── 4. Seed Neutral takes while article data is in memory ────────────────
-    // Neutral (pos=0) is the default view — pre-warm it now with real articles.
-    // All other positions are filled by background warm chunks (no article data
-    // needed — they use general knowledge via grounding rule 2b).
-    // This keeps the cron well within the 60s limit: 95 × 1 pos @ concurrency=15
-    // = 7 batches × ~1.4s = ~10s, vs 44s for all positions.
-    const client     = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const neutralMeta = TAKE_POSITIONS.find(p => p.position === 0);
+    // ── 4. Seed Neutral + Far Left + Far Right while article data is in memory ──
+    // These three are the highest-traffic positions. Generating them in the cron
+    // means the most-swiped views are instant for every user.
+    // 95 topics × 3 positions @ concurrency=20 ≈ 15 batches × ~1.4s = ~21s —
+    // well within the 60s Vercel limit. Remaining positions (±1, ±2) are filled
+    // by background warm chunks fired from clustered-news.js.
+    const CRON_POSITIONS = [0, -3, 3];
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const cronJobs = [];
+    for (const topic of topics) {
+      for (const pos of CRON_POSITIONS) {
+        const meta = TAKE_POSITIONS.find(p => p.position === pos);
+        if (meta) cronJobs.push({ topic, meta });
+      }
+    }
     let generated = 0, alreadyCached = 0, errors = 0;
-    await batch(topics, async (topic) => {
-      const rKey = takeKey(topic, 0);
+    await batch(cronJobs, async ({ topic, meta }) => {
+      const rKey = takeKey(topic, meta.position);
       try {
         const existing = await redis.get(rKey);
         if (existing && !isWeakTake(existing)) { alreadyCached++; return; }
-        const take = await generateTake(client, topic, neutralMeta);
+        const take = await generateTake(client, topic, meta);
         await redis.set(rKey, take, { ex: TAKES_TTL_S });
         generated++;
       } catch (err) {
-        console.warn(`neutral take failed "${topic.title}":`, err.message);
+        console.warn(`cron take failed "${topic.title}" pos=${meta.position}:`, err.message);
         errors++;
       }
-    }, 15);
-    const stats = { generated, alreadyCached, errors, total: topics.length };
-    console.log('pregenerate neutral takes:', stats);
+    }, 20);
+    const stats = { generated, alreadyCached, errors, total: cronJobs.length };
+    console.log('pregenerate cron takes [0,-3,3]:', stats);
 
     // ── 5. Save slim topics to Redis (strip articles — avoids 1MB entry limit)
     // Articles are only needed for take generation (done above). Stored topics

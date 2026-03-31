@@ -36,19 +36,27 @@ export default async function handler(req, res) {
       console.log(`clustered-news: cache hit — ${topics.length} topics, ${ageMin}min old`);
 
       // ── Background take warm: fire if not warmed recently ─────────────────
-      // Split into 3 parallel chunks so each finishes in ~15s (well under 60s).
+      // Cron already generated [0, -3, 3]. Fire 2 position-targeted chunks
+      // to fill the remaining positions:
+      //   Chunk 0: positions -1, 1  (Center-Left / Center-Right)
+      //   Chunk 1: positions -2, 2  (Left / Right)
+      // Each runs all topics for its 2 positions — ~190 jobs @ concurrency=15
+      // ≈ 13 batches × ~0.7s = ~10s, well within the 60s limit.
       const lastWarm  = warmedAt ? new Date(warmedAt).getTime() : 0;
       const needsWarm = (Date.now() - lastWarm) > WARM_INTERVAL;
       if (needsWarm) {
         const host  = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3001';
         const proto = req.headers['x-forwarded-proto'] || (process.env.VERCEL ? 'https' : 'http');
-        console.log('clustered-news: firing 3 parallel warm chunks');
+        console.log('clustered-news: firing 2 parallel warm chunks (positions ±1 and ±2)');
         // Stamp immediately so concurrent requests don't double-fire
         redis.set(WARM_TS_KEY, new Date().toISOString(), { ex: 3600 }).catch(() => {});
-        const CHUNKS = 3;
-        for (let i = 0; i < CHUNKS; i++) {
-          fetch(`${proto}://${host}/api/pregenerate?warm=1&chunk=${i}&chunks=${CHUNKS}`, { method: 'POST' })
-            .catch(err => console.warn(`Background warm chunk ${i} failed:`, err.message));
+        const WARM_CHUNKS = [
+          { chunk: 0, positions: '-1,1' },
+          { chunk: 1, positions: '-2,2' },
+        ];
+        for (const { chunk, positions } of WARM_CHUNKS) {
+          fetch(`${proto}://${host}/api/pregenerate?warm=1&chunk=${chunk}&chunks=1&positions=${positions}`, { method: 'POST' })
+            .catch(err => console.warn(`Background warm chunk ${chunk} (${positions}) failed:`, err.message));
         }
       }
 
