@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const TIME_OPTIONS = [
   { value: '24h', label: 'Last 24 Hours' },
@@ -7,14 +7,39 @@ const TIME_OPTIONS = [
 ];
 
 export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, timeFilter, onTimeFilterChange }) {
-  const [timeOpen, setTimeOpen] = useState(false);
+  const [timeOpen,      setTimeOpen]      = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  // Capture the browser's install prompt so we can trigger it on demand.
+  // beforeinstallprompt fires on Android Chrome when the app is installable.
+  // It does NOT fire on iOS (Safari uses its own share-sheet flow) or desktop.
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault(); // stop browser auto-prompt
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') setInstallPrompt(null);
+    onClose();
+  };
+
+  // Only show "Add to Home Screen" on touch/mobile devices
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+  const showInstall = isMobile && !!installPrompt;
 
   const items = [
-    { label: 'Profile',             icon: '👤', disabled: true,  note: 'Coming soon' },
-    { label: '🔥 Hot Trending',      disabled: false, action: () => { onShowTrending(); onClose(); } },
-    { label: 'Settings',            icon: '⚙️', disabled: true,  note: 'Coming soon' },
-    { label: 'Contact Us',          icon: '✉️', disabled: true,  note: 'Coming soon' },
-    { label: 'About / Disclaimer',  icon: 'ℹ️', disabled: false, action: () => { onShowInfo(); onClose(); } },
+    { label: 'Profile',            icon: '👤', disabled: true,  note: 'Coming soon' },
+    { label: '🔥 Hot Trending',     disabled: false, action: () => { onShowTrending(); onClose(); } },
+    { label: 'Settings',           icon: '⚙️', disabled: true,  note: 'Coming soon' },
+    { label: '✉️ Feedback',         disabled: false, action: () => { window.location.href = 'mailto:perspectivnews@gmail.com?subject=SwipeNews Feedback'; onClose(); } },
+    { label: 'About / Disclaimer', icon: 'ℹ️', disabled: false, action: () => { onShowInfo(); onClose(); } },
   ];
 
   return (
@@ -61,6 +86,12 @@ export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, tim
               {item.note && <span className="hamburger-item-note">{item.note}</span>}
             </button>
           ))}
+
+          {showInstall && (
+            <button className="hamburger-item" onClick={handleInstall}>
+              <span className="hamburger-item-label">📲 Add to Home Screen</span>
+            </button>
+          )}
         </nav>
       </div>
     </div>
