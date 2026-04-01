@@ -82,6 +82,29 @@ function pruneOldCache(topics) {
   toRemove.forEach(k => localStorage.removeItem(k));
 }
 
+// ── Topics localStorage cache (2h TTL — topics only change at 6am cron) ─────
+const TOPICS_CACHE_KEY = 'sw_topics_v1';
+const TOPICS_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+
+function saveTopicsCache(topics) {
+  try {
+    localStorage.setItem(TOPICS_CACHE_KEY, JSON.stringify({ topics, ts: Date.now() }));
+  } catch { /* ignore quota errors */ }
+}
+
+function loadTopicsCache() {
+  try {
+    const raw = localStorage.getItem(TOPICS_CACHE_KEY);
+    if (!raw) return null;
+    const { topics, ts } = JSON.parse(raw);
+    if (Date.now() - ts > TOPICS_CACHE_TTL) {
+      localStorage.removeItem(TOPICS_CACHE_KEY);
+      return null;
+    }
+    return topics;
+  } catch { return null; }
+}
+
 export default function App() {
   const [topicShells, setTopicShells]           = useState([]);
   // { [topicId]: { [position]: take } }  — lazy per-position
@@ -269,7 +292,7 @@ export default function App() {
 
     if (takesMapRef.current[topic.id]?.[position] !== undefined) return;
     if (loadingSetRef.current.has(key)) return;
-    if (loadingSetRef.current.size >= 2) return;
+    if (loadingSetRef.current.size >= 4) return;
 
     // Check localStorage cache first
     const cached = loadCachedTake(topic.id, topic.latestPublishedAt, position);
@@ -379,76 +402,96 @@ export default function App() {
   }, [currentTakeIndex, currentTopic, prefetchTake]);
 
   // ── Fetch topic shells ────────────────────────────────────────────────────
+  // ── Shared: process raw topic array → shuffle + set state ───────────────
+  const applyTopics = useCallback((rawTopics, bundledTakes = {}) => {
+    takesMapRef.current   = {};
+    loadingSetRef.current = new Set();
+    setTakesMap({});
+    setLoadingSet(new Set());
+
+    const processedTopics = rawTopics.map(t => ({
+      ...t,
+      perspectiveMode: getPerspectiveMode(t.category),
+    }));
+    // Shuffle order on every load so the feed feels fresh
+    for (let i = processedTopics.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [processedTopics[i], processedTopics[j]] = [processedTopics[j], processedTopics[i]];
+    }
+
+    // Seed any pre-bundled takes (Fix 2: from clustered-news response)
+    if (Object.keys(bundledTakes).length > 0) {
+      const seedMap = {};
+      for (const [topicId, posMap] of Object.entries(bundledTakes)) {
+        seedMap[topicId] = posMap;
+        const topic = processedTopics.find(t => t.id === topicId);
+        if (topic) {
+          for (const [pos, take] of Object.entries(posMap)) {
+            saveCachedTake(topic.id, topic.latestPublishedAt, parseInt(pos), take);
+          }
+        }
+      }
+      takesMapRef.current = seedMap;
+      setTakesMap({ ...seedMap });
+    }
+
+    setTopicShells(processedTopics);
+    setCurrentTopicIndex(0);
+    setCurrentTakeIndex(3);
+    setLoadingStage(2);
+    pruneOldCache(rawTopics);
+  }, []);
+
   const fetchTopicShells = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     setLoadingStage(0);
     setError(null);
 
     const timer1 = setTimeout(() => setLoadingStage(1), 2500);
-    let keepLoading = false; // when true, finally won't clear isLoading
+    let keepLoading = false;
 
     try {
+      // ── Fast path: return immediately from localStorage (returning users) ──
+      if (!forceRefresh) {
+        const cachedTopics = loadTopicsCache();
+        if (cachedTopics?.length) {
+          clearTimeout(timer1);
+          applyTopics(cachedTopics);
+          return; // finally clears isLoading
+        }
+      }
+
+      // ── Network path ───────────────────────────────────────────────────────
       const url = forceRefresh ? '/api/clustered-news?refresh=1' : '/api/clustered-news';
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Cache warming state — pregenerate is running in the background.
-      // Set keepLoading so the finally block doesn't clear isLoading,
-      // which would cause the "No topics found" screen to flash.
       if (data.loading) {
         keepLoading = true;
-        setLoadingStage(1); // show "Building perspectives…" stage
-        setTimeout(() => fetchTopicShells(false), 30000); // retry in 30s
-        return; // LoadingScreen stays visible
+        setLoadingStage(1);
+        setTimeout(() => fetchTopicShells(false), 30000);
+        return;
       }
 
       if (!data.topics?.length) throw new Error('No topics returned');
 
       clearTimeout(timer1);
 
-      takesMapRef.current   = {};
-      loadingSetRef.current = new Set();
-      setTakesMap({});
-      setLoadingSet(new Set());
+      // Save to localStorage so next load is instant
+      saveTopicsCache(data.topics);
 
-      const processedTopics = data.topics.map(t => ({
-        ...t,
-        perspectiveMode: getPerspectiveMode(t.category),
-      }));
-      // Shuffle order on every load so the feed feels fresh
-      for (let i = processedTopics.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [processedTopics[i], processedTopics[j]] = [processedTopics[j], processedTopics[i]];
-      }
-      setTopicShells(processedTopics);
-      setCurrentTopicIndex(0);
-      setCurrentTakeIndex(3);
-      setLoadingStage(2);
+      // Apply topics + any pre-bundled takes from the API (Fix 2)
+      applyTopics(data.topics, data.takes ?? {});
 
-      // Clean up stale cache entries
-      pruneOldCache(data.topics);
-
-      // ── Option B: silent background warm-up if takes cache is cold ──────────
-      // Check if first topic has any takes in localStorage. If not → fire warm.
-      const firstTopic = processedTopics[0];
-      if (firstTopic) {
-        const hasAnyTake = [-3,-2,-1,0,1,2,3].some(pos =>
-          loadCachedTake(firstTopic.id, firstTopic.latestPublishedAt, pos)
-        );
-        if (!hasAnyTake) {
-          // Fire-and-forget — user never sees this
-          fetch('/api/pregenerate?warm=1', { method: 'POST' }).catch(() => {});
-        }
-      }
     } catch (err) {
       clearTimeout(timer1);
       setError(err.message || 'Failed to load news');
     } finally {
       if (!keepLoading) setIsLoading(false);
     }
-  }, []);
+  }, [applyTopics]);
 
   // ── Pull-to-refresh: shuffle topic order in-place, no network call ──────────
   const handleRefreshOrder = useCallback(() => {

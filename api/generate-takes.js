@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
     if (!isWeakTake(take)) {
       setCached(key, take);
-      try { await redis.set(rKey, take, { ex: 7200 }); } catch { /* ignore */ }
+      try { await redis.set(rKey, take, { ex: 90000 }); } catch { /* ignore */ } // 25h — matches cron TTL
     }
 
     return res.json({ take });

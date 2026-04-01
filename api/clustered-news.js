@@ -7,7 +7,7 @@
 //
 // On cache HIT: if takes haven't been warmed in the last 30 min, fire
 // a background warm so all perspectives are pre-cached silently.
-import { redis } from '../lib/redis.js';
+import { redis, takeKey } from '../lib/redis.js';
 
 // ── Must match CACHE_VERSION in pregenerate.js ────────────────────────────────
 const CACHE_VERSION  = 'v9';
@@ -60,7 +60,22 @@ export default async function handler(req, res) {
         }
       }
 
-      return res.json({ topics, fromCache: true });
+      // ── Bundle neutral takes for first 5 topics (Fix 2) ───────────────────
+      // This eliminates the second round-trip for new users — they get topics
+      // AND the first few cards' takes in a single response.
+      // Cost: 5 parallel Redis reads (~5ms each) — negligible.
+      const takes = {};
+      try {
+        const first5   = topics.slice(0, 5);
+        const results  = await Promise.all(
+          first5.map(t => redis.get(takeKey(t, 0)).catch(() => null))
+        );
+        first5.forEach((t, i) => {
+          if (results[i]) takes[t.id] = { 0: results[i] };
+        });
+      } catch { /* non-fatal — client fetches on-demand if missing */ }
+
+      return res.json({ topics, takes, fromCache: true });
     }
 
     // ── Cache miss: fire background pregenerate, return loading state ─────────

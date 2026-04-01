@@ -70,7 +70,7 @@ export default async function handler(req, res) {
         if (parsed.take) {
           const take = { ...parsed.take, color: meta.color };
           if (!isWeakTake(take)) {
-            await redis.set(rKey, take, { ex: 7200 });
+            await redis.set(rKey, take, { ex: 90000 }); // 25h — matches cron TTL
           }
           send(res, { done: true, take });
         }
