@@ -27,17 +27,16 @@ export default function LoadingScreen({ stage = 0 }) {
         <div className="loading-logo">
           <svg width="64" height="64" viewBox="0 0 28 28" fill="none" aria-hidden="true">
             <defs>
-              <linearGradient id="ls-pg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#6d28d9" />
-                <stop offset="100%" stopColor="#c4b5fd" />
-              </linearGradient>
-              <filter id="ls-glow">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              <filter id="ls-grain" x="0%" y="0%" width="100%" height="100%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" result="noise"/>
+                <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
+                <feBlend in="SourceGraphic" in2="grayNoise" mode="soft-light"/>
               </filter>
             </defs>
-            <rect width="28" height="28" rx="7" fill="url(#ls-pg)" filter="url(#ls-glow)" />
-            <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
+            <g filter="url(#ls-grain)">
+              <rect width="28" height="28" rx="7" fill="#111"/>
+              <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
+            </g>
           </svg>
         </div>
         <h1 className="loading-title">Perspectiv</h1>

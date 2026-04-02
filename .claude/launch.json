@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "swipenews",
-      "runtimeExecutable": "/bin/sh",
-      "runtimeArgs": ["-c", "cd '/Users/facktor/Desktop/Dylan\\'s Vibe Coding/swipenews' && PATH='/usr/local/bin:$PATH' npm run dev"],
+      "runtimeExecutable": "/tmp/start-swipenews.sh",
+      "runtimeArgs": [],
       "port": 5173
     }
   ]

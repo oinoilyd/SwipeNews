@@ -192,14 +192,24 @@ export default function App() {
     : false;
   const perspectiveMode    = currentTopic?.perspectiveMode ?? 'full';
 
-  // ── Toggle a category on/off; 'All' resets to show everything ───────────
+  // ── Toggle a category on/off ─────────────────────────────────────────────
+  // Hot is solo-mode: clicking it clears everything else and selects only Hot.
+  // Clicking Hot when already solo does nothing.
+  // Clicking any other category while Hot is active exits Hot and adds that category.
+  // In multi-select mode, categories toggle on/off normally.
   const handleCategoryToggle = useCallback((cat) => {
-    if (cat === 'All') {
-      setActiveCategories([]);
+    if (cat === 'Hot') {
+      setActiveCategories(prev => {
+        const isHotSolo = prev.length === 1 && prev[0] === 'Hot';
+        return isHotSolo ? prev : ['Hot'];
+      });
     } else {
-      setActiveCategories(prev =>
-        prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-      );
+      setActiveCategories(prev => {
+        const withoutHot = prev.filter(c => c !== 'Hot');
+        return withoutHot.includes(cat)
+          ? withoutHot.filter(c => c !== cat)
+          : [...withoutHot, cat];
+      });
     }
   }, []);
 
