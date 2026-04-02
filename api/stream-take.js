@@ -44,7 +44,7 @@ export default async function handler(req, res) {
 
     // Build prompt via shared perspectives module
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const { prompt, effectiveLabel, singleSource } = buildPrompt(topic, meta);
+    const { prompt, effectiveLabel, singleSource, derivedSources } = buildPrompt(topic, meta);
 
     let fullText = '';
 
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       try {
         const parsed = JSON.parse(match[0]);
         if (parsed.take) {
-          const take = { ...parsed.take, color: meta.color };
+          const take = { ...parsed.take, color: meta.color, sources: derivedSources };
           if (singleSource) take.singleSource = true;
           if (!isWeakTake(take)) {
             await redis.set(rKey, take, { ex: 90000 }); // 25h — matches cron TTL
