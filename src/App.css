@@ -605,6 +605,20 @@ body {
 .sources-chevron { font-size: 0.65rem; }
 .sources-count { color: var(--text-muted); }
 
+.single-source-badge {
+  font-size: 0.7rem;
+  opacity: 0.55;
+  margin-left: 2px;
+  cursor: default;
+}
+.single-source-note {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+  margin: 2px 0 4px;
+  padding: 0;
+}
+
 .sources-list {
   list-style: none;
   margin-top: 4px;

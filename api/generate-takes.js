@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const { prompt } = buildPrompt(topic, meta);
+    const { prompt, singleSource } = buildPrompt(topic, meta);
 
     const msg = await client.messages.create({
       model:      'claude-haiku-4-5-20251001',
@@ -77,14 +77,7 @@ export default async function handler(req, res) {
     if (!parsed.take) throw new Error('No take in response');
 
     const take = { ...parsed.take, color: meta.color };
-
-    // Flag when no primary-tier sources are available
-    const arts       = topic.articles || [];
-    const leftArts   = arts.filter(a => (a.bias?.score ?? 0) <= -1);
-    const centerArts = arts.filter(a => (a.bias?.score ?? 0) === 0);
-    const rightArts  = arts.filter(a => (a.bias?.score ?? 0) >= 1);
-    const primaryArts = meta.tier === 'left' ? leftArts : meta.tier === 'right' ? rightArts : centerArts;
-    if (primaryArts.length === 0) take.limitedSources = true;
+    if (singleSource) take.singleSource = true;
 
     if (!isWeakTake(take)) {
       setCached(key, take);

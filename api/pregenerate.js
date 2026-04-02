@@ -31,7 +31,7 @@ async function batch(items, fn, concurrency = 10) {
 }
 
 async function generateTake(client, topic, meta) {
-  const { prompt } = buildPrompt(topic, meta);
+  const { prompt, singleSource } = buildPrompt(topic, meta);
 
   const msg = await client.messages.create({
     model:      'claude-haiku-4-5-20251001',
@@ -46,7 +46,9 @@ async function generateTake(client, topic, meta) {
   const parsed = JSON.parse(match[0]);
   if (!parsed.take) throw new Error('No take in response');
 
-  return { ...parsed.take, color: meta.color };
+  const take = { ...parsed.take, color: meta.color };
+  if (singleSource) take.singleSource = true;
+  return take;
 }
 
 // ── Cache keys — must match clustered-news.js and refresh-rss.js ─────────────

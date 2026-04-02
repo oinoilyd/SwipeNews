@@ -162,14 +162,20 @@ export default function SwipeCard({
   const rColor    = RIGHT_COLOR[perspectiveMode] || RIGHT_COLOR.full;
 
   // ── Sources accordion ─────────────────────────────────────────────────────
-  function renderSources(sources) {
+  function renderSources(sources, isSingleSource) {
     if (!sources?.length) return null;
     return (
       <div className="sources-panel">
         <button className="sources-toggle" onClick={() => setSourcesOpen(o => !o)}>
           <span className="sources-chevron">{sourcesOpen ? '▾' : '▸'}</span>
           Sources&nbsp;<span className="sources-count">({sources.length})</span>
+          {isSingleSource && (
+            <span className="single-source-badge" title="Based on single source">ⓘ</span>
+          )}
         </button>
+        {isSingleSource && sourcesOpen && (
+          <p className="single-source-note">Based on single source — limited perspective diversity</p>
+        )}
         {sourcesOpen && (
           <ul className="sources-list">
             {sources.map((src, i) => (
@@ -314,7 +320,7 @@ export default function SwipeCard({
                     <p key={i}><JargonText>{p.trim()}</JargonText></p>
                   ))}
                 </div>
-                {renderSources(currentTake.sources)}
+                {renderSources(currentTake.sources, currentTake.singleSource)}
               </>
             )}
           </div>
