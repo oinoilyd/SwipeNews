@@ -161,6 +161,25 @@ export default function SwipeCard({
   const lColor    = LEFT_COLOR[perspectiveMode]  || LEFT_COLOR.full;
   const rColor    = RIGHT_COLOR[perspectiveMode] || RIGHT_COLOR.full;
 
+  // Derive sources from topic.articles when the take doesn't have them.
+  // Tier based on currentTakeIndex: 0-2 = left, 3 = center, 4-6 = right.
+  // Sports/tech/entertainment use indices 1/3/5 mapped to same tiers.
+  const takeSources = (() => {
+    if (currentTake?.sources?.length) return currentTake.sources;
+    const arts = topic.articles || [];
+    if (!arts.length) return [];
+    const tier = currentTakeIndex <= 2 ? 'left' : currentTakeIndex >= 4 ? 'right' : 'center';
+    const tierArts = tier === 'left'   ? arts.filter(a => (a.bias?.score ?? 0) <= -1)
+                   : tier === 'right'  ? arts.filter(a => (a.bias?.score ?? 0) >= 1)
+                   : arts.filter(a => (a.bias?.score ?? 0) === 0);
+    const pool = tierArts.length > 0 ? tierArts : arts;
+    return pool.slice(0, 3).map(a => ({
+      name:    a.source,
+      framing: a.bias?.label || null,
+      url:     a.url || null,
+    }));
+  })();
+
   // ── Sources accordion ─────────────────────────────────────────────────────
   function renderSources(sources, isSingleSource) {
     if (!sources?.length) return null;
@@ -320,7 +339,7 @@ export default function SwipeCard({
                     <p key={i}><JargonText>{p.trim()}</JargonText></p>
                   ))}
                 </div>
-                {renderSources(currentTake.sources, currentTake.singleSource)}
+                {renderSources(takeSources, currentTake.singleSource)}
               </>
             )}
           </div>

@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "swipenews-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "name": "swipenews",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "cd '/Users/facktor/Desktop/Dylan\\'s Vibe Coding/swipenews' && PATH='/usr/local/bin:$PATH' npm run dev"],
       "port": 5173
     }
   ]
