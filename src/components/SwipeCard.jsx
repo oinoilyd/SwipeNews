@@ -161,23 +161,34 @@ export default function SwipeCard({
   const lColor    = LEFT_COLOR[perspectiveMode]  || LEFT_COLOR.full;
   const rColor    = RIGHT_COLOR[perspectiveMode] || RIGHT_COLOR.full;
 
-  // Derive sources from topic.articles when the take doesn't have them.
-  // Tier based on currentTakeIndex: 0-2 = left, 3 = center, 4-6 = right.
-  // Sports/tech/entertainment use indices 1/3/5 mapped to same tiers.
+  // Representative outlets per tier — the actual RSS sources used to generate takes.
+  // Used as fallback when the take doesn't carry specific source data.
+  const TIER_OUTLETS = {
+    left:   ['MSNBC', 'CNN', 'NPR', 'Washington Post', 'The New York Times', 'NBC News'],
+    center: ['AP News', 'Reuters', 'Axios', 'Politico', 'The Hill'],
+    right:  ['Wall Street Journal', 'New York Post', 'Fox News'],
+  };
+
+  // Derive sources for this perspective.
+  // Priority: take.sources → topic.sourceTiers (if available) → known tier outlets.
+  // Tier: indices 0-2 = left, 3 = center, 4-6 = right.
   const takeSources = (() => {
     if (currentTake?.sources?.length) return currentTake.sources;
-    const arts = topic.articles || [];
-    if (!arts.length) return [];
     const tier = currentTakeIndex <= 2 ? 'left' : currentTakeIndex >= 4 ? 'right' : 'center';
-    const tierArts = tier === 'left'   ? arts.filter(a => (a.bias?.score ?? 0) <= -1)
-                   : tier === 'right'  ? arts.filter(a => (a.bias?.score ?? 0) >= 1)
-                   : arts.filter(a => (a.bias?.score ?? 0) === 0);
-    const pool = tierArts.length > 0 ? tierArts : arts;
-    return pool.slice(0, 3).map(a => ({
-      name:    a.source,
-      framing: a.bias?.label || null,
-      url:     a.url || null,
-    }));
+    // Use stored sourceTiers if topic has them (future topics after cache rebuild)
+    const tiers = topic.sourceTiers;
+    if (tiers) {
+      const pool = tiers[tier]?.length ? tiers[tier] : tiers.all || [];
+      if (pool.length) return pool.map(s => ({ name: s.name, framing: s.label, url: s.url }));
+    }
+    // Fallback: show the representative outlets for this tier from our RSS source list.
+    // biasCounts tells us how many articles from each tier contributed to this topic.
+    const counts = topic.biasCounts || {};
+    const hasTier = tier === 'left' ? (counts.left||0) > 0
+                  : tier === 'right' ? (counts.right||0) > 0
+                  : (counts.center||0) > 0;
+    const outlets = hasTier ? TIER_OUTLETS[tier] : TIER_OUTLETS.center;
+    return outlets.slice(0, 3).map(name => ({ name, framing: null, url: null }));
   })();
 
   // ── Sources accordion ─────────────────────────────────────────────────────

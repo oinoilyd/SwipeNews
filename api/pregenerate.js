@@ -398,7 +398,30 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── 4. Seed Neutral + Far Left + Far Right while article data is in memory ──
+    // ── 4. Save slim topics to Redis immediately after clustering ────────────────
+    // Do this BEFORE take generation so topics are always available even if
+    // take generation times out. sourceTiers gives the frontend per-perspective
+    // source info without needing the full articles array.
+    const slimTopics = topics.map(({ articles, ...rest }) => {
+      const left   = (articles||[]).filter(a => (a.bias?.score??0) <= -1).slice(0,3).map(a=>({name:a.source,label:a.bias?.label||null,url:a.url||null}));
+      const center = (articles||[]).filter(a => (a.bias?.score??0) === 0).slice(0,3).map(a=>({name:a.source,label:a.bias?.label||null,url:a.url||null}));
+      const right  = (articles||[]).filter(a => (a.bias?.score??0) >= 1).slice(0,3).map(a=>({name:a.source,label:a.bias?.label||null,url:a.url||null}));
+      const all    = (articles||[]).slice(0,3).map(a=>({name:a.source,label:a.bias?.label||null,url:a.url||null}));
+      return { ...rest, sourceTiers: { left, center, right, all } };
+    });
+    const slimJson = JSON.stringify(slimTopics);
+    console.log(`pregenerate: saving ${slimTopics.length} slim topics (${Math.round(slimJson.length/1024)}KB) with sourceTiers`);
+    await redis.set(TOPICS_KEY,    slimTopics,               { ex: TOPICS_TTL_S });
+    await redis.set(TOPICS_TS_KEY, new Date().toISOString());
+    await redis.set(WARM_TS_KEY,   new Date().toISOString(), { ex: 3600 });
+
+    // topicsOnly mode: just fetch + cluster + save, no take generation.
+    // Used to bootstrap sourceTiers into Redis without hitting the 60s timeout.
+    if (req.query?.topicsOnly === '1' || req.body?.topicsOnly === true) {
+      return res.json({ ok: true, topics: slimTopics.length, slimKB: Math.round(slimJson.length/1024), message: 'Topics saved, takes skipped' });
+    }
+
+    // ── 5. Seed Neutral + Far Left + Far Right while article data is in memory ──
     // These three are the highest-traffic positions. Generating them in the cron
     // means the most-swiped views are instant for every user.
     // 95 topics × 3 positions @ concurrency=20 ≈ 15 batches × ~1.4s = ~21s —
@@ -429,16 +452,6 @@ export default async function handler(req, res) {
     }, 20);
     const stats = { generated, alreadyCached, errors, total: cronJobs.length };
     console.log('pregenerate cron takes [0,-3,3]:', stats);
-
-    // ── 5. Save slim topics to Redis (strip articles — avoids 1MB entry limit)
-    // Articles are only needed for take generation (done above). Stored topics
-    // are display-only shells; stream-take receives full topic from client anyway.
-    const slimTopics = topics.map(({ articles: _a, ...rest }) => rest);
-    const slimJson   = JSON.stringify(slimTopics);
-    console.log(`pregenerate: saving ${slimTopics.length} slim topics (${Math.round(slimJson.length/1024)}KB)`);
-    await redis.set(TOPICS_KEY,    slimTopics,               { ex: TOPICS_TTL_S });
-    await redis.set(TOPICS_TS_KEY, new Date().toISOString());
-    await redis.set(WARM_TS_KEY,   new Date().toISOString(), { ex: 3600 });
 
     return res.json({ ok:true, topics:topics.length, slimKB: Math.round(slimJson.length/1024), takes: stats });
 
