@@ -7,7 +7,7 @@
     </filter>
   </defs>
   <g filter="url(#grain)">
-    <rect width="48" height="48" rx="10" fill="#111"/>
+    <rect width="48" height="48" rx="10" fill="#000"/>
     <text x="24" y="37" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-weight="700" font-size="34" fill="white">P</text>
   </g>
 </svg>

@@ -34,7 +34,7 @@ export default function LoadingScreen({ stage = 0 }) {
               </filter>
             </defs>
             <g filter="url(#ls-grain)">
-              <rect width="28" height="28" rx="7" fill="#111"/>
+              <rect width="28" height="28" rx="7" fill="#000"/>
               <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
             </g>
           </svg>
