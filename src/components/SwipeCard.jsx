@@ -170,23 +170,53 @@ export default function SwipeCard({
   };
 
   // Derive sources for this perspective.
-  // Priority: take.sources → topic.sourceTiers (if available) → known tier outlets.
-  // Tier: indices 0-2 = left, 3 = center, 4-6 = right.
+  // Neutral (index 3): combine all tiers so the reader sees the full source picture.
+  // All others: show only bias-matched sources for that perspective's tier.
+  // Priority: take.sources → topic.sourceTiers → known tier outlets (TIER_OUTLETS).
   const takeSources = (() => {
-    if (currentTake?.sources?.length) return currentTake.sources;
-    const tier = currentTakeIndex <= 2 ? 'left' : currentTakeIndex >= 4 ? 'right' : 'center';
-    // Use stored sourceTiers if topic has them (future topics after cache rebuild)
+    const neutral = currentTakeIndex === 3;
+
+    if (currentTake?.sources?.length) {
+      // For neutral, augment with any extra tier sources not already in the take's list
+      if (!neutral) return currentTake.sources;
+      const tiers = topic.sourceTiers;
+      if (tiers) {
+        const all = [...(tiers.left||[]), ...(tiers.center||[]), ...(tiers.right||[])]
+          .map(s => ({ name: s.name, framing: s.label, url: s.url }));
+        const seen = new Set(currentTake.sources.map(s => s.name));
+        const extras = all.filter(s => !seen.has(s.name));
+        return [...currentTake.sources, ...extras];
+      }
+      return currentTake.sources;
+    }
+
     const tiers = topic.sourceTiers;
+    if (neutral) {
+      // Combine all tiers, deduplicated
+      if (tiers) {
+        const all = [...(tiers.left||[]), ...(tiers.center||[]), ...(tiers.right||[])];
+        const seen = new Set();
+        return all.filter(s => seen.has(s.name) ? false : seen.add(s.name))
+                  .map(s => ({ name: s.name, framing: s.label, url: s.url }));
+      }
+      // Fallback: all three tier outlet lists combined
+      const counts = topic.biasCounts || {};
+      const result = [];
+      if ((counts.left||0)   > 0) result.push(...TIER_OUTLETS.left.slice(0,2));
+      if ((counts.center||0) > 0) result.push(...TIER_OUTLETS.center.slice(0,2));
+      if ((counts.right||0)  > 0) result.push(...TIER_OUTLETS.right.slice(0,2));
+      return (result.length ? result : [...TIER_OUTLETS.left.slice(0,1), ...TIER_OUTLETS.center, ...TIER_OUTLETS.right.slice(0,1)])
+        .map(name => ({ name, framing: null, url: null }));
+    }
+
+    // Non-neutral: bias-matched tier only
+    const tier = currentTakeIndex <= 2 ? 'left' : 'right';
     if (tiers) {
       const pool = tiers[tier]?.length ? tiers[tier] : tiers.all || [];
       if (pool.length) return pool.map(s => ({ name: s.name, framing: s.label, url: s.url }));
     }
-    // Fallback: show the representative outlets for this tier from our RSS source list.
-    // biasCounts tells us how many articles from each tier contributed to this topic.
     const counts = topic.biasCounts || {};
-    const hasTier = tier === 'left' ? (counts.left||0) > 0
-                  : tier === 'right' ? (counts.right||0) > 0
-                  : (counts.center||0) > 0;
+    const hasTier = tier === 'left' ? (counts.left||0) > 0 : (counts.right||0) > 0;
     const outlets = hasTier ? TIER_OUTLETS[tier] : TIER_OUTLETS.center;
     return outlets.slice(0, 3).map(name => ({ name, framing: null, url: null }));
   })();
