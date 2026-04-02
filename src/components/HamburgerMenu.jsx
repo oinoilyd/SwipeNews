@@ -9,13 +9,17 @@ const TIME_OPTIONS = [
 export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, timeFilter, onTimeFilterChange }) {
   const [timeOpen,      setTimeOpen]      = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [showIOSGuide,  setShowIOSGuide]  = useState(false);
 
-  // Capture the browser's install prompt so we can trigger it on demand.
-  // beforeinstallprompt fires on Android Chrome when the app is installable.
-  // It does NOT fire on iOS (Safari uses its own share-sheet flow) or desktop.
+  // Detect device type
+  const isIOS        = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isMobile     = typeof window   !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+  const isStandalone = typeof window   !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
+
+  // Android Chrome: capture the native install prompt
   useEffect(() => {
     const handler = (e) => {
-      e.preventDefault(); // stop browser auto-prompt
+      e.preventDefault();
       setInstallPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', handler);
@@ -30,9 +34,11 @@ export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, tim
     onClose();
   };
 
-  // Only show "Add to Home Screen" on touch/mobile devices
-  const isMobile = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
-  const showInstall = isMobile && !!installPrompt;
+  // Show the button if:
+  //  - iOS mobile + not already installed → show iOS how-to guide
+  //  - Android/other mobile + prompt captured → show native prompt
+  const showIOSButton     = isMobile && isIOS && !isStandalone;
+  const showAndroidButton = isMobile && !isIOS && !!installPrompt;
 
   const items = [
     { label: 'Profile',            icon: '👤', disabled: true,  note: 'Coming soon' },
@@ -87,12 +93,36 @@ export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, tim
             </button>
           ))}
 
-          {showInstall && (
+          {showIOSButton && (
+            <button className="hamburger-item" onClick={() => setShowIOSGuide(true)}>
+              <span className="hamburger-item-label">📲 Add to Home Screen</span>
+            </button>
+          )}
+
+          {showAndroidButton && (
             <button className="hamburger-item" onClick={handleInstall}>
               <span className="hamburger-item-label">📲 Add to Home Screen</span>
             </button>
           )}
         </nav>
+
+        {/* iOS how-to guide */}
+        {showIOSGuide && (
+          <div className="ios-guide-backdrop" onClick={() => setShowIOSGuide(false)}>
+            <div className="ios-guide-card" onClick={e => e.stopPropagation()}>
+              <div className="ios-guide-header">
+                <span className="ios-guide-title">Add to Home Screen</span>
+                <button className="hamburger-close" onClick={() => setShowIOSGuide(false)}>✕</button>
+              </div>
+              <ol className="ios-guide-steps">
+                <li>Tap the <strong>Share</strong> button <span style={{fontSize:'1.2em'}}>⎋</span> at the bottom of Safari</li>
+                <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+                <li>Tap <strong>Add</strong> in the top right</li>
+              </ol>
+              <p className="ios-guide-note">Must be opened in Safari for this to work.</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
