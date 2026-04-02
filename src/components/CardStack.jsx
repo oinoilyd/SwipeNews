@@ -15,6 +15,7 @@ export default function CardStack({
   nextTopic,
   currentTake,
   currentTakeIndex,
+  topicTakesMap = {},
   takesLoading,
   onTakeLeft,
   onTakeRight,
@@ -260,6 +261,7 @@ export default function CardStack({
           topic={topic}
           currentTake={currentTake}
           currentTakeIndex={currentTakeIndex}
+          topicTakesMap={topicTakesMap}
           takesLoading={takesLoading}
           perspectiveMode={perspectiveMode}
           spectrumBar={specBar}

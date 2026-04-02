@@ -648,6 +648,7 @@ export default function App() {
             nextTopic={nextTopic}
             currentTake={currentTake}
             currentTakeIndex={currentTakeIndex}
+            topicTakesMap={takesMap[currentTopic.id] || {}}
             takesLoading={currentTakeLoading}
             onTakeLeft={handleTakeLeft}
             onTakeRight={handleTakeRight}

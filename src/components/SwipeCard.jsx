@@ -78,13 +78,14 @@ const RIGHT_COLOR = {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function SwipeCard({
   topic,
-  currentTake     = null,
-  currentTakeIndex = 3,
-  takesLoading    = false,
-  perspectiveMode = 'full',
-  spectrumBar     = null,
-  isPreview       = false,
-  onScrollChange  = null,
+  currentTake      = null,
+  currentTakeIndex  = 3,
+  topicTakesMap    = {},
+  takesLoading     = false,
+  perspectiveMode  = 'full',
+  spectrumBar      = null,
+  isPreview        = false,
+  onScrollChange   = null,
 }) {
   const [sourcesOpen,      setSourcesOpen]      = useState(false);
   const [atBottom,         setAtBottom]         = useState(false);
@@ -199,24 +200,34 @@ export default function SwipeCard({
 
     if (onlyOne) return resolveSingleSource();
 
-    // ── Neutral: left + right + unique center ────────────────────────────────
+    // ── Neutral: gather actual sources from all loaded takes for this topic ────
+    // topicTakesMap[position].sources has the real outlets used per perspective.
+    // Left takes first, then right, then center (deduped).
     if (neutral) {
-      if (tiers) {
-        const leftSrcs   = (tiers.left  ||[]).map(s => ({ name: s.name, framing: s.label, url: s.url }));
-        const rightSrcs  = (tiers.right ||[]).map(s => ({ name: s.name, framing: s.label, url: s.url }));
-        const seen       = new Set([...leftSrcs, ...rightSrcs].map(s => s.name));
-        const centerOnly = (tiers.center||[]).filter(s => !seen.has(s.name))
-                                             .map(s => ({ name: s.name, framing: s.label, url: s.url }));
-        return [...leftSrcs, ...rightSrcs, ...centerOnly];
-      }
-      // Fallback: outlet lists for whichever tiers contributed, center extras last
+      const seen = new Set();
       const result = [];
-      const seen   = new Set();
-      const add    = (names) => names.forEach(n => { if (!seen.has(n)) { seen.add(n); result.push({ name: n, framing: null, url: null }); } });
+      const addSrcs = (srcs) => (srcs || []).forEach(s => {
+        if (s?.name && !seen.has(s.name)) { seen.add(s.name); result.push(s); }
+      });
+      [-3, -2, -1].forEach(pos => addSrcs(topicTakesMap[pos]?.sources));
+      [1, 2, 3].forEach(pos  => addSrcs(topicTakesMap[pos]?.sources));
+      addSrcs(topicTakesMap[0]?.sources);
+      if (result.length) return result;
+
+      // No takes loaded yet — sourceTiers fallback, then outlet fallback
+      if (tiers) {
+        const l = (tiers.left ||[]).map(s => ({ name: s.name, framing: s.label, url: s.url }));
+        const r = (tiers.right||[]).map(s => ({ name: s.name, framing: s.label, url: s.url }));
+        const s2 = new Set([...l, ...r].map(s => s.name));
+        const c = (tiers.center||[]).filter(s => !s2.has(s.name)).map(s => ({ name: s.name, framing: s.label, url: s.url }));
+        return [...l, ...r, ...c];
+      }
+      const fb = []; const fbSeen = new Set();
+      const add = (names) => names.forEach(n => { if (!fbSeen.has(n)) { fbSeen.add(n); fb.push({ name: n, framing: null, url: null }); } });
       if ((counts.left  ||0) > 0) add(TIER_OUTLETS.left.slice(0, 2));
       if ((counts.right ||0) > 0) add(TIER_OUTLETS.right.slice(0, 2));
       if ((counts.center||0) > 0) add(TIER_OUTLETS.center.slice(0, 2));
-      return result.length ? result : TIER_OUTLETS.center.slice(0, 3).map(n => ({ name: n, framing: null, url: null }));
+      return fb.length ? fb : TIER_OUTLETS.center.slice(0, 3).map(n => ({ name: n, framing: null, url: null }));
     }
 
     // ── Left / Right: bias-matched tier only ─────────────────────────────────
