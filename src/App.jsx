@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import CardStack from './components/CardStack';
 import Header from './components/Header';
 import LoadingScreen from './components/LoadingScreen';
@@ -370,7 +371,7 @@ export default function App() {
     }
   }, [storeTake, fetchStreamTake]);
 
-  // ── Fetch trending titles whenever topicShells refreshes ─────────────────
+  // ── Fetch trending titles whenever topicShells refreshes ───────────────���─
   useEffect(() => {
     if (!topicShells.length) return;
     const payload = topicShells
@@ -732,6 +733,7 @@ export default function App() {
           onSelectTopic={handleTrendingSelect}
         />
       )}
+      <Analytics />
     </div>
   );
 }
