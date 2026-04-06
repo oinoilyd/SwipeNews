@@ -13,6 +13,7 @@
     "deploy:preview": "npx vercel build && npx vercel deploy --prebuilt"
   },
   "dependencies": {
+    "@vercel/analytics": "^1.5.0",
     "@anthropic-ai/sdk": "^0.78.0",
     "@google/generative-ai": "^0.24.1",
     "@upstash/redis": "^1.37.0",

@@ -8,6 +8,7 @@ import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryF
 import TimeFilter from './components/TimeFilter';
 import ListView from './components/ListView';
 import FollowingFilter from './components/FollowingFilter';
+import { Analytics } from '@vercel/analytics/react';
 import './App.css';
 
 // Category → perspectiveMode mapping
@@ -713,6 +714,8 @@ export default function App() {
         <a href="mailto:perspectivesnews@test.com" className="footer-link">perspectivesnews@test.com</a>
         <span>© {new Date().getFullYear()} Perspectiv</span>
       </footer>
+
+      <Analytics />
 
       {showTopicDrawer && (
         <TopicDrawer
