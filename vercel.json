@@ -3,7 +3,8 @@
   "outputDirectory": "dist",
   "crons": [
     { "path": "/api/pregenerate", "schedule": "0 6 * * *" },
-    { "path": "/api/refresh-rss", "schedule": "0 6 * * *" }
+    { "path": "/api/refresh-rss", "schedule": "0 6 * * *" },
+    { "path": "/api/pregenerate", "schedule": "0 0,12,18 * * *" }
   ],
   "functions": {
     "api/clustered-news.js": { "maxDuration": 10  },
