@@ -632,8 +632,6 @@ export default function App() {
             onRefresh={handleManualRefresh}
             onShowTopics={() => setShowTopicDrawer(true)}
             onShowTrending={() => setShowTrendingDrawer(true)}
-            timeFilter={timeFilter}
-            onTimeFilterChange={setTimeFilter}
             listView={listView}
             onToggleListView={() => setListView(v => !v)}
           />
@@ -645,6 +643,8 @@ export default function App() {
           topicShells={topicShells}
           trendingCount={trendingTitles.size}
         />
+
+        <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
       </div>
 
       <main className="main">

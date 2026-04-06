@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import HamburgerMenu from './HamburgerMenu';
 
-export default function Header({ onRefresh, onShowTopics, onShowTrending, timeFilter, onTimeFilterChange, listView, onToggleListView }) {
+export default function Header({ onRefresh, onShowTopics, onShowTrending, listView, onToggleListView }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showInfo, setShowInfo] = useState(false); // triggered from hamburger "About"
 
@@ -76,8 +76,6 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending, timeFi
           onShowTrending={onShowTrending}
           onShowInfo={() => { setShowMenu(false); setShowInfo(true); }}
           onShowTopics={() => { setShowMenu(false); onShowTopics(); }}
-          timeFilter={timeFilter}
-          onTimeFilterChange={onTimeFilterChange}
         />
       )}
     </>

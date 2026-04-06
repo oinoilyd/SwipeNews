@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const TIME_OPTIONS = [
-  { value: '24h', label: 'Last 24 Hours' },
-  { value: '48h', label: 'Last 48 Hours' },
-  { value: '72h', label: 'Last 72 Hours' },
-];
-
-export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, timeFilter, onTimeFilterChange }) {
-  const [timeOpen,      setTimeOpen]      = useState(false);
+export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo }) {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showIOSGuide,  setShowIOSGuide]  = useState(false);
 
@@ -54,30 +47,6 @@ export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, tim
         <div className="hamburger-header">
           <span className="hamburger-title">Menu</span>
           <button className="hamburger-close" onClick={onClose} aria-label="Close menu">✕</button>
-        </div>
-
-        {/* Time range filter — accordion */}
-        <div className="hamburger-section">
-          <button
-            className="hamburger-section-toggle"
-            onClick={() => setTimeOpen(o => !o)}
-          >
-            <span className="hamburger-section-label">Time Range</span>
-            <span className="hamburger-section-chevron">{timeOpen ? '▾' : '▸'}</span>
-          </button>
-          {timeOpen && (
-            <div className="hamburger-time-options">
-              {TIME_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  className={`hamburger-time-btn${timeFilter === opt.value ? ' active' : ''}`}
-                  onClick={() => { onTimeFilterChange?.(opt.value); onClose(); }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <nav className="hamburger-nav">
