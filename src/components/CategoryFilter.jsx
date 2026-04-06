@@ -35,7 +35,7 @@ export const CATEGORIES = [
 ];
 
 // activeCategories: string[] — empty means "All"
-export default function CategoryFilter({ activeCategories, onToggle, topicShells, trendingCount = 0, followingThreads = [], activeFollowingThread, onFollowingClick }) {
+export default function CategoryFilter({ activeCategories, onToggle, topicShells, trendingCount = 0 }) {
   const counts = topicShells.reduce((acc, t) => {
     const cat = t.category || 'US Politics';
     acc[cat] = (acc[cat] || 0) + 1;
@@ -46,24 +46,8 @@ export default function CategoryFilter({ activeCategories, onToggle, topicShells
   const allActive  = activeCategories.length === 0;
   const hotActive  = activeCategories.includes('Hot');
 
-  const followingActive = !!activeFollowingThread;
-
   return (
     <div className="category-filter" role="tablist" aria-label="Filter by category">
-      {/* Following pill — only shown when threads are available */}
-      {followingThreads.length > 0 && (
-        <button
-          role="tab"
-          aria-selected={followingActive}
-          className={`cat-pill cat-pill-following${followingActive ? ' active' : ''}`}
-          onClick={onFollowingClick}
-        >
-          {followingActive
-            ? <>● <span className="following-pill-label">{activeFollowingThread.title}</span> ▾</>
-            : <>Following <span className="cat-count">{followingThreads.length}</span></>}
-        </button>
-      )}
-
       {/* All pill */}
       <button
         role="tab"

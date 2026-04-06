@@ -7,7 +7,7 @@ import TrendingDrawer from './components/TrendingDrawer';
 import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryFilter';
 import TimeFilter from './components/TimeFilter';
 import ListView from './components/ListView';
-import FollowingDrawer from './components/FollowingDrawer';
+import FollowingFilter from './components/FollowingFilter';
 import './App.css';
 
 // Category → perspectiveMode mapping
@@ -125,9 +125,8 @@ export default function App() {
   const [headerCollapsed,    setHeaderCollapsed]    = useState(false);
   const [trendingTitles,     setTrendingTitles]     = useState(new Set());
   const [listView,           setListView]           = useState(false);
-  const [followingThreads,   setFollowingThreads]   = useState([]);
+  const [followingThreads,      setFollowingThreads]      = useState([]);
   const [activeFollowingThread, setActiveFollowingThread] = useState(null);
-  const [showFollowingDrawer,   setShowFollowingDrawer]   = useState(false);
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -210,7 +209,6 @@ export default function App() {
   const handleCategoryToggle = useCallback((cat) => {
     // Tapping any category pill clears the Following thread filter
     setActiveFollowingThread(null);
-    setShowFollowingDrawer(false);
     if (cat === 'Hot') {
       setActiveCategories(prev => {
         const isHotSolo = prev.length === 1 && prev[0] === 'Hot';
@@ -656,26 +654,19 @@ export default function App() {
           onToggle={handleCategoryToggle}
           topicShells={topicShells}
           trendingCount={trendingTitles.size}
-          followingThreads={followingThreads}
-          activeFollowingThread={activeFollowingThread}
-          onFollowingClick={() => setShowFollowingDrawer(v => !v)}
+        />
+
+        <FollowingFilter
+          threads={followingThreads}
+          activeThread={activeFollowingThread}
+          onSelect={(thread) => {
+            setActiveFollowingThread(thread);
+            setCurrentTopicIndex(0);
+            setCurrentTakeIndex(3);
+          }}
         />
 
         <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
-
-        {showFollowingDrawer && (
-          <FollowingDrawer
-            threads={followingThreads}
-            activeThread={activeFollowingThread}
-            onSelect={(thread) => {
-              setActiveFollowingThread(thread.id === activeFollowingThread?.id ? null : thread);
-              setCurrentTopicIndex(0);
-              setCurrentTakeIndex(3);
-              setShowFollowingDrawer(false);
-            }}
-            onClose={() => setShowFollowingDrawer(false)}
-          />
-        )}
       </div>
 
       <main className="main">
