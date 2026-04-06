@@ -35,7 +35,7 @@ export const CATEGORIES = [
 ];
 
 // activeCategories: string[] — empty means "All"
-export default function CategoryFilter({ activeCategories, onToggle, topicShells, trendingCount = 0 }) {
+export default function CategoryFilter({ activeCategories, onToggle, topicShells, trendingCount = 0, followingThreads = [], activeFollowingThread, onFollowingSelect }) {
   const counts = topicShells.reduce((acc, t) => {
     const cat = t.category || 'US Politics';
     acc[cat] = (acc[cat] || 0) + 1;
@@ -69,6 +69,22 @@ export default function CategoryFilter({ activeCategories, onToggle, topicShells
         🔥 Hot
         {trendingCount > 0 && <span className="cat-count">{trendingCount}</span>}
       </button>
+
+      {/* Following pills — ongoing story threads, inline after Hot */}
+      {followingThreads.map(thread => {
+        const isActive = activeFollowingThread?.id === thread.id;
+        return (
+          <button
+            key={thread.id}
+            role="tab"
+            aria-selected={isActive}
+            className={`cat-pill cat-pill-following${isActive ? ' active' : ''}`}
+            onClick={() => onFollowingSelect(isActive ? null : thread)}
+          >
+            {thread.title}
+          </button>
+        );
+      })}
 
       {CATEGORIES.filter(c => c !== 'All').map(cat => {
         let count;

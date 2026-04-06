@@ -7,7 +7,6 @@ import TrendingDrawer from './components/TrendingDrawer';
 import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryFilter';
 import TimeFilter from './components/TimeFilter';
 import ListView from './components/ListView';
-import FollowingFilter from './components/FollowingFilter';
 import './App.css';
 
 // Category → perspectiveMode mapping
@@ -88,9 +87,9 @@ function pruneOldCache(topics) {
 const TOPICS_CACHE_KEY = 'sw_topics_v1';
 const TOPICS_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
-function saveTopicsCache(topics) {
+function saveTopicsCache(topics, following = []) {
   try {
-    localStorage.setItem(TOPICS_CACHE_KEY, JSON.stringify({ topics, ts: Date.now() }));
+    localStorage.setItem(TOPICS_CACHE_KEY, JSON.stringify({ topics, following, ts: Date.now() }));
   } catch { /* ignore quota errors */ }
 }
 
@@ -98,12 +97,12 @@ function loadTopicsCache() {
   try {
     const raw = localStorage.getItem(TOPICS_CACHE_KEY);
     if (!raw) return null;
-    const { topics, ts } = JSON.parse(raw);
+    const { topics, following, ts } = JSON.parse(raw);
     if (Date.now() - ts > TOPICS_CACHE_TTL) {
       localStorage.removeItem(TOPICS_CACHE_KEY);
       return null;
     }
-    return topics;
+    return { topics, following: following || [] };
   } catch { return null; }
 }
 
@@ -474,10 +473,11 @@ export default function App() {
     try {
       // ── Fast path: return immediately from localStorage (returning users) ──
       if (!forceRefresh) {
-        const cachedTopics = loadTopicsCache();
-        if (cachedTopics?.length) {
+        const cache = loadTopicsCache();
+        if (cache?.topics?.length) {
           clearTimeout(timer1);
-          applyTopics(cachedTopics);
+          if (cache.following?.length) setFollowingThreads(cache.following);
+          applyTopics(cache.topics);
           return; // finally clears isLoading
         }
       }
@@ -501,7 +501,7 @@ export default function App() {
       clearTimeout(timer1);
 
       // Save to localStorage so next load is instant
-      saveTopicsCache(data.topics);
+      saveTopicsCache(data.topics, data.following || []);
 
       // Capture Following threads if present
       if (data.following?.length) setFollowingThreads(data.following);
@@ -654,12 +654,9 @@ export default function App() {
           onToggle={handleCategoryToggle}
           topicShells={topicShells}
           trendingCount={trendingTitles.size}
-        />
-
-        <FollowingFilter
-          threads={followingThreads}
-          activeThread={activeFollowingThread}
-          onSelect={(thread) => {
+          followingThreads={followingThreads}
+          activeFollowingThread={activeFollowingThread}
+          onFollowingSelect={(thread) => {
             setActiveFollowingThread(thread);
             setCurrentTopicIndex(0);
             setCurrentTakeIndex(3);

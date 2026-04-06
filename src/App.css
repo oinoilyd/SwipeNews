@@ -930,6 +930,9 @@ body {
   font-weight: 600;
 }
 .cat-pill.empty { opacity: 0.3; cursor: default; }
+.cat-pill-following { border-color: rgba(52, 211, 153, 0.3); }
+.cat-pill-following:hover:not(:disabled) { border-color: rgba(52, 211, 153, 0.5); }
+.cat-pill-following.active { background: rgba(52, 211, 153, 0.15); border-color: #34d399; color: #6ee7b7; }
 
 .cat-count {
   font-size: 11px;
