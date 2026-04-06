@@ -124,8 +124,7 @@ export default function App() {
   const [headerCollapsed,    setHeaderCollapsed]    = useState(false);
   const [trendingTitles,     setTrendingTitles]     = useState(new Set());
   const [listView,           setListView]           = useState(false);
-  const [followingThreads,      setFollowingThreads]      = useState([]);
-  const [activeFollowingThread, setActiveFollowingThread] = useState(null);
+  const [followingThreads, setFollowingThreads] = useState([]);
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -133,14 +132,23 @@ export default function App() {
   const topBarRef          = useRef(null);
   const topBarHeightRef    = useRef(null);
 
+  // Build set of topic IDs that belong to any following thread
+  const followingTopicIds = useMemo(() => {
+    const ids = new Set();
+    for (const thread of followingThreads) {
+      for (const id of (thread.topicIds || [])) ids.add(id);
+    }
+    return ids;
+  }, [followingThreads]);
+
   // ── Filtered topic list (by category) ────────────────────────────────────
   // "Politics" is a meta-category — it expands to all political sub-categories.
   // "Hot" shows all popular news, world & politics stories (HOT_CATS), boosting
   //   trending titles to the top so the most-relevant stories appear first.
+  // "Follow" shows only topics that belong to ongoing/developing story threads.
   const filteredTopics = useMemo(() => {
-    // Following thread filter overrides category filter entirely
-    if (activeFollowingThread) {
-      return topicShells.filter(t => t.followingThreadId === activeFollowingThread.id);
+    if (activeCategories.includes('Follow')) {
+      return topicShells.filter(t => followingTopicIds.has(t.id));
     }
     if (activeCategories.length === 0) return topicShells;
     const hasPoliticsMeta = activeCategories.includes('Politics');
@@ -206,19 +214,18 @@ export default function App() {
   // Clicking any other category while Hot is active exits Hot and adds that category.
   // In multi-select mode, categories toggle on/off normally.
   const handleCategoryToggle = useCallback((cat) => {
-    // Tapping any category pill clears the Following thread filter
-    setActiveFollowingThread(null);
-    if (cat === 'Hot') {
+    if (cat === 'Hot' || cat === 'Follow') {
+      // Solo modes: clicking selects exclusively, clicking again does nothing
       setActiveCategories(prev => {
-        const isHotSolo = prev.length === 1 && prev[0] === 'Hot';
-        return isHotSolo ? prev : ['Hot'];
+        const isSolo = prev.length === 1 && prev[0] === cat;
+        return isSolo ? prev : [cat];
       });
     } else {
       setActiveCategories(prev => {
-        const withoutHot = prev.filter(c => c !== 'Hot');
-        return withoutHot.includes(cat)
-          ? withoutHot.filter(c => c !== cat)
-          : [...withoutHot, cat];
+        const withoutSolo = prev.filter(c => c !== 'Hot' && c !== 'Follow');
+        return withoutSolo.includes(cat)
+          ? withoutSolo.filter(c => c !== cat)
+          : [...withoutSolo, cat];
       });
     }
   }, []);
@@ -654,13 +661,7 @@ export default function App() {
           onToggle={handleCategoryToggle}
           topicShells={topicShells}
           trendingCount={trendingTitles.size}
-          followingThreads={followingThreads}
-          activeFollowingThread={activeFollowingThread}
-          onFollowingSelect={(thread) => {
-            setActiveFollowingThread(thread);
-            setCurrentTopicIndex(0);
-            setCurrentTakeIndex(3);
-          }}
+          followCount={followingTopicIds.size}
         />
 
         <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />

@@ -35,7 +35,7 @@ export const CATEGORIES = [
 ];
 
 // activeCategories: string[] — empty means "All"
-export default function CategoryFilter({ activeCategories, onToggle, topicShells, trendingCount = 0, followingThreads = [], activeFollowingThread, onFollowingSelect }) {
+export default function CategoryFilter({ activeCategories, onToggle, topicShells, trendingCount = 0, followCount = 0 }) {
   const counts = topicShells.reduce((acc, t) => {
     const cat = t.category || 'US Politics';
     acc[cat] = (acc[cat] || 0) + 1;
@@ -43,8 +43,9 @@ export default function CategoryFilter({ activeCategories, onToggle, topicShells
   }, {});
   const totalCount    = topicShells.length;
   const politicsCount = POLITICAL_CATS.reduce((sum, c) => sum + (counts[c] || 0), 0);
-  const allActive  = activeCategories.length === 0;
-  const hotActive  = activeCategories.includes('Hot');
+  const allActive    = activeCategories.length === 0;
+  const hotActive    = activeCategories.includes('Hot');
+  const followActive = activeCategories.includes('Follow');
 
   return (
     <div className="category-filter" role="tablist" aria-label="Filter by category">
@@ -70,21 +71,18 @@ export default function CategoryFilter({ activeCategories, onToggle, topicShells
         {trendingCount > 0 && <span className="cat-count">{trendingCount}</span>}
       </button>
 
-      {/* Following pills — ongoing story threads, inline after Hot */}
-      {followingThreads.map(thread => {
-        const isActive = activeFollowingThread?.id === thread.id;
-        return (
-          <button
-            key={thread.id}
-            role="tab"
-            aria-selected={isActive}
-            className={`cat-pill cat-pill-following${isActive ? ' active' : ''}`}
-            onClick={() => onFollowingSelect(isActive ? null : thread)}
-          >
-            {thread.title}
-          </button>
-        );
-      })}
+      {/* Follow pill — ongoing/developing stories */}
+      {followCount > 0 && (
+        <button
+          role="tab"
+          aria-selected={followActive}
+          className={`cat-pill cat-pill-following${followActive ? ' active' : ''}`}
+          onClick={() => onToggle('Follow')}
+        >
+          Follow
+          <span className="cat-count">{followCount}</span>
+        </button>
+      )}
 
       {CATEGORIES.filter(c => c !== 'All').map(cat => {
         let count;
