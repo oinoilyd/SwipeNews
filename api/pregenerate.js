@@ -12,6 +12,7 @@ export const maxDuration = 60; // Vercel hobby plan max (seconds)
 import Anthropic from '@anthropic-ai/sdk';
 import { redis, takeKey } from '../lib/redis.js';
 import { TAKE_POSITIONS, isWeakTake, buildPrompt } from '../lib/perspectives.js';
+import { fetchGdeltFollowing, crossReferenceFollowing } from '../lib/gdelt.js';
 
 // Positions to generate per category
 function getPerspectivePositions(category) {
@@ -338,8 +339,13 @@ export default async function handler(req, res) {
     const gnewsKey    = process.env.GNEWS_API_KEY;
     const BASE        = 'https://newsdata.io/api/1';
 
-    // ── 1. Fetch all articles in parallel ────────────────────────────────────
-    console.log('pregenerate: fetching articles…');
+    // ── 1. Fetch all articles in parallel (+ GDELT Following in background) ─
+    console.log('pregenerate: fetching articles + GDELT Following…');
+    // Start GDELT early — runs in parallel with article fetch, adds ~0s to total time
+    const gdeltPromise = fetchGdeltFollowing().catch(err => {
+      console.warn('GDELT Following fetch failed (non-fatal):', err.message);
+      return [];
+    });
     const results = await Promise.allSettled([
       fetchArticles(`${BASE}/latest?apikey=${newsdataKey}&language=en&domainurl=${DOMAIN_GROUPS.left_a}&size=10`),
       fetchArticles(`${BASE}/latest?apikey=${newsdataKey}&language=en&domainurl=${DOMAIN_GROUPS.left_b}&size=10`),
@@ -398,6 +404,14 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── 3b. GDELT cross-reference — tag topics with isDeveloping + followingThreadId
+    const followingThreads = await gdeltPromise;
+    if (followingThreads.length > 0) {
+      crossReferenceFollowing(topics, followingThreads);
+      const tagged = topics.filter(t => t.isDeveloping).length;
+      console.log(`gdelt: tagged ${tagged}/${topics.length} topics as developing, ${followingThreads.length} threads`);
+    }
+
     // ── 4. Save slim topics to Redis immediately after clustering ────────────────
     // Do this BEFORE take generation so topics are always available even if
     // take generation times out. sourceTiers gives the frontend per-perspective
@@ -414,6 +428,10 @@ export default async function handler(req, res) {
     await redis.set(TOPICS_KEY,    slimTopics,               { ex: TOPICS_TTL_S });
     await redis.set(TOPICS_TS_KEY, new Date().toISOString());
     await redis.set(WARM_TS_KEY,   new Date().toISOString(), { ex: 3600 });
+    if (followingThreads.length > 0) {
+      await redis.set('sn:following:v1', followingThreads, { ex: TOPICS_TTL_S });
+      console.log(`pregenerate: saved ${followingThreads.length} following threads to Redis`);
+    }
 
     // topicsOnly mode: just fetch + cluster + save, no take generation.
     // Used to bootstrap sourceTiers into Redis without hitting the 60s timeout.

@@ -7,6 +7,7 @@ import TrendingDrawer from './components/TrendingDrawer';
 import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryFilter';
 import TimeFilter from './components/TimeFilter';
 import ListView from './components/ListView';
+import FollowingDrawer from './components/FollowingDrawer';
 import './App.css';
 
 // Category → perspectiveMode mapping
@@ -124,6 +125,9 @@ export default function App() {
   const [headerCollapsed,    setHeaderCollapsed]    = useState(false);
   const [trendingTitles,     setTrendingTitles]     = useState(new Set());
   const [listView,           setListView]           = useState(false);
+  const [followingThreads,   setFollowingThreads]   = useState([]);
+  const [activeFollowingThread, setActiveFollowingThread] = useState(null);
+  const [showFollowingDrawer,   setShowFollowingDrawer]   = useState(false);
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -136,6 +140,10 @@ export default function App() {
   // "Hot" shows all popular news, world & politics stories (HOT_CATS), boosting
   //   trending titles to the top so the most-relevant stories appear first.
   const filteredTopics = useMemo(() => {
+    // Following thread filter overrides category filter entirely
+    if (activeFollowingThread) {
+      return topicShells.filter(t => t.followingThreadId === activeFollowingThread.id);
+    }
     if (activeCategories.length === 0) return topicShells;
     const hasPoliticsMeta = activeCategories.includes('Politics');
     const hasHot          = activeCategories.includes('Hot');
@@ -156,7 +164,7 @@ export default function App() {
       if (hasPoliticsMeta && POLITICAL_CATS.includes(cat)) return true;
       return false;
     });
-  }, [topicShells, activeCategories, trendingTitles]);
+  }, [topicShells, activeCategories, trendingTitles, activeFollowingThread]);
 
   // ── Time-filtered topic list (by recency window) ──────────────────────────
   const timeFilteredTopics = useMemo(() => {
@@ -200,6 +208,9 @@ export default function App() {
   // Clicking any other category while Hot is active exits Hot and adds that category.
   // In multi-select mode, categories toggle on/off normally.
   const handleCategoryToggle = useCallback((cat) => {
+    // Tapping any category pill clears the Following thread filter
+    setActiveFollowingThread(null);
+    setShowFollowingDrawer(false);
     if (cat === 'Hot') {
       setActiveCategories(prev => {
         const isHotSolo = prev.length === 1 && prev[0] === 'Hot';
@@ -494,6 +505,9 @@ export default function App() {
       // Save to localStorage so next load is instant
       saveTopicsCache(data.topics);
 
+      // Capture Following threads if present
+      if (data.following?.length) setFollowingThreads(data.following);
+
       // Apply topics + any pre-bundled takes from the API (Fix 2)
       applyTopics(data.topics, data.takes ?? {});
 
@@ -642,9 +656,26 @@ export default function App() {
           onToggle={handleCategoryToggle}
           topicShells={topicShells}
           trendingCount={trendingTitles.size}
+          followingThreads={followingThreads}
+          activeFollowingThread={activeFollowingThread}
+          onFollowingClick={() => setShowFollowingDrawer(v => !v)}
         />
 
         <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
+
+        {showFollowingDrawer && (
+          <FollowingDrawer
+            threads={followingThreads}
+            activeThread={activeFollowingThread}
+            onSelect={(thread) => {
+              setActiveFollowingThread(thread.id === activeFollowingThread?.id ? null : thread);
+              setCurrentTopicIndex(0);
+              setCurrentTakeIndex(3);
+              setShowFollowingDrawer(false);
+            }}
+            onClose={() => setShowFollowingDrawer(false)}
+          />
+        )}
       </div>
 
       <main className="main">

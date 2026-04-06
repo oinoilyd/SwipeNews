@@ -23,10 +23,11 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
 
   try {
-    const [topics, ts, warmedAt] = await Promise.all([
+    const [topics, ts, warmedAt, followingThreads] = await Promise.all([
       redis.get(REDIS_KEY),
       redis.get(REDIS_TS_KEY),
       redis.get(WARM_TS_KEY),
+      redis.get('sn:following:v1'),
     ]);
 
     if (topics && Array.isArray(topics) && topics.length > 0) {
@@ -75,7 +76,7 @@ export default async function handler(req, res) {
         });
       } catch { /* non-fatal — client fetches on-demand if missing */ }
 
-      return res.json({ topics, takes, fromCache: true });
+      return res.json({ topics, takes, following: followingThreads || [], fromCache: true });
     }
 
     // ── Cache miss: fire background pregenerate, return loading state ─────────

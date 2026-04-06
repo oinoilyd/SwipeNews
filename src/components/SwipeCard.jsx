@@ -299,6 +299,7 @@ export default function SwipeCard({
           <div className="card-tint-overlay" />
           <div className="card-top-row">
             {topic.category && <span className="topic-category-badge">{topic.category}</span>}
+            {topic.isDeveloping && <span className="developing-badge">● DEVELOPING</span>}
           </div>
           <div className="card-photo-footer">
             <h2 className="card-title-overlay">{topic.title}</h2>
@@ -324,6 +325,7 @@ export default function SwipeCard({
         {/* Badge + timestamp pinned to top of photo */}
         <div className="card-top-row">
           {topic.category && <span className="topic-category-badge">{topic.category}</span>}
+          {topic.isDeveloping && <span className="developing-badge">● DEVELOPING</span>}
           {timestamp && <span className="card-timestamp-overlay">{timestamp}</span>}
         </div>
 
