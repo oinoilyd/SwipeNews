@@ -6,6 +6,7 @@ import TopicDrawer from './components/TopicDrawer';
 import TrendingDrawer from './components/TrendingDrawer';
 import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryFilter';
 import TimeFilter from './components/TimeFilter';
+import ListView from './components/ListView';
 import './App.css';
 
 // Category → perspectiveMode mapping
@@ -122,6 +123,7 @@ export default function App() {
   const [showTrendingDrawer, setShowTrendingDrawer] = useState(false);
   const [headerCollapsed,    setHeaderCollapsed]    = useState(false);
   const [trendingTitles,     setTrendingTitles]     = useState(new Set());
+  const [listView,           setListView]           = useState(false);
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -632,6 +634,8 @@ export default function App() {
             onShowTrending={() => setShowTrendingDrawer(true)}
             timeFilter={timeFilter}
             onTimeFilterChange={setTimeFilter}
+            listView={listView}
+            onToggleListView={() => setListView(v => !v)}
           />
         </div>
 
@@ -651,6 +655,15 @@ export default function App() {
               Expand to 72 Hours
             </button>
           </div>
+        ) : listView ? (
+          <ListView
+            topics={timeFilteredTopics}
+            onSelectTopic={(i) => {
+              setCurrentTopicIndex(i);
+              setCurrentTakeIndex(3);
+              setListView(false);
+            }}
+          />
         ) : currentTopic && (
           <CardStack
             prevTopic={prevTopic}

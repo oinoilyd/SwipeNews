@@ -26,17 +26,8 @@ export default function LoadingScreen({ stage = 0 }) {
       <div className="loading-content">
         <div className="loading-logo">
           <svg width="64" height="64" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-            <defs>
-              <filter id="ls-grain" x="0%" y="0%" width="100%" height="100%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" result="noise"/>
-                <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
-                <feBlend in="SourceGraphic" in2="grayNoise" mode="soft-light"/>
-              </filter>
-            </defs>
-            <g filter="url(#ls-grain)">
-              <rect width="28" height="28" rx="7" fill="#000"/>
-              <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
-            </g>
+            <rect width="28" height="28" rx="7" fill="#000"/>
+            <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
           </svg>
         </div>
         <h1 className="loading-title">Perspectiv</h1>

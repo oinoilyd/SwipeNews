@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import HamburgerMenu from './HamburgerMenu';
 
-export default function Header({ onRefresh, onShowTopics, onShowTrending, timeFilter, onTimeFilterChange }) {
+export default function Header({ onRefresh, onShowTopics, onShowTrending, timeFilter, onTimeFilterChange, listView, onToggleListView }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showInfo, setShowInfo] = useState(false); // triggered from hamburger "About"
 
@@ -18,22 +18,21 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending, timeFi
             ☰
           </button>
           <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-            <defs>
-              <filter id="hdr-grain" x="0%" y="0%" width="100%" height="100%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" result="noise"/>
-                <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
-                <feBlend in="SourceGraphic" in2="grayNoise" mode="soft-light"/>
-              </filter>
-            </defs>
-            <g filter="url(#hdr-grain)">
-              <rect width="28" height="28" rx="7" fill="#000"/>
-              <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
-            </g>
+            <rect width="28" height="28" rx="7" fill="#000"/>
+            <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
           </svg>
           <span className="logo-text">Perspectiv</span>
         </div>
 
         <div className="header-controls">
+          <button
+            className={`header-btn header-btn-xs${listView ? ' header-btn-active' : ''}`}
+            onClick={onToggleListView}
+            title={listView ? 'Switch to swipe view' : 'Switch to list view'}
+            aria-label={listView ? 'Switch to swipe view' : 'Switch to list view'}
+          >
+            {listView ? '⊟' : '≡'}
+          </button>
           <button
             className="header-btn header-btn-xs"
             onClick={() => setShowInfo(true)}
