@@ -7,6 +7,7 @@ import TrendingDrawer from './components/TrendingDrawer';
 import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryFilter';
 import TimeFilter from './components/TimeFilter';
 import ListView from './components/ListView';
+import FollowingDrawer from './components/FollowingDrawer';
 import './App.css';
 
 // Category → perspectiveMode mapping
@@ -126,6 +127,7 @@ export default function App() {
   const [listView,           setListView]           = useState(false);
   const [followingThreads,      setFollowingThreads]      = useState([]);
   const [activeFollowingThread, setActiveFollowingThread] = useState(null);
+  const [showFollowingDrawer,   setShowFollowingDrawer]   = useState(false);
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -676,11 +678,7 @@ export default function App() {
           trendingCount={trendingTitles.size}
           followingThreads={followingThreads}
           activeFollowingThread={activeFollowingThread}
-          onFollowingSelect={(thread) => {
-            setActiveFollowingThread(thread);
-            setCurrentTopicIndex(0);
-            setCurrentTakeIndex(3);
-          }}
+          onFollowingOpen={() => setShowFollowingDrawer(true)}
         />
 
         <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
@@ -747,6 +745,19 @@ export default function App() {
           topics={topicShells}
           onClose={() => setShowTrendingDrawer(false)}
           onSelectTopic={handleTrendingSelect}
+        />
+      )}
+
+      {showFollowingDrawer && (
+        <FollowingDrawer
+          threads={followingThreads}
+          activeThread={activeFollowingThread}
+          onSelect={(thread) => {
+            setActiveFollowingThread(thread);
+            setCurrentTopicIndex(0);
+            setCurrentTakeIndex(3);
+          }}
+          onClose={() => setShowFollowingDrawer(false)}
         />
       )}
     </div>
