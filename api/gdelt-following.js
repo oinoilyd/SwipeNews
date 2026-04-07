@@ -1,147 +1,162 @@
-// /api/gdelt-following — builds Following threads from existing Redis topics.
-// No external API needed — uses topics already clustered by Claude in pregenerate.
-// "Following" = hard-news topics covered by multiple bias tiers (contested = developing).
+// /api/gdelt-following — builds Following threads using Claude to dynamically
+// cluster related topics into named buckets (e.g. "Iran Conflict", "Gaza War").
+// No hardcoded keywords — Claude reads all current topics and decides which ones
+// belong together, names each cluster, and skips one-off stories.
+import Anthropic from '@anthropic-ai/sdk';
 import { redis } from '../lib/redis.js';
 
 const TOPICS_KEY    = 'sn:topics:v9';
 const FOLLOWING_KEY = 'sn:following:v1';
-const FOLLOWING_TTL = 11 * 60 * 60;
+const FOLLOWING_TTL = 26 * 60 * 60;
 
 const HARD_NEWS = new Set([
   'US Politics', 'World', 'National Security', 'Economy', 'Policy', 'Elections', 'Health',
 ]);
 
-const SKIP_ENTITIES = new Set([
-  'Trump', 'Biden', 'Harris', 'Obama', 'White', 'House', 'Senate', 'Congress',
-  'Republican', 'Democrat', 'President', 'Federal', 'Administration',
-  'United', 'States', 'American', 'Government', 'Officials',
-  // days & months
-  'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',
-  'January','February','March','April','June','July','August',
-  'September','October','November','December',
-  // holidays & generic words that make bad labels
-  'Easter','Christmas','Thanksgiving','Holiday',
-  'Amendment','Section','Article','Report','Law','Bill','Act','Plan',
-  'Budget','Defense','Security','Policy','Committee','Court','Judge',
-  'Party','State','City','County','Agency','Office','Department',
-  'Vote','Rally','Deal','Move','Push','Call','Says','News','Week',
-  // common first names that slip through
-  'Steve','John','Mike','Chris','James','Robert','David','Richard','Mark',
-  'Scott','Brian','Kevin','Paul','George','Jack','Peter',
-]);
+// ── Claude-powered clustering ─────────────────────────────────────────────────
+async function clusterWithClaude(topics) {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Known geographic / geopolitical entities — checked first for better labels
-const GEO_ENTITIES = [
-  'Gaza', 'Israel', 'Hamas', 'Hezbollah', 'Iran', 'Lebanon', 'Syria',
-  'Russia', 'Ukraine', 'NATO', 'Putin', 'Zelensky',
-  'China', 'Taiwan', 'Beijing', 'Hong Kong',
-  'North Korea', 'Kim', 'South Korea',
-  'Venezuela', 'Cuba', 'Nicaragua', 'Haiti', 'Peru', 'Colombia', 'Brazil',
-  'Afghanistan', 'Pakistan', 'India', 'Myanmar', 'Philippines',
-  'Saudi', 'Yemen', 'Iraq', 'Turkey', 'Egypt', 'Sudan', 'Libya', 'Ethiopia',
-  'Mexico', 'Canada', 'Europe', 'Arctic', 'Japan',
-];
+  const topicList = topics
+    .map(t => `${t.id}|||${t.title} (${t.category || 'World'})`)
+    .join('\n');
 
-function topicToLabel(title, category) {
-  const lower = title.toLowerCase();
+  const msg = await client.messages.create({
+    model:      'claude-haiku-4-5-20251001',
+    max_tokens: 800,
+    messages: [{
+      role: 'user',
+      content: `You are a news editor identifying major ongoing event clusters for a "Following" feed.
 
-  // Type detection
-  let type = '';
-  if (/ceasefire|peace.talks?|negotiat|accord|agreement/.test(lower))      type = 'Talks';
-  else if (/war|invasion|offensive/.test(lower))                            type = 'War';
-  else if (/airstrike|bombing|strike|raid/.test(lower))                     type = 'Strike';
-  else if (/battle|combat|fighting|clash|conflict|attack/.test(lower))      type = 'Conflict';
-  else if (/nuclear|missile|ballistic|warhead/.test(lower))                 type = 'Threat';
-  else if (/sanction|tariff|trade.war|embargo/.test(lower))                 type = 'Sanctions';
-  else if (/election|vote|ballot|referendum/.test(lower))                   type = 'Election';
-  else if (/coup|unrest|protest|riot/.test(lower))                          type = 'Crisis';
-  else if (/crisis|collapse/.test(lower))                                   type = 'Crisis';
-  else if (/disaster|earthquake|hurricane|flood|wildfire/.test(lower))      type = 'Disaster';
-  else if (/outbreak|pandemic|epidemic/.test(lower))                        type = 'Outbreak';
-  else if (/trial|indictment|arrest|charged/.test(lower))                   type = 'Trial';
-  else if (/deal|agreement|summit|treaty/.test(lower))                      type = 'Deal';
-  else if (category === 'Economy')                                           type = 'Economy';
-  else if (category === 'National Security')                                 type = 'Security';
-  else                                                                       type = category.split(/[\s&]/)[0];
+TOPICS (format: id|||title):
+${topicList}
 
-  // 1. Known geo entity match — most reliable
-  const geoMatch = GEO_ENTITIES.find(e => new RegExp(`\\b${e}\\b`, 'i').test(title));
-  if (geoMatch) return `${geoMatch} ${type}`.trim();
+Your job:
+1. Find groups of 2+ topics that are clearly about the SAME ongoing event or situation
+2. Name each group with a short, punchy 2-3 word label (e.g. "Iran Conflict", "Gaza War", "Ukraine Talks", "Trump Trial", "China Tariffs", "Border Crisis")
+3. Skip one-off news items — only include developing/ongoing situations
+4. Maximum 8 clusters, sorted by how many topics they contain (most first)
+5. A topic can only belong to ONE cluster
 
-  // 2. First Title-Case word not in skip list and long enough
-  const words = title.replace(/[—–-]/g, ' ').split(/\s+/);
-  const entity = words.find(w => {
-    const clean = w.replace(/[^a-zA-Z]/g, '');
-    return /^[A-Z]/.test(w) && clean.length > 3 && !SKIP_ENTITIES.has(clean);
+Respond with ONLY this JSON, no prose, no markdown:
+{"clusters":[{"name":"Iran Conflict","topicIds":["id1","id2"]},...]}`
+    }],
   });
-  if (entity) return `${entity.replace(/[^a-zA-Z]/g, '')} ${type}`.trim();
 
-  // Final fallback: first two words
-  return title.split(' ').slice(0, 2).join(' ');
+  const raw   = msg.content[0]?.text?.trim() || '';
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Claude returned no JSON');
+
+  const parsed = JSON.parse(match[0]);
+  if (!Array.isArray(parsed.clusters)) throw new Error('No clusters array in response');
+  return parsed.clusters;
 }
 
+// ── Keyword fallback (used if Claude fails) ───────────────────────────────────
+const GEO = ['Gaza','Israel','Iran','Hamas','Hezbollah','Lebanon','Syria',
+  'Russia','Ukraine','NATO','China','Taiwan','North Korea','Venezuela',
+  'Cuba','Afghanistan','Pakistan','India','Sudan','Yemen','Iraq','Turkey',
+  'Mexico','Europe'];
+
+function keywordLabel(title, category) {
+  const geo = GEO.find(e => new RegExp(`\\b${e}\\b`, 'i').test(title));
+  const lower = title.toLowerCase();
+  const type =
+    /ceasefire|peace|negotiat|accord|agreement|talks?/.test(lower) ? 'Talks' :
+    /war|invasion|offensive/.test(lower)                           ? 'War'   :
+    /strike|airstrike|bombing|raid|attack/.test(lower)             ? 'Strike':
+    /conflict|battle|fighting|clash/.test(lower)                   ? 'Conflict':
+    /sanction|tariff|trade.war|embargo/.test(lower)                ? 'Sanctions':
+    /election|vote|ballot/.test(lower)                             ? 'Election':
+    /trial|indictment|arrest|charged/.test(lower)                  ? 'Trial' :
+    /crisis|coup|collapse|unrest/.test(lower)                      ? 'Crisis':
+    category === 'Economy'                                         ? 'Economy':
+                                                                     category.split(/[\s&]/)[0];
+  return geo ? `${geo} ${type}` : null;
+}
+
+function fallbackCluster(topics) {
+  const map = new Map();
+  for (const t of topics) {
+    const label = keywordLabel(t.title, t.category);
+    if (!label) continue;
+    if (map.has(label)) {
+      map.get(label).push(t.id);
+    } else {
+      map.set(label, [t.id]);
+    }
+  }
+  return [...map.entries()]
+    .filter(([, ids]) => ids.length >= 2)
+    .map(([name, topicIds]) => ({ name, topicIds }));
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const topics = await redis.get(TOPICS_KEY);
-    if (!topics?.length) {
-      return res.json({ ok: false, message: 'No topics in Redis yet — run pregenerate first' });
+    const allTopics = await redis.get(TOPICS_KEY);
+    if (!allTopics?.length) {
+      return res.json({ ok: false, message: 'No topics in Redis — run pregenerate first' });
     }
 
-    // Filter to hard news only
-    const hardNews = topics.filter(t => HARD_NEWS.has(t.category || 'US Politics'));
-
-    // Score by cross-tier coverage: stories covered left AND right are most contested/developing
-    const scored = hardNews.map(t => {
-      const c = t.biasCounts || {};
-      const total = (c.left || 0) + (c.center || 0) + (c.right || 0);
-      const tiers  = (c.left > 0 ? 1 : 0) + (c.center > 0 ? 1 : 0) + (c.right > 0 ? 1 : 0);
-      return { topic: t, score: total * tiers };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-
-    // Group topics that share the same geo-label into one thread.
-    // e.g. "Iran Nuclear Talks" + "Iran Missile Strike" → both become "Iran Conflict"
-    // so selecting "Iran Conflict" shows multiple cards covering every angle.
-    const threadMap = new Map(); // label → thread object
-
-    for (const { topic } of scored) {
-      const label       = topicToLabel(topic.title, topic.category);
-      const articles    = Object.values(topic.biasCounts || {}).reduce((s, n) => s + n, 0);
-
-      if (threadMap.has(label)) {
-        // Merge into existing thread
-        const t = threadMap.get(label);
-        t.topicIds.push(topic.id);
-        t.articleCount += articles;
-      } else {
-        threadMap.set(label, {
-          id:           `following-${threadMap.size}`,
-          title:        label,
-          topicIds:     [topic.id],
-          articleCount: articles,
-          keywords:     label.toLowerCase().replace(/[^a-z ]/g, '').split(' ').filter(Boolean),
-        });
-      }
+    // Only hard-news topics are candidates for Following
+    const hardNews = allTopics.filter(t => HARD_NEWS.has(t.category || 'US Politics'));
+    if (!hardNews.length) {
+      return res.json({ ok: false, message: 'No hard-news topics found' });
     }
 
-    // Sort by number of bundled topics (more cards = more coverage = more important)
-    const threads = [...threadMap.values()]
+    // Build a fast lookup for article counts
+    const articleCount = (t) =>
+      Object.values(t.biasCounts || {}).reduce((s, n) => s + n, 0);
+
+    // ── Attempt Claude clustering, fall back to keywords on error ─────────────
+    let rawClusters;
+    try {
+      rawClusters = await clusterWithClaude(hardNews);
+      console.log(`gdelt-following: Claude returned ${rawClusters.length} clusters`);
+    } catch (err) {
+      console.warn('gdelt-following: Claude clustering failed, using keyword fallback:', err.message);
+      rawClusters = fallbackCluster(hardNews);
+    }
+
+    // Validate + build final threads
+    const validIds = new Set(hardNews.map(t => t.id));
+
+    const threads = rawClusters
+      .map((c, i) => {
+        // Filter to IDs that actually exist in our topic pool
+        const ids = (c.topicIds || []).filter(id => validIds.has(id));
+        if (ids.length < 2) return null; // enforce minimum
+
+        const totalArticles = ids.reduce((sum, id) => {
+          const t = hardNews.find(x => x.id === id);
+          return sum + articleCount(t || {});
+        }, 0);
+
+        return {
+          id:           `following-${i}`,
+          title:        c.name,
+          topicIds:     ids,
+          articleCount: totalArticles,
+        };
+      })
+      .filter(Boolean)
       .sort((a, b) => b.topicIds.length - a.topicIds.length || b.articleCount - a.articleCount)
-      .slice(0, 12);
+      .slice(0, 10);
 
     if (!threads.length) {
-      return res.json({ ok: false, message: 'No qualifying hard-news topics found' });
+      return res.json({ ok: false, message: 'No clusters with 2+ topics found' });
     }
 
     await redis.set(FOLLOWING_KEY, threads, { ex: FOLLOWING_TTL });
-    console.log(`gdelt-following: saved ${threads.length} threads`);
+    console.log(`gdelt-following: saved ${threads.length} threads:`, threads.map(t => `${t.title}(${t.topicIds.length})`).join(', '));
 
-    return res.json({ ok: true, threads: threads.length, labels: threads.map(t => t.title) });
+    return res.json({ ok: true, threads: threads.length, labels: threads.map(t => ({ name: t.title, cards: t.topicIds.length })) });
+
   } catch (err) {
     console.error('gdelt-following error:', err);
     return res.json({ ok: false, message: err.message });
