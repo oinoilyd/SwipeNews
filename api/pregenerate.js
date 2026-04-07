@@ -124,18 +124,34 @@ const RSS_SOURCES = [
   { name: 'Daily Wire',          url: 'https://www.dailywire.com/feeds/rss.xml',                  score:  3, label: 'Far Right',   color: '#dc2626' },
   { name: 'Breitbart',           url: 'https://feeds.feedburner.com/breitbart',                   score:  3, label: 'Far Right',   color: '#dc2626' },
 ];
-const CATEGORY_FALLBACK_IMAGES = {
-  'US Politics':       'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1200&auto=format&fit=crop',
-  'World':             'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop',
-  'Economy':           'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1200&auto=format&fit=crop',
-  'National Security': 'https://images.unsplash.com/photo-1562408590-e32931084e23?w=1200&auto=format&fit=crop',
-  'Health':            'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1200&auto=format&fit=crop',
-  'Technology':        'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&auto=format&fit=crop',
-  'Sports & Culture':  'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1200&auto=format&fit=crop',
-  'Entertainment':     'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=1200&auto=format&fit=crop',
-  'Elections':         'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=1200&auto=format&fit=crop',
-  'Policy':            'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1200&auto=format&fit=crop',
+// Pexels fallback image queries per category — fetched dynamically at runtime
+const CATEGORY_PEXELS_QUERIES = {
+  'US Politics':       'united states capitol congress washington',
+  'World':             'world globe earth international',
+  'Economy':           'stock market economy finance wall street',
+  'National Security': 'military security defense soldier',
+  'Health':            'healthcare medical hospital doctor',
+  'Technology':        'technology computer digital innovation',
+  'Sports & Culture':  'sports stadium athlete competition',
+  'Entertainment':     'entertainment cinema film concert',
+  'Elections':         'election voting ballot democracy',
+  'Policy':            'government law policy capitol',
 };
+
+async function fetchPexelsPhoto(query) {
+  const key = process.env.PEXELS_KEY;
+  if (!key) return null;
+  try {
+    const q = encodeURIComponent(query.slice(0, 80));
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${q}&per_page=3&orientation=landscape`,
+      { headers: { Authorization: key } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.photos?.[0]?.src?.large2x || data.photos?.[0]?.src?.large || null;
+  } catch { return null; }
+}
 
 const STOP_WORDS = new Set(['the','a','an','in','on','at','to','for','of','and','or','is','are','was','as','by','with','that','this','its','it','be','has','had','have','will','from','but','not','were']);
 function titleWords(t) { return new Set(t.toLowerCase().replace(/[^a-z0-9 ]/g,'').split(/\s+/).filter(w => w.length > 2 && !STOP_WORDS.has(w))); }
@@ -239,7 +255,7 @@ async function clusterArticles(articles) {
   const p=JSON.parse(m[0]); return Array.isArray(p.topics)?p.topics:[];
 }
 
-function buildTopics(clusters, articles) {
+function buildTopics(clusters, articles, categoryImages = {}) {
   const cutoff = Date.now() - 72*60*60*1000;
   return clusters.map((cluster,i) => {
     const arts=(cluster.articleIndices||[]).filter(idx=>Number.isInteger(idx)&&idx>=0&&idx<articles.length).map(idx=>articles[idx]);
@@ -253,7 +269,7 @@ function buildTopics(clusters, articles) {
     const img=arts.find(a=>a.urlToImage);
     return {
       id:`topic-${i}`, title:cluster.title||'Untitled Story', summary:cluster.summary||'',
-      category:cluster.category||'US Politics', urlToImage:img?.urlToImage||CATEGORY_FALLBACK_IMAGES[cluster.category]||null,
+      category:cluster.category||'US Politics', urlToImage:img?.urlToImage||categoryImages[cluster.category]||null,
       latestPublishedAt:latest, perspectiveMode, biasCounts,
       articles:arts.map(a=>({title:a.title,description:a.description,source:a.source,url:a.url,bias:a.bias})),
     };
@@ -384,8 +400,12 @@ export default async function handler(req, res) {
     const clusters = await clusterArticles(trimmed);
     console.log(`pregenerate: ${clusters.length} clusters`);
 
-    // ── 3. Build topic shells ─────────────────────────────────────────────────
-    const topics = buildTopics(clusters, trimmed);
+    // ── 3. Fetch Pexels category fallback images + build topic shells ───────────
+    const categoryImageEntries = await Promise.all(
+      Object.entries(CATEGORY_PEXELS_QUERIES).map(async ([cat, q]) => [cat, await fetchPexelsPhoto(q)])
+    );
+    const categoryImages = Object.fromEntries(categoryImageEntries.filter(([, url]) => url));
+    const topics = buildTopics(clusters, trimmed, categoryImages);
     console.log(`pregenerate: ${topics.length} topics built`);
     if (!topics.length) throw new Error('No valid topics after quality filter');
 

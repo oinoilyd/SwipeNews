@@ -8,6 +8,7 @@ import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryF
 import TimeFilter from './components/TimeFilter';
 import ListView from './components/ListView';
 import FollowingDrawer from './components/FollowingDrawer';
+import AskTab from './components/AskTab';
 import { getLanguage, applyDirection, LANGUAGES, t } from './lib/i18n.js';
 import './App.css';
 
@@ -135,6 +136,7 @@ export default function App() {
   const [followingThreads,      setFollowingThreads]      = useState([]);
   const [activeFollowingThread, setActiveFollowingThread] = useState(null);
   const [showFollowingDrawer,   setShowFollowingDrawer]   = useState(false);
+  const [activeMode,            setActiveMode]            = useState('feed'); // 'feed' | 'ask'
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -216,6 +218,7 @@ export default function App() {
   // Clicking any other category while Hot is active exits Hot and adds that category.
   // In multi-select mode, categories toggle on/off normally.
   const handleCategoryToggle = useCallback((cat) => {
+    setActiveMode('feed');          // any category tap exits ask mode
     setActiveFollowingThread(null); // clear story filter when switching categories
     if (cat === 'Hot') {
       setActiveCategories(prev => {
@@ -687,13 +690,19 @@ export default function App() {
           activeFollowingThread={activeFollowingThread}
           onFollowingOpen={() => setShowFollowingDrawer(true)}
           lang={lang}
+          activeMode={activeMode}
+          onAskMode={() => setActiveMode('ask')}
         />
 
-        <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
+        {activeMode === 'feed' && (
+          <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
+        )}
       </div>
 
       <main className="main">
-        {timeFilteredTopics.length === 0 ? (
+        {activeMode === 'ask' ? (
+          <AskTab lang={lang} apiLang={apiLang} />
+        ) : timeFilteredTopics.length === 0 ? (
           <div className="empty-category">
             <p className="empty-category-msg">{t('noTopicsWindow', lang)}</p>
             <button className="btn-secondary" onClick={() => setTimeFilter('72h')}>

@@ -24,6 +24,8 @@ export default function CategoryFilter({
   activeFollowingThread,
   onFollowingOpen,
   lang = 'en',
+  activeMode = 'feed',
+  onAskMode,
 }) {
   const counts = topicShells.reduce((acc, t2) => {
     const cat = t2.category || 'US Politics';
@@ -36,8 +38,20 @@ export default function CategoryFilter({
   const hotActive     = activeCategories.includes('Hot');
   const followActive  = !!activeFollowingThread;
 
+  const askActive = activeMode === 'ask';
+
   return (
     <div className="category-filter" role="tablist" aria-label="Filter by category">
+
+      {/* Ask — mode switch pill, always first */}
+      <button
+        role="tab"
+        aria-selected={askActive}
+        className={`cat-pill cat-pill-ask${askActive ? ' active' : ''}`}
+        onClick={onAskMode}
+      >
+        ✦ Ask
+      </button>
 
       {/* All */}
       <button role="tab" aria-selected={allActive}
