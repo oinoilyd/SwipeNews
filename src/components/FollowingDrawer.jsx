@@ -24,7 +24,7 @@ export default function FollowingDrawer({ threads, activeThread, onSelect, onClo
                 <div className="following-thread-main">
                   <span className="following-thread-title">{thread.title}</span>
                   <span className="following-thread-meta">
-                    {thread.articleCount} sources · {thread.topicIds?.length || 0} card{thread.topicIds?.length !== 1 ? 's' : ''}
+                    {thread.topicIds?.length || 1} card{thread.topicIds?.length !== 1 ? 's' : ''} · {thread.articleCount} sources
                   </span>
                 </div>
                 {isActive && <span className="following-thread-check">✓</span>}

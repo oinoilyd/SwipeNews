@@ -26,14 +26,6 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending, listVi
 
         <div className="header-controls">
           <button
-            className={`header-btn header-btn-xs${listView ? ' header-btn-active' : ''}`}
-            onClick={onToggleListView}
-            title={listView ? 'Switch to swipe view' : 'Switch to list view'}
-            aria-label={listView ? 'Switch to swipe view' : 'Switch to list view'}
-          >
-            {listView ? '⊟' : '≡'}
-          </button>
-          <button
             className="header-btn header-btn-xs"
             onClick={() => setShowInfo(true)}
             title="About / Disclaimer"

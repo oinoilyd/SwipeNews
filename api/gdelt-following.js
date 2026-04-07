@@ -104,26 +104,35 @@ export default async function handler(req, res) {
 
     scored.sort((a, b) => b.score - a.score);
 
-    // Build threads from top 15 — deduplicate labels
-    const usedLabels = new Set();
-    const threads = [];
+    // Group topics that share the same geo-label into one thread.
+    // e.g. "Iran Nuclear Talks" + "Iran Missile Strike" → both become "Iran Conflict"
+    // so selecting "Iran Conflict" shows multiple cards covering every angle.
+    const threadMap = new Map(); // label → thread object
 
     for (const { topic } of scored) {
-      if (threads.length >= 15) break;
-      const label = topicToLabel(topic.title, topic.category);
-      if (usedLabels.has(label)) continue;
-      usedLabels.add(label);
+      const label       = topicToLabel(topic.title, topic.category);
+      const articles    = Object.values(topic.biasCounts || {}).reduce((s, n) => s + n, 0);
 
-      threads.push({
-        id:           `following-${threads.length}`,
-        title:        label,
-        fullTitle:    topic.title,
-        topicIds:     [topic.id],
-        articleCount: Object.values(topic.biasCounts || {}).reduce((s, n) => s + n, 0),
-        image:        topic.urlToImage || null,
-        keywords:     label.toLowerCase().replace(/[^a-z ]/g, '').split(' ').filter(Boolean),
-      });
+      if (threadMap.has(label)) {
+        // Merge into existing thread
+        const t = threadMap.get(label);
+        t.topicIds.push(topic.id);
+        t.articleCount += articles;
+      } else {
+        threadMap.set(label, {
+          id:           `following-${threadMap.size}`,
+          title:        label,
+          topicIds:     [topic.id],
+          articleCount: articles,
+          keywords:     label.toLowerCase().replace(/[^a-z ]/g, '').split(' ').filter(Boolean),
+        });
+      }
     }
+
+    // Sort by number of bundled topics (more cards = more coverage = more important)
+    const threads = [...threadMap.values()]
+      .sort((a, b) => b.topicIds.length - a.topicIds.length || b.articleCount - a.articleCount)
+      .slice(0, 12);
 
     if (!threads.length) {
       return res.json({ ok: false, message: 'No qualifying hard-news topics found' });
