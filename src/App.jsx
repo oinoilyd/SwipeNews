@@ -124,7 +124,8 @@ export default function App() {
   const [headerCollapsed,    setHeaderCollapsed]    = useState(false);
   const [trendingTitles,     setTrendingTitles]     = useState(new Set());
   const [listView,           setListView]           = useState(false);
-  const [followingThreads, setFollowingThreads] = useState([]);
+  const [followingThreads,      setFollowingThreads]      = useState([]);
+  const [activeFollowingThread, setActiveFollowingThread] = useState(null);
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -132,23 +133,15 @@ export default function App() {
   const topBarRef          = useRef(null);
   const topBarHeightRef    = useRef(null);
 
-  // Build set of topic IDs that belong to any following thread
-  const followingTopicIds = useMemo(() => {
-    const ids = new Set();
-    for (const thread of followingThreads) {
-      for (const id of (thread.topicIds || [])) ids.add(id);
-    }
-    return ids;
-  }, [followingThreads]);
-
   // ── Filtered topic list (by category) ────────────────────────────────────
   // "Politics" is a meta-category — it expands to all political sub-categories.
   // "Hot" shows all popular news, world & politics stories (HOT_CATS), boosting
   //   trending titles to the top so the most-relevant stories appear first.
-  // "Follow" shows only topics that belong to ongoing/developing story threads.
+  // activeFollowingThread overrides category filter — shows only that story's topics.
   const filteredTopics = useMemo(() => {
-    if (activeCategories.includes('Follow')) {
-      return topicShells.filter(t => followingTopicIds.has(t.id));
+    if (activeFollowingThread) {
+      const ids = new Set(activeFollowingThread.topicIds || []);
+      return topicShells.filter(t => ids.has(t.id));
     }
     if (activeCategories.length === 0) return topicShells;
     const hasPoliticsMeta = activeCategories.includes('Politics');
@@ -170,7 +163,7 @@ export default function App() {
       if (hasPoliticsMeta && POLITICAL_CATS.includes(cat)) return true;
       return false;
     });
-  }, [topicShells, activeCategories, trendingTitles, activeFollowingThread]);
+  }, [topicShells, activeCategories, trendingTitles, activeFollowingThread]); // eslint-disable-line
 
   // ── Time-filtered topic list (by recency window) ──────────────────────────
   const timeFilteredTopics = useMemo(() => {
@@ -214,18 +207,18 @@ export default function App() {
   // Clicking any other category while Hot is active exits Hot and adds that category.
   // In multi-select mode, categories toggle on/off normally.
   const handleCategoryToggle = useCallback((cat) => {
-    if (cat === 'Hot' || cat === 'Follow') {
-      // Solo modes: clicking selects exclusively, clicking again does nothing
+    setActiveFollowingThread(null); // clear story filter when switching categories
+    if (cat === 'Hot') {
       setActiveCategories(prev => {
-        const isSolo = prev.length === 1 && prev[0] === cat;
-        return isSolo ? prev : [cat];
+        const isHotSolo = prev.length === 1 && prev[0] === 'Hot';
+        return isHotSolo ? prev : ['Hot'];
       });
     } else {
       setActiveCategories(prev => {
-        const withoutSolo = prev.filter(c => c !== 'Hot' && c !== 'Follow');
-        return withoutSolo.includes(cat)
-          ? withoutSolo.filter(c => c !== cat)
-          : [...withoutSolo, cat];
+        const withoutHot = prev.filter(c => c !== 'Hot');
+        return withoutHot.includes(cat)
+          ? withoutHot.filter(c => c !== cat)
+          : [...withoutHot, cat];
       });
     }
   }, []);
@@ -661,7 +654,13 @@ export default function App() {
           onToggle={handleCategoryToggle}
           topicShells={topicShells}
           trendingCount={trendingTitles.size}
-          followCount={followingTopicIds.size}
+          followingThreads={followingThreads}
+          activeFollowingThread={activeFollowingThread}
+          onFollowingSelect={(thread) => {
+            setActiveFollowingThread(thread);
+            setCurrentTopicIndex(0);
+            setCurrentTakeIndex(3);
+          }}
         />
 
         <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />

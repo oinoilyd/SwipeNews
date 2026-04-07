@@ -15,37 +15,68 @@ const SKIP_ENTITIES = new Set([
   'Trump', 'Biden', 'Harris', 'Obama', 'White', 'House', 'Senate', 'Congress',
   'Republican', 'Democrat', 'President', 'Federal', 'Administration',
   'United', 'States', 'American', 'Government', 'Officials',
+  // days & months
+  'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',
+  'January','February','March','April','June','July','August',
+  'September','October','November','December',
+  // holidays & generic words that make bad labels
+  'Easter','Christmas','Thanksgiving','Holiday',
+  'Amendment','Section','Article','Report','Law','Bill','Act','Plan',
+  'Budget','Defense','Security','Policy','Committee','Court','Judge',
+  'Party','State','City','County','Agency','Office','Department',
+  'Vote','Rally','Deal','Move','Push','Call','Says','News','Week',
+  // common first names that slip through
+  'Steve','John','Mike','Chris','James','Robert','David','Richard','Mark',
+  'Scott','Brian','Kevin','Paul','George','Jack','Peter',
 ]);
+
+// Known geographic / geopolitical entities — checked first for better labels
+const GEO_ENTITIES = [
+  'Gaza', 'Israel', 'Hamas', 'Hezbollah', 'Iran', 'Lebanon', 'Syria',
+  'Russia', 'Ukraine', 'NATO', 'Putin', 'Zelensky',
+  'China', 'Taiwan', 'Beijing', 'Hong Kong',
+  'North Korea', 'Kim', 'South Korea',
+  'Venezuela', 'Cuba', 'Nicaragua', 'Haiti', 'Peru', 'Colombia', 'Brazil',
+  'Afghanistan', 'Pakistan', 'India', 'Myanmar', 'Philippines',
+  'Saudi', 'Yemen', 'Iraq', 'Turkey', 'Egypt', 'Sudan', 'Libya', 'Ethiopia',
+  'Mexico', 'Canada', 'Europe', 'Arctic', 'Japan',
+];
 
 function topicToLabel(title, category) {
   const lower = title.toLowerCase();
 
-  // Determine story type from title keywords
+  // Type detection
   let type = '';
-  if (/ceasefire|peace.talks?|negotiat|accord/.test(lower))           type = 'Talks';
-  else if (/war|invasion|offensive|battle|airstrike|bombing/.test(lower)) type = 'War';
-  else if (/conflict|fighting|clash|attack/.test(lower))               type = 'Conflict';
-  else if (/nuclear|missile|ballistic|warhead/.test(lower))            type = 'Threat';
-  else if (/sanction|tariff|trade.war|embargo/.test(lower))            type = 'Sanctions';
-  else if (/election|vote|ballot|referendum/.test(lower))              type = 'Election';
-  else if (/crisis|collapse|coup|unrest|protest/.test(lower))          type = 'Crisis';
-  else if (/disaster|earthquake|hurricane|flood|wildfire/.test(lower)) type = 'Disaster';
-  else if (/outbreak|pandemic|epidemic/.test(lower))                   type = 'Outbreak';
-  else if (category === 'Economy')           type = 'Economy';
-  else if (category === 'National Security') type = 'Security';
-  else                                       type = 'Situation';
+  if (/ceasefire|peace.talks?|negotiat|accord|agreement/.test(lower))      type = 'Talks';
+  else if (/war|invasion|offensive/.test(lower))                            type = 'War';
+  else if (/airstrike|bombing|strike|raid/.test(lower))                     type = 'Strike';
+  else if (/battle|combat|fighting|clash|conflict|attack/.test(lower))      type = 'Conflict';
+  else if (/nuclear|missile|ballistic|warhead/.test(lower))                 type = 'Threat';
+  else if (/sanction|tariff|trade.war|embargo/.test(lower))                 type = 'Sanctions';
+  else if (/election|vote|ballot|referendum/.test(lower))                   type = 'Election';
+  else if (/coup|unrest|protest|riot/.test(lower))                          type = 'Crisis';
+  else if (/crisis|collapse/.test(lower))                                   type = 'Crisis';
+  else if (/disaster|earthquake|hurricane|flood|wildfire/.test(lower))      type = 'Disaster';
+  else if (/outbreak|pandemic|epidemic/.test(lower))                        type = 'Outbreak';
+  else if (/trial|indictment|arrest|charged/.test(lower))                   type = 'Trial';
+  else if (/deal|agreement|summit|treaty/.test(lower))                      type = 'Deal';
+  else if (category === 'Economy')                                           type = 'Economy';
+  else if (category === 'National Security')                                 type = 'Security';
+  else                                                                       type = category.split(/[\s&]/)[0];
 
-  // Find the best subject entity — first Title-Case word not in skip list
+  // 1. Known geo entity match — most reliable
+  const geoMatch = GEO_ENTITIES.find(e => new RegExp(`\\b${e}\\b`, 'i').test(title));
+  if (geoMatch) return `${geoMatch} ${type}`.trim();
+
+  // 2. First Title-Case word not in skip list and long enough
   const words = title.replace(/[—–-]/g, ' ').split(/\s+/);
-  const entity = words.find(w =>
-    /^[A-Z]/.test(w) &&
-    w.length > 2 &&
-    !SKIP_ENTITIES.has(w.replace(/[^a-zA-Z]/g, ''))
-  );
-
+  const entity = words.find(w => {
+    const clean = w.replace(/[^a-zA-Z]/g, '');
+    return /^[A-Z]/.test(w) && clean.length > 3 && !SKIP_ENTITIES.has(clean);
+  });
   if (entity) return `${entity.replace(/[^a-zA-Z]/g, '')} ${type}`.trim();
 
-  // Fallback: first two meaningful words
+  // Final fallback: first two words
   return title.split(' ').slice(0, 2).join(' ');
 }
 
@@ -60,7 +91,7 @@ export default async function handler(req, res) {
       return res.json({ ok: false, message: 'No topics in Redis yet — run pregenerate first' });
     }
 
-    // Filter to hard news only, exclude topics with no multi-tier coverage
+    // Filter to hard news only
     const hardNews = topics.filter(t => HARD_NEWS.has(t.category || 'US Politics'));
 
     // Score by cross-tier coverage: stories covered left AND right are most contested/developing
@@ -73,12 +104,12 @@ export default async function handler(req, res) {
 
     scored.sort((a, b) => b.score - a.score);
 
-    // Build threads from top 12 — deduplicate labels
+    // Build threads from top 15 — deduplicate labels
     const usedLabels = new Set();
     const threads = [];
 
     for (const { topic } of scored) {
-      if (threads.length >= 12) break;
+      if (threads.length >= 15) break;
       const label = topicToLabel(topic.title, topic.category);
       if (usedLabels.has(label)) continue;
       usedLabels.add(label);
