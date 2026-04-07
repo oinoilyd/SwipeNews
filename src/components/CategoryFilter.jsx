@@ -1,37 +1,18 @@
+import { t, tCat } from '../lib/i18n.js';
+
 // Sub-categories that roll up into the combined "Politics" meta-pill
 export const POLITICAL_CATS = [
-  'US Politics',
-  'World',
-  'Policy',
-  'Economy',
-  'National Security',
-  'Elections',
+  'US Politics', 'World', 'Policy', 'Economy', 'National Security', 'Elections',
 ];
 
-// Categories included in the "Hot" feed (news/world/politics — no sports/tech/entertainment)
+// Categories included in the "Hot" feed
 export const HOT_CATS = [
-  'US Politics',
-  'World',
-  'Policy',
-  'Economy',
-  'National Security',
-  'Elections',
-  'Health',
+  'US Politics', 'World', 'Policy', 'Economy', 'National Security', 'Elections', 'Health',
 ];
 
 export const CATEGORIES = [
-  'All',
-  'Politics',
-  'US Politics',
-  'World',
-  'Policy',
-  'Economy',
-  'National Security',
-  'Elections',
-  'Technology',
-  'Health',
-  'Sports & Culture',
-  'Entertainment',
+  'All', 'Politics', 'US Politics', 'World', 'Policy', 'Economy',
+  'National Security', 'Elections', 'Technology', 'Health', 'Sports & Culture', 'Entertainment',
 ];
 
 export default function CategoryFilter({
@@ -42,9 +23,10 @@ export default function CategoryFilter({
   followingThreads = [],
   activeFollowingThread,
   onFollowingOpen,
+  lang = 'en',
 }) {
-  const counts = topicShells.reduce((acc, t) => {
-    const cat = t.category || 'US Politics';
+  const counts = topicShells.reduce((acc, t2) => {
+    const cat = t2.category || 'US Politics';
     acc[cat] = (acc[cat] || 0) + 1;
     return acc;
   }, {});
@@ -58,36 +40,27 @@ export default function CategoryFilter({
     <div className="category-filter" role="tablist" aria-label="Filter by category">
 
       {/* All */}
-      <button
-        role="tab"
-        aria-selected={allActive}
+      <button role="tab" aria-selected={allActive}
         className={`cat-pill${allActive ? ' active' : ''}`}
-        onClick={() => onToggle('All')}
-      >
-        All
+        onClick={() => onToggle('All')}>
+        {t('all', lang)}
         {totalCount > 0 && <span className="cat-count">{totalCount}</span>}
       </button>
 
       {/* Hot */}
-      <button
-        role="tab"
-        aria-selected={hotActive}
+      <button role="tab" aria-selected={hotActive}
         className={`cat-pill cat-pill-trending${hotActive ? ' active' : ''}`}
-        onClick={() => onToggle('Hot')}
-      >
-        🔥 Hot
+        onClick={() => onToggle('Hot')}>
+        {t('hot', lang)}
         {trendingCount > 0 && <span className="cat-count">{trendingCount}</span>}
       </button>
 
       {/* Follow — opens full-width drawer */}
       {followingThreads.length > 0 && (
-        <button
-          role="tab"
-          aria-selected={followActive}
+        <button role="tab" aria-selected={followActive}
           className={`cat-pill cat-pill-following${followActive ? ' active' : ''}`}
-          onClick={onFollowingOpen}
-        >
-          {activeFollowingThread ? activeFollowingThread.title : 'Follow'}
+          onClick={onFollowingOpen}>
+          {followActive ? activeFollowingThread.title : t('follow', lang)}
           <span className="follow-caret">▾</span>
         </button>
       )}
@@ -99,17 +72,12 @@ export default function CategoryFilter({
           ? activeCategories.includes('Politics')
           : activeCategories.includes(cat);
         const isEmpty  = count === 0;
-
         return (
-          <button
-            key={cat}
-            role="tab"
-            aria-selected={isActive}
+          <button key={cat} role="tab" aria-selected={isActive}
             className={`cat-pill${isActive ? ' active' : ''}${isEmpty ? ' empty' : ''}`}
             onClick={() => !isEmpty && onToggle(cat)}
-            disabled={isEmpty}
-          >
-            {cat}
+            disabled={isEmpty}>
+            {tCat(cat, lang)}
             {count > 0 && <span className="cat-count">{count}</span>}
           </button>
         );

@@ -8,6 +8,7 @@ import CategoryFilter, { POLITICAL_CATS, HOT_CATS } from './components/CategoryF
 import TimeFilter from './components/TimeFilter';
 import ListView from './components/ListView';
 import FollowingDrawer from './components/FollowingDrawer';
+import { getLanguage, applyDirection, LANGUAGES, t } from './lib/i18n.js';
 import './App.css';
 
 // Category → perspectiveMode mapping
@@ -108,6 +109,12 @@ function loadTopicsCache() {
 }
 
 export default function App() {
+  // Language — read once at mount, static for the session (reloads on change)
+  const lang    = getLanguage();
+  const apiLang = LANGUAGES[lang]?.apiName ?? 'English';
+  // Apply RTL direction for Arabic
+  applyDirection(lang);
+
   const [topicShells, setTopicShells]           = useState([]);
   // { [topicId]: { [position]: take } }  — lazy per-position
   const [takesMap, setTakesMap]                 = useState({});
@@ -277,7 +284,7 @@ export default function App() {
     const res = await fetch('/api/stream-take', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ topic, position }),
+      body:    JSON.stringify({ topic, position, language: apiLang }),
     });
     if (!res.ok) throw new Error(`stream-take HTTP ${res.status}`);
 
@@ -342,7 +349,7 @@ export default function App() {
         const res = await fetch('/api/generate-takes', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ topic, position }),
+          body:    JSON.stringify({ topic, position, language: apiLang }),
           signal:  controller.signal,
         });
         clearTimeout(timeoutId);
@@ -629,16 +636,16 @@ export default function App() {
   }, [handleTakeLeft, handleTakeRight, handleNextTopic, handlePrevTopic, showTopicDrawer]);
 
   // ── Render ────────────────────────────────────────────────────────────────
-  if (isLoading) return <LoadingScreen stage={loadingStage} />;
+  if (isLoading) return <LoadingScreen stage={loadingStage} lang={lang} />;
 
   if (error) {
     return (
       <div className="error-screen">
         <div className="error-card">
           <div className="error-icon">⚠️</div>
-          <h2>Something went wrong</h2>
+          <h2>{t('somethingWrong', lang)}</h2>
           <p className="error-msg">{error}</p>
-          <button className="btn-primary" onClick={() => fetchTopicShells(true)}>Try Again</button>
+          <button className="btn-primary" onClick={() => fetchTopicShells(true)}>{t('tryAgain', lang)}</button>
         </div>
       </div>
     );
@@ -649,9 +656,9 @@ export default function App() {
       <div className="error-screen">
         <div className="error-card">
           <div className="error-icon">📭</div>
-          <h2>No topics found</h2>
-          <p className="error-msg">Couldn't identify major stories right now.</p>
-          <button className="btn-primary" onClick={() => fetchTopicShells(true)}>Refresh</button>
+          <h2>{t('noTopicsFound', lang)}</h2>
+          <p className="error-msg">{t('noTopicsMsg', lang)}</p>
+          <button className="btn-primary" onClick={() => fetchTopicShells(true)}>{t('refresh', lang)}</button>
         </div>
       </div>
     );
@@ -679,6 +686,7 @@ export default function App() {
           followingThreads={followingThreads}
           activeFollowingThread={activeFollowingThread}
           onFollowingOpen={() => setShowFollowingDrawer(true)}
+          lang={lang}
         />
 
         <TimeFilter activeFilter={timeFilter} onSelect={setTimeFilter} />
@@ -687,9 +695,9 @@ export default function App() {
       <main className="main">
         {timeFilteredTopics.length === 0 ? (
           <div className="empty-category">
-            <p className="empty-category-msg">No topics in this window yet.</p>
+            <p className="empty-category-msg">{t('noTopicsWindow', lang)}</p>
             <button className="btn-secondary" onClick={() => setTimeFilter('72h')}>
-              Expand to 72 Hours
+              {t('expandWindow', lang)}
             </button>
           </div>
         ) : listView ? (
@@ -720,6 +728,7 @@ export default function App() {
             onScrollChange={handleScrollChange}
             onExpandHeader={() => setHeaderCollapsed(false)}
             headerCollapsed={headerCollapsed}
+            lang={lang}
           />
         )}
       </main>
@@ -758,6 +767,7 @@ export default function App() {
             setCurrentTakeIndex(3);
           }}
           onClose={() => setShowFollowingDrawer(false)}
+          lang={lang}
         />
       )}
     </div>

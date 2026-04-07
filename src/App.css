@@ -1518,6 +1518,22 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.hamburger-lang-row { justify-content: space-between; cursor: default; }
+.hamburger-lang-row:hover { background: transparent !important; }
+.hamburger-lang-select {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-size: 13px;
+  padding: 5px 10px;
+  cursor: pointer;
+  outline: none;
+  max-width: 140px;
+}
+.hamburger-lang-select:focus { border-color: #a78bfa; }
+.hamburger-lang-select option { background: #1a1a2e; color: #e5e7eb; }
+
 .hamburger-item-note {
   font-size: 0.72rem;
   color: var(--text-muted);

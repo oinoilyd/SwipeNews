@@ -27,6 +27,7 @@ export default function CardStack({
   onScrollChange,
   onExpandHeader,
   headerCollapsed,
+  lang = 'en',
 }) {
   const containerRef = useRef(null);
 
@@ -236,6 +237,7 @@ export default function CardStack({
       currentTakeIndex={currentTakeIndex}
       onTakeJump={onTakeJump}
       perspectiveMode={perspectiveMode}
+      lang={lang}
     />
   );
 

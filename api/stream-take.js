@@ -16,13 +16,14 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY)
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { topic, position } = req.body || {};
+  const { topic, position, language = 'English' } = req.body || {};
   if (!topic?.title)
     return res.status(400).json({ error: 'topic.title required' });
   if (!Number.isInteger(position) || position < -3 || position > 3)
     return res.status(400).json({ error: 'position must be -3 to 3' });
 
-  const meta = TAKE_POSITIONS.find(p => p.position === position);
+  const meta      = TAKE_POSITIONS.find(p => p.position === position);
+  const isEnglish = language === 'English';
 
   // Set SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
@@ -31,20 +32,21 @@ export default async function handler(req, res) {
   res.flushHeaders?.();
 
   try {
-    // Check Redis cache — if found and valid, return immediately
-    const rKey   = takeKey(topic, position);
-    const cached = await redis.get(rKey);
-    if (cached && !isWeakTake(cached)) {
-      send(res, { done: true, take: cached });
-      return res.end();
-    }
-    if (cached && isWeakTake(cached)) {
-      await redis.del(rKey).catch(() => {});
+    // Check Redis cache — English only; translated takes bypass Redis
+    const rKey = takeKey(topic, position);
+    if (isEnglish) {
+      const cached = await redis.get(rKey);
+      if (cached && !isWeakTake(cached)) {
+        send(res, { done: true, take: cached });
+        return res.end();
+      }
+      if (cached && isWeakTake(cached)) {
+        await redis.del(rKey).catch(() => {});
+      }
     }
 
-    // Build prompt via shared perspectives module
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const { prompt, effectiveLabel, singleSource, derivedSources } = buildPrompt(topic, meta);
+    const { prompt, effectiveLabel, singleSource, derivedSources } = buildPrompt(topic, meta, language);
 
     let fullText = '';
 

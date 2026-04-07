@@ -1,22 +1,14 @@
 import { useState, useEffect } from 'react';
+import { t } from '../lib/i18n.js';
 
-const STAGES = [
-  "Fetching today's headlines…",
-  "Identifying major stories…",
-  "Ready!",
-];
-
-export default function LoadingScreen({ stage = 0 }) {
-  const pct = Math.round(((stage + 1) / STAGES.length) * 100);
-
+export default function LoadingScreen({ stage = 0, lang = 'en' }) {
+  const stages = [t('loadingStage0', lang), t('loadingStage1', lang), t('loadingReady', lang)];
+  const pct    = Math.round(((stage + 1) / stages.length) * 100);
   const [countdown, setCountdown] = useState(10);
 
   useEffect(() => {
     const id = setInterval(() => {
-      setCountdown(n => {
-        if (n <= 1) { clearInterval(id); return 1; }
-        return n - 1;
-      });
+      setCountdown(n => { if (n <= 1) { clearInterval(id); return 1; } return n - 1; });
     }, 1000);
     return () => clearInterval(id);
   }, []);
@@ -31,38 +23,31 @@ export default function LoadingScreen({ stage = 0 }) {
           </svg>
         </div>
         <h1 className="loading-title">Perspectiv</h1>
-        <p className="loading-subtitle">{STAGES[Math.min(stage, STAGES.length - 1)]}</p>
+        <p className="loading-subtitle">{stages[Math.min(stage, stages.length - 1)]}</p>
 
-        {/* Progress bar */}
         <div className="loading-progress-track">
-          <div
-            className="loading-progress-fill"
-            style={{ width: `${pct}%` }}
-          />
+          <div className="loading-progress-fill" style={{ width: `${pct}%` }} />
         </div>
 
         <p className="loading-countdown">
-          {countdown > 1 ? `~${countdown}s` : 'Almost there…'}
+          {countdown > 1 ? `~${countdown}s` : t('loadingAlmost', lang)}
         </p>
 
         <div className="loading-spinner">
           <div className="spinner-ring" />
         </div>
 
-        <p className="loading-note">
-          Pre-generating all perspectives so navigation is instant
-        </p>
-
-        <p className="loading-tagline">Left · Right · and everything in between</p>
+        <p className="loading-note">{t('loadingNote', lang)}</p>
+        <p className="loading-tagline">{t('loadingTagline', lang)}</p>
 
         <div className="loading-swipe-guide">
           <div className="swipe-guide-row">
             <span className="swipe-guide-icon">↕</span>
-            <span className="swipe-guide-label">Swipe up / down to browse topics</span>
+            <span className="swipe-guide-label">{t('loadingSwipeTopics', lang)}</span>
           </div>
           <div className="swipe-guide-row">
             <span className="swipe-guide-icon">↔</span>
-            <span className="swipe-guide-label">Swipe left / right to shift perspective</span>
+            <span className="swipe-guide-label">{t('loadingSwipePerspective', lang)}</span>
           </div>
         </div>
       </div>

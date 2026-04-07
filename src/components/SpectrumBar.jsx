@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
+import { t } from '../lib/i18n.js';
 
-// ── Full 7-position political spectrum ────────────────────────────────────────
 const POLITICAL_POSITIONS = [
   { index: 0, label: 'Far Left',     color: '#1d4ed8' },
   { index: 1, label: 'Left',         color: '#3b82f6' },
@@ -10,30 +10,24 @@ const POLITICAL_POSITIONS = [
   { index: 5, label: 'Right',        color: '#ef4444' },
   { index: 6, label: 'Far Right',    color: '#dc2626' },
 ];
-
-// Sports perspectives
 const SPORTS_POSITIONS = [
   { index: 1, label: 'Fan',      color: '#22c55e' },
   { index: 3, label: 'Neutral',  color: '#a78bfa' },
   { index: 5, label: 'Business', color: '#f59e0b' },
 ];
-
-// Tech perspectives
 const TECH_POSITIONS = [
   { index: 1, label: 'Optimist', color: '#3b82f6' },
   { index: 3, label: 'Neutral',  color: '#a78bfa' },
   { index: 5, label: 'Industry', color: '#10b981' },
 ];
 const TECH_INDICES_ARR = [1, 3, 5];
-
-// Entertainment perspectives
 const ENTERTAINMENT_POSITIONS = [
   { index: 1, label: 'Progressive', color: '#7b6eb0' },
   { index: 3, label: 'Neutral',     color: '#7d8699' },
   { index: 5, label: 'Traditional', color: '#8f6344' },
 ];
 
-export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveMode }) {
+export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveMode, lang = 'en' }) {
   const [modeTooltip, setModeTooltip] = useState(false);
   const modeTooltipTimer = useRef(null);
 
@@ -54,13 +48,10 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
     isEntertainment ? ENTERTAINMENT_POSITIONS :
                       POLITICAL_POSITIONS;
 
-  const current =
-    visiblePositions.find(p => p.index === currentTakeIndex)
-    ?? visiblePositions[1];
+  const current = visiblePositions.find(p => p.index === currentTakeIndex) ?? visiblePositions[1];
 
   return (
     <div className="spectrum-bar-wrapper">
-      {/* Track with clickable pips */}
       <div className="spectrum-track">
         <div className={`spectrum-gradient${isSports ? ' sports-gradient' : isTech ? ' tech-gradient' : isEntertainment ? ' entertainment-gradient' : ''}`} />
         {visiblePositions.map((pos) => {
@@ -71,8 +62,7 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
             ? ([1, 3, 5].indexOf(pos.index) / 2) * 100
             : (pos.index / 6) * 100;
           return (
-            <button
-              key={pos.index}
+            <button key={pos.index}
               className={`spectrum-pip ${isActive ? 'active' : ''}`}
               style={{
                 left:      `${leftPct}%`,
@@ -87,31 +77,30 @@ export default function SpectrumBar({ currentTakeIndex, onTakeJump, perspectiveM
         })}
       </div>
 
-      {/* Labels row */}
       <div className="spectrum-labels">
         {isSports ? (
           <>
-            <span className="spectrum-label-left">◀ Fan</span>
-            <span className="spectrum-current-label">Neutral</span>
-            <span className="spectrum-label-right">Business ▶</span>
+            <span className="spectrum-label-left">◀ {t('fan', lang)}</span>
+            <span className="spectrum-current-label">{t('neutral', lang)}</span>
+            <span className="spectrum-label-right">{t('business', lang)} ▶</span>
           </>
         ) : isTech ? (
           <>
-            <span className="spectrum-label-left">◀ Optimist</span>
-            <span className="spectrum-current-label">Neutral</span>
-            <span className="spectrum-label-right">Industry ▶</span>
+            <span className="spectrum-label-left">◀ {t('optimist', lang)}</span>
+            <span className="spectrum-current-label">{t('neutral', lang)}</span>
+            <span className="spectrum-label-right">{t('industry', lang)} ▶</span>
           </>
         ) : isEntertainment ? (
           <>
-            <span className="spectrum-label-left">◀ Progressive</span>
-            <span className="spectrum-current-label">Neutral</span>
-            <span className="spectrum-label-right">Traditional ▶</span>
+            <span className="spectrum-label-left">◀ {t('progressive', lang)}</span>
+            <span className="spectrum-current-label">{t('neutral', lang)}</span>
+            <span className="spectrum-label-right">{t('traditional', lang)} ▶</span>
           </>
         ) : (
           <>
-            <span className="spectrum-label-left">◀ Liberal</span>
-            <span className="spectrum-current-label">Neutral</span>
-            <span className="spectrum-label-right">Conservative ▶</span>
+            <span className="spectrum-label-left">◀ {t('liberal', lang)}</span>
+            <span className="spectrum-current-label">{t('neutral', lang)}</span>
+            <span className="spectrum-label-right">{t('conservative', lang)} ▶</span>
           </>
         )}
       </div>

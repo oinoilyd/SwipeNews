@@ -31,37 +31,42 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY)
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { topic, position } = req.body || {};
+  const { topic, position, language = 'English' } = req.body || {};
   if (!topic?.title)
     return res.status(400).json({ error: 'Request body must include topic.title' });
   if (!Number.isInteger(position) || position < -3 || position > 3)
     return res.status(400).json({ error: 'position must be an integer from -3 to 3' });
 
-  const meta = TAKE_POSITIONS.find(p => p.position === position);
+  const meta      = TAKE_POSITIONS.find(p => p.position === position);
+  const isEnglish = language === 'English';
 
   // ── Cache check: in-memory → Redis → Claude ─────────────────────────────────
-  const key   = cacheKey(topic, position);
+  // Non-English takes use a language-scoped key and skip Redis (avoid pollution)
+  const key   = isEnglish ? cacheKey(topic, position) : `${cacheKey(topic, position)}:${language}`;
   const inMem = getCached(key);
   if (inMem && !isWeakTake(inMem)) return res.json({ take: inMem, fromCache: true });
   if (inMem && isWeakTake(inMem))  takesCache.delete(key);
 
+  // Only check Redis for English takes — translated takes are not cached in Redis
   const rKey = takeKey(topic, position);
-  try {
-    const rCached = await redis.get(rKey);
-    if (rCached && !isWeakTake(rCached)) {
-      setCached(key, rCached);
-      return res.json({ take: rCached, fromCache: true });
+  if (isEnglish) {
+    try {
+      const rCached = await redis.get(rKey);
+      if (rCached && !isWeakTake(rCached)) {
+        setCached(key, rCached);
+        return res.json({ take: rCached, fromCache: true });
+      }
+      if (rCached && isWeakTake(rCached)) {
+        await redis.del(rKey).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Redis read failed, falling back to Claude:', err.message);
     }
-    if (rCached && isWeakTake(rCached)) {
-      await redis.del(rKey).catch(() => {});
-    }
-  } catch (err) {
-    console.warn('Redis read failed, falling back to Claude:', err.message);
   }
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const { prompt, singleSource, derivedSources } = buildPrompt(topic, meta);
+    const { prompt, singleSource, derivedSources } = buildPrompt(topic, meta, language);
 
     const msg = await client.messages.create({
       model:      'claude-haiku-4-5-20251001',
@@ -81,7 +86,10 @@ export default async function handler(req, res) {
 
     if (!isWeakTake(take)) {
       setCached(key, take);
-      try { await redis.set(rKey, take, { ex: 90000 }); } catch { /* ignore */ } // 25h — matches cron TTL
+      // Only persist English takes to Redis — translated takes live in client localStorage
+      if (isEnglish) {
+        try { await redis.set(rKey, take, { ex: 90000 }); } catch { /* ignore */ }
+      }
     }
 
     return res.json({ take });
