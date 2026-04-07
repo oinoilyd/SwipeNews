@@ -1,0 +1,27 @@
+name: Keep Redis Warm
+
+on:
+  schedule:
+    # Every 6 hours — bypasses Vercel hobby plan's 1-cron-per-day limit
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch: # allow manual trigger from GitHub Actions tab
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger pregenerate
+        run: |
+          echo "Hitting pregenerate at $(date)"
+          curl -sf --max-time 65 "https://perspectiv.to/api/pregenerate" \
+            -o /tmp/pregenerate_out.json && cat /tmp/pregenerate_out.json \
+            || echo "pregenerate timed out or returned error (normal if already warm)"
+
+      - name: Trigger gdelt-following (5s delay to let topics settle)
+        run: |
+          sleep 5
+          echo "Hitting gdelt-following at $(date)"
+          curl -sf --max-time 35 "https://perspectiv.to/api/gdelt-following" \
+            -o /tmp/following_out.json && cat /tmp/following_out.json \
+            || echo "gdelt-following failed (non-fatal)"

@@ -98,11 +98,11 @@ function loadTopicsCache() {
     const raw = localStorage.getItem(TOPICS_CACHE_KEY);
     if (!raw) return null;
     const { topics, following, ts } = JSON.parse(raw);
-    if (Date.now() - ts > TOPICS_CACHE_TTL) {
-      localStorage.removeItem(TOPICS_CACHE_KEY);
-      return null;
-    }
-    return { topics, following: following || [] };
+    if (!topics?.length) return null;
+    // Keep stale data — return it with a flag so caller can background-refresh
+    // instead of showing the loading screen.
+    const stale = Date.now() - ts > TOPICS_CACHE_TTL;
+    return { topics, following: following || [], stale };
   } catch { return null; }
 }
 
@@ -462,6 +462,22 @@ export default function App() {
     pruneOldCache(rawTopics);
   }, []);
 
+  // ── Silent background refresh — no loading screen, just updates the cache ──
+  // Called when stale localStorage data is served. Fetches fresh topics from
+  // the API and saves them to localStorage so the NEXT visit loads fresh.
+  // Does not disrupt the current session (no applyTopics call).
+  const silentRefresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/clustered-news');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.loading || !data.topics?.length) return;
+      saveTopicsCache(data.topics, data.following || []);
+      // Update following threads in the background (low-disruption)
+      if (data.following?.length) setFollowingThreads(data.following);
+    } catch { /* silent — stale data remains visible, no error shown */ }
+  }, []);
+
   const fetchTopicShells = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     setLoadingStage(0);
@@ -471,18 +487,21 @@ export default function App() {
     let keepLoading = false;
 
     try {
-      // ── Fast path: return immediately from localStorage (returning users) ──
+      // ── Fast path: serve from localStorage immediately (even if stale) ──────
+      // Stale data is shown instantly; a silent background fetch updates the
+      // cache for the next visit without any loading screen.
       if (!forceRefresh) {
         const cache = loadTopicsCache();
         if (cache?.topics?.length) {
           clearTimeout(timer1);
           if (cache.following?.length) setFollowingThreads(cache.following);
           applyTopics(cache.topics);
+          if (cache.stale) silentRefresh(); // fire-and-forget, no await
           return; // finally clears isLoading
         }
       }
 
-      // ── Network path ───────────────────────────────────────────────────────
+      // ── Network path (first-ever visit or manual refresh) ─────────────────
       const url = forceRefresh ? '/api/clustered-news?refresh=1' : '/api/clustered-news';
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -490,9 +509,10 @@ export default function App() {
       if (data.error) throw new Error(data.error);
 
       if (data.loading) {
+        // Redis cold — pregenerate is running. Poll every 12s (was 30s).
         keepLoading = true;
         setLoadingStage(1);
-        setTimeout(() => fetchTopicShells(false), 30000);
+        setTimeout(() => fetchTopicShells(false), 12000);
         return;
       }
 
@@ -506,7 +526,7 @@ export default function App() {
       // Capture Following threads if present
       if (data.following?.length) setFollowingThreads(data.following);
 
-      // Apply topics + any pre-bundled takes from the API (Fix 2)
+      // Apply topics + any pre-bundled takes from the API
       applyTopics(data.topics, data.takes ?? {});
 
     } catch (err) {
@@ -515,7 +535,7 @@ export default function App() {
     } finally {
       if (!keepLoading) setIsLoading(false);
     }
-  }, [applyTopics]);
+  }, [applyTopics, silentRefresh]);
 
   // ── Pull-to-refresh: shuffle topic order in-place, no network call ──────────
   const handleRefreshOrder = useCallback(() => {

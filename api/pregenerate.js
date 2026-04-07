@@ -55,10 +55,10 @@ async function generateTake(client, topic, meta) {
 const CACHE_VERSION = 'v9';
 const TOPICS_KEY    = `sn:topics:${CACHE_VERSION}`;
 const TOPICS_TS_KEY = `sn:topics:ts:${CACHE_VERSION}`;
-// Takes TTL: 11h — crons run every 6h, 11h gives ~2-cycle safety buffer
-const TAKES_TTL_S   = 11 * 60 * 60;
-// Topics TTL: 10h — crons run every 6h, always fresh with overlap margin
-const TOPICS_TTL_S  = 10 * 60 * 60;
+// Takes TTL: 26h — GitHub Actions runs every 6h, 26h = 4-cycle safety buffer
+const TAKES_TTL_S   = 26 * 60 * 60;
+// Topics TTL: 25h — survives a full missed day of crons without going empty
+const TOPICS_TTL_S  = 25 * 60 * 60;
 const WARM_TS_KEY   = 'sn:takes:warmed-at';
 
 // ── Article fetch helpers (moved from clustered-news.js) ──────────────────────
