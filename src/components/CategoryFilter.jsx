@@ -26,6 +26,7 @@ export default function CategoryFilter({
   lang = 'en',
   activeMode = 'feed',
   onAskMode,
+  onHistoryMode,
 }) {
   const counts = topicShells.reduce((acc, t2) => {
     const cat = t2.category || 'US Politics';
@@ -38,12 +39,13 @@ export default function CategoryFilter({
   const hotActive     = activeCategories.includes('Hot');
   const followActive  = !!activeFollowingThread;
 
-  const askActive = activeMode === 'ask';
+  const askActive     = activeMode === 'ask';
+  const historyActive = activeMode === 'history';
 
   return (
     <div className="category-filter" role="tablist" aria-label="Filter by category">
 
-      {/* Ask — mode switch pill, always first */}
+      {/* Ask — mode switch pill */}
       <button
         role="tab"
         aria-selected={askActive}
@@ -51,6 +53,16 @@ export default function CategoryFilter({
         onClick={onAskMode}
       >
         ✦ Ask
+      </button>
+
+      {/* History — mode switch pill */}
+      <button
+        role="tab"
+        aria-selected={historyActive}
+        className={`cat-pill cat-pill-history${historyActive ? ' active' : ''}`}
+        onClick={onHistoryMode}
+      >
+        ⚔ History
       </button>
 
       {/* All */}

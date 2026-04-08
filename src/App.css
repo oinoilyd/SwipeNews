@@ -2372,3 +2372,164 @@ body {
   width: 100%;
   margin-top: 4px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   HISTORY TAB
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── History pill in category filter ── */
+.cat-pill-history {
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #f59e0b;
+  font-weight: 600;
+}
+.cat-pill-history:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+.cat-pill-history.active {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.2);
+}
+
+/* ── History tab shell ── */
+.history-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Dispute counter strip (thin row above cards) ── */
+.history-counter-strip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.history-counter-dot {
+  width: 20px;
+  height: 4px;
+  border-radius: 2px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: background 0.2s, width 0.2s;
+  padding: 0;
+}
+.history-counter-dot.active {
+  background: #f59e0b;
+  width: 28px;
+}
+.history-counter-dot:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.history-counter-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-left: 4px;
+  letter-spacing: 0.04em;
+}
+
+/* ── Card area — fills remaining height, identical to .card-stack-container ── */
+.history-card-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── History period badge (amber variant of topic-category-badge) ── */
+.history-period-badge {
+  background: rgba(251, 191, 36, 0.55) !important;
+  border-color: rgba(251, 191, 36, 0.4) !important;
+}
+
+/* ── Perspective dots row inside card photo footer ── */
+.history-persp-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 4px 16px 6px;
+}
+
+.history-persp-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+.history-persp-dot.active {
+  transform: scale(1.5);
+}
+
+/* ── Perspective label bar ── */
+.history-perspective-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 6px;
+  border-bottom: 1px solid;
+  flex-shrink: 0;
+}
+
+.history-perspective-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.history-swipe-hint {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.04em;
+}
+
+/* ── Perspective title ── */
+.history-persp-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+/* ── Paragraph body ── */
+.history-persp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.history-paragraph {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.87);
+  margin-bottom: 14px;
+}
+.history-paragraph:last-child { margin-bottom: 0; }
+
+/* ── Navigation hint at bottom ── */
+.history-nav-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.03em;
+}

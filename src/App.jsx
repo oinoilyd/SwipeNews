@@ -9,6 +9,7 @@ import TimeFilter from './components/TimeFilter';
 import ListView from './components/ListView';
 import FollowingDrawer from './components/FollowingDrawer';
 import AskTab from './components/AskTab';
+import HistoryTab from './components/HistoryTab';
 import { getLanguage, applyDirection, LANGUAGES, t } from './lib/i18n.js';
 import './App.css';
 
@@ -218,7 +219,7 @@ export default function App() {
   // Clicking any other category while Hot is active exits Hot and adds that category.
   // In multi-select mode, categories toggle on/off normally.
   const handleCategoryToggle = useCallback((cat) => {
-    setActiveMode('feed');          // any category tap exits ask mode
+    setActiveMode('feed');          // any category tap exits special modes
     setActiveFollowingThread(null); // clear story filter when switching categories
     if (cat === 'Hot') {
       setActiveCategories(prev => {
@@ -696,6 +697,7 @@ export default function App() {
           lang={lang}
           activeMode={activeMode}
           onAskMode={() => setActiveMode('ask')}
+          onHistoryMode={() => setActiveMode('history')}
         />
 
         {activeMode === 'feed' && (
@@ -706,6 +708,8 @@ export default function App() {
       <main className="main">
         {activeMode === 'ask' ? (
           <AskTab lang={lang} apiLang={apiLang} />
+        ) : activeMode === 'history' ? (
+          <HistoryTab />
         ) : timeFilteredTopics.length === 0 ? (
           <div className="empty-category">
             <p className="empty-category-msg">{t('noTopicsWindow', lang)}</p>
