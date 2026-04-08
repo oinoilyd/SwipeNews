@@ -26,7 +26,8 @@ export default function CategoryFilter({
   lang = 'en',
   activeMode = 'feed',
   onAskMode,
-  onHistoryMode,
+  onHistoryOpen,
+  historyDisputeTitle = null,
 }) {
   const counts = topicShells.reduce((acc, t2) => {
     const cat = t2.category || 'US Politics';
@@ -38,14 +39,13 @@ export default function CategoryFilter({
   const allActive     = activeCategories.length === 0;
   const hotActive     = activeCategories.includes('Hot');
   const followActive  = !!activeFollowingThread;
-
   const askActive     = activeMode === 'ask';
   const historyActive = activeMode === 'history';
 
   return (
     <div className="category-filter" role="tablist" aria-label="Filter by category">
 
-      {/* Ask — mode switch pill */}
+      {/* 1 — Ask */}
       <button
         role="tab"
         aria-selected={askActive}
@@ -55,33 +55,18 @@ export default function CategoryFilter({
         ✦ Ask
       </button>
 
-      {/* History — mode switch pill */}
+      {/* 2 — History (opens drawer) */}
       <button
         role="tab"
         aria-selected={historyActive}
         className={`cat-pill cat-pill-history${historyActive ? ' active' : ''}`}
-        onClick={onHistoryMode}
+        onClick={onHistoryOpen}
       >
-        ⚔ History
+        {historyActive && historyDisputeTitle ? historyDisputeTitle : '⚔ History'}
+        <span className="follow-caret">▾</span>
       </button>
 
-      {/* All */}
-      <button role="tab" aria-selected={allActive}
-        className={`cat-pill${allActive ? ' active' : ''}`}
-        onClick={() => onToggle('All')}>
-        {t('all', lang)}
-        {totalCount > 0 && <span className="cat-count">{totalCount}</span>}
-      </button>
-
-      {/* Hot */}
-      <button role="tab" aria-selected={hotActive}
-        className={`cat-pill cat-pill-trending${hotActive ? ' active' : ''}`}
-        onClick={() => onToggle('Hot')}>
-        {t('hot', lang)}
-        {trendingCount > 0 && <span className="cat-count">{trendingCount}</span>}
-      </button>
-
-      {/* Follow — opens full-width drawer */}
+      {/* 3 — Follow (conditional, opens drawer) */}
       {followingThreads.length > 0 && (
         <button role="tab" aria-selected={followActive}
           className={`cat-pill cat-pill-following${followActive ? ' active' : ''}`}
@@ -91,7 +76,23 @@ export default function CategoryFilter({
         </button>
       )}
 
-      {/* Category pills */}
+      {/* 4 — Hot */}
+      <button role="tab" aria-selected={hotActive}
+        className={`cat-pill cat-pill-trending${hotActive ? ' active' : ''}`}
+        onClick={() => onToggle('Hot')}>
+        {t('hot', lang)}
+        {trendingCount > 0 && <span className="cat-count">{trendingCount}</span>}
+      </button>
+
+      {/* 5 — All */}
+      <button role="tab" aria-selected={allActive}
+        className={`cat-pill${allActive ? ' active' : ''}`}
+        onClick={() => onToggle('All')}>
+        {t('all', lang)}
+        {totalCount > 0 && <span className="cat-count">{totalCount}</span>}
+      </button>
+
+      {/* 6+ — Category pills */}
       {CATEGORIES.filter(c => c !== 'All').map(cat => {
         const count    = cat === 'Politics' ? politicsCount : (counts[cat] || 0);
         const isActive = cat === 'Politics'

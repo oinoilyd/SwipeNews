@@ -106,10 +106,9 @@ function HistoryCard({ dispute, perspectiveIndex, isPreview = false }) {
   );
 }
 
-// ── HistoryTab — manages dispute + perspective navigation ─────────────────────
-export default function HistoryTab() {
-  const [disputeIndex,     setDisputeIndex]     = useState(0);
-  const [perspectiveIndex, setPerspectiveIndex] = useState(1); // start on neutral
+// ── HistoryTab — dispute navigation controlled externally ─────────────────────
+export default function HistoryTab({ disputeIndex = 0, onDisputeChange }) {
+  const [perspectiveIndex, setPerspectiveIndex] = useState(1); // start on neutral (Historical)
   const [dragY,            setDragY]            = useState(0);
   const [snapping,         setSnapping]         = useState(false);
 
@@ -136,12 +135,12 @@ export default function HistoryTab() {
   cbRef.current = {
     snapping, prevDispute, nextDispute, perspectiveIndex,
     goNextDispute: () => {
-      if (disputeIndex < totalDisputes - 1) setDisputeIndex(i => i + 1);
+      if (disputeIndex < totalDisputes - 1) onDisputeChange?.(disputeIndex + 1);
     },
     goPrevDispute: () => {
-      if (disputeIndex > 0) setDisputeIndex(i => i - 1);
+      if (disputeIndex > 0) onDisputeChange?.(disputeIndex - 1);
     },
-    goPerspLeft: () => setPerspectiveIndex(i => Math.max(0, i - 1)),
+    goPerspLeft:  () => setPerspectiveIndex(i => Math.max(0, i - 1)),
     goPerspRight: () => setPerspectiveIndex(i => Math.min(dispute.perspectives.length - 1, i + 1)),
   };
 
@@ -269,8 +268,8 @@ export default function HistoryTab() {
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (e.key === 'ArrowLeft')  setPerspectiveIndex(i => Math.max(0, i - 1));
       if (e.key === 'ArrowRight') setPerspectiveIndex(i => Math.min(dispute.perspectives.length - 1, i + 1));
-      if (e.key === 'ArrowDown')  { e.preventDefault(); if (nextDispute) setDisputeIndex(i => i + 1); }
-      if (e.key === 'ArrowUp')    { e.preventDefault(); if (prevDispute) setDisputeIndex(i => i - 1); }
+      if (e.key === 'ArrowDown')  { e.preventDefault(); if (nextDispute) onDisputeChange?.(disputeIndex + 1); }
+      if (e.key === 'ArrowUp')    { e.preventDefault(); if (prevDispute) onDisputeChange?.(disputeIndex - 1); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -284,22 +283,7 @@ export default function HistoryTab() {
   return (
     <div className="history-tab">
 
-      {/* Dispute counter strip */}
-      <div className="history-counter-strip">
-        {HISTORY_DISPUTES.map((d, i) => (
-          <button
-            key={d.id}
-            className={`history-counter-dot${i === disputeIndex ? ' active' : ''}`}
-            onClick={() => setDisputeIndex(i)}
-            title={d.title}
-          />
-        ))}
-        <span className="history-counter-label">
-          {disputeIndex + 1} / {totalDisputes}
-        </span>
-      </div>
-
-      {/* Card stack */}
+      {/* Card stack — fills full height, no counter strip */}
       <div className="history-card-area" ref={containerRef}>
 
         {prevDispute && (

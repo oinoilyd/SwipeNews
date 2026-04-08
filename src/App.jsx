@@ -10,6 +10,8 @@ import ListView from './components/ListView';
 import FollowingDrawer from './components/FollowingDrawer';
 import AskTab from './components/AskTab';
 import HistoryTab from './components/HistoryTab';
+import HistoryDrawer from './components/HistoryDrawer';
+import { HISTORY_DISPUTES } from './lib/historyData.js';
 import { getLanguage, applyDirection, LANGUAGES, t } from './lib/i18n.js';
 import './App.css';
 
@@ -137,7 +139,9 @@ export default function App() {
   const [followingThreads,      setFollowingThreads]      = useState([]);
   const [activeFollowingThread, setActiveFollowingThread] = useState(null);
   const [showFollowingDrawer,   setShowFollowingDrawer]   = useState(false);
-  const [activeMode,            setActiveMode]            = useState('feed'); // 'feed' | 'ask'
+  const [activeMode,            setActiveMode]            = useState('feed'); // 'feed' | 'ask' | 'history'
+  const [historyDisputeIndex,   setHistoryDisputeIndex]   = useState(0);
+  const [showHistoryDrawer,     setShowHistoryDrawer]     = useState(false);
 
   // Refs for stale-closure-safe async callbacks
   const takesMapRef        = useRef({});
@@ -697,7 +701,11 @@ export default function App() {
           lang={lang}
           activeMode={activeMode}
           onAskMode={() => setActiveMode('ask')}
-          onHistoryMode={() => setActiveMode('history')}
+          onHistoryOpen={() => {
+            setActiveMode('history');
+            setShowHistoryDrawer(true);
+          }}
+          historyDisputeTitle={HISTORY_DISPUTES[historyDisputeIndex]?.title}
         />
 
         {activeMode === 'feed' && (
@@ -709,7 +717,10 @@ export default function App() {
         {activeMode === 'ask' ? (
           <AskTab lang={lang} apiLang={apiLang} />
         ) : activeMode === 'history' ? (
-          <HistoryTab />
+          <HistoryTab
+            disputeIndex={historyDisputeIndex}
+            onDisputeChange={setHistoryDisputeIndex}
+          />
         ) : timeFilteredTopics.length === 0 ? (
           <div className="empty-category">
             <p className="empty-category-msg">{t('noTopicsWindow', lang)}</p>
@@ -785,6 +796,17 @@ export default function App() {
           }}
           onClose={() => setShowFollowingDrawer(false)}
           lang={lang}
+        />
+      )}
+
+      {showHistoryDrawer && (
+        <HistoryDrawer
+          disputeIndex={historyDisputeIndex}
+          onSelect={(i) => {
+            setHistoryDisputeIndex(i);
+            setShowHistoryDrawer(false);
+          }}
+          onClose={() => setShowHistoryDrawer(false)}
         />
       )}
     </div>

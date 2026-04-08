@@ -2403,50 +2403,37 @@ body {
   overflow: hidden;
 }
 
-/* ── Dispute counter strip (thin row above cards) ── */
-.history-counter-strip {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 6px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.history-counter-dot {
-  width: 20px;
-  height: 4px;
-  border-radius: 2px;
-  border: none;
-  background: rgba(255, 255, 255, 0.15);
-  cursor: pointer;
-  transition: background 0.2s, width 0.2s;
-  padding: 0;
-}
-.history-counter-dot.active {
-  background: #f59e0b;
-  width: 28px;
-}
-.history-counter-dot:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.history-counter-label {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  margin-left: 4px;
-  letter-spacing: 0.04em;
-}
-
-/* ── Card area — fills remaining height, identical to .card-stack-container ── */
+/* ── Card area — fills full height, identical to .card-stack-container ── */
 .history-card-area {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
+
+/* ── History drawer — bottom sheet, amber variant of FollowingDrawer ── */
+.history-drawer {
+  width: 100%;
+  max-height: 70vh;
+  background: #12131a;
+  border-top: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.history-drawer-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f59e0b;
+  letter-spacing: 0.05em;
+}
+.history-drawer-item.active {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.35);
+}
+.history-drawer-item.active .following-thread-title { color: #fbbf24; }
+.history-drawer-check { font-size: 16px; color: #f59e0b; }
 
 /* ── History period badge (amber variant of topic-category-badge) ── */
 .history-period-badge {
