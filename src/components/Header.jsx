@@ -21,7 +21,10 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending, listVi
             <rect width="28" height="28" rx="7" fill="#000"/>
             <text x="14" y="21" textAnchor="middle" fontFamily="Georgia,'Times New Roman',serif" fontWeight="700" fontSize="19" fill="white">P</text>
           </svg>
-          <span className="logo-text">Perspectiv</span>
+          <span className="logo-text">
+            Perspectiv
+            <span className="logo-tagline">Form your own opinion.</span>
+          </span>
         </div>
 
         <div className="header-controls">
@@ -51,6 +54,7 @@ export default function Header({ onRefresh, onShowTopics, onShowTrending, listVi
               <span className="info-modal-title">About Perspectiv</span>
               <button className="info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close">✕</button>
             </div>
+            <p className="info-modal-tagline">Form your own opinion.</p>
             <p className="info-modal-text">
               Perspectiv uses established media bias ratings (AllSides, Ground News) to
               categorize news sources as left, center, or right leaning. AI perspectives

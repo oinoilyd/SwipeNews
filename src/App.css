@@ -97,7 +97,8 @@ body {
 }
 
 .logo-icon { font-size: 1.25rem; }
-.logo-text  { color: var(--text); }
+.logo-text  { color: var(--text); display: flex; flex-direction: column; line-height: 1.1; }
+.logo-tagline { font-size: 0.6rem; font-weight: 400; color: var(--text-muted); letter-spacing: 0.01em; opacity: 0.75; }
 
 .header-controls { display: flex; align-items: center; gap: 8px; }
 
@@ -1400,6 +1401,13 @@ body {
 }
 .info-modal-close:hover { color: var(--text); }
 
+.info-modal-tagline {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+  letter-spacing: 0.01em;
+}
 .info-modal-text {
   font-size: 0.83rem;
   color: var(--text-muted);
