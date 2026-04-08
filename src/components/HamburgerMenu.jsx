@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../lib/i18n.js';
 
-export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, lang = 'en' }) {
+export default function HamburgerMenu({ onClose, onShowInfo, lang = 'en' }) {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showIOSGuide,  setShowIOSGuide]  = useState(false);
   const [currentLang,   setCurrentLang]   = useState(getLanguage());
@@ -42,9 +42,10 @@ export default function HamburgerMenu({ onClose, onShowTrending, onShowInfo, lan
         </div>
 
         <nav className="hamburger-nav">
-          <button className="hamburger-item" onClick={() => { onShowTrending(); onClose(); }}>
-            <span className="hamburger-item-label">🔥 Hot Trending</span>
-          </button>
+          <div className="hamburger-item hamburger-item-disabled">
+            <span className="hamburger-item-label">⚙️ Settings</span>
+            <span className="hamburger-coming-soon">Coming soon</span>
+          </div>
 
           {/* Language selector */}
           <div className="hamburger-item hamburger-lang-row">

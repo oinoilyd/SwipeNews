@@ -1522,9 +1522,21 @@ body {
 }
 .hamburger-item:last-child { border-bottom: none; }
 .hamburger-item:hover:not(.disabled) { background: var(--surface2); }
-.hamburger-item.disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.hamburger-item.disabled,
+.hamburger-item-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.hamburger-coming-soon {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a78bfa;
+  background: rgba(167,139,250,0.12);
+  border: 1px solid rgba(167,139,250,0.3);
+  border-radius: 20px;
+  padding: 2px 8px;
 }
 .hamburger-lang-row { justify-content: space-between; cursor: default; }
 .hamburger-lang-row:hover { background: transparent !important; }
