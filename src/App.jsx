@@ -625,6 +625,10 @@ export default function App() {
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
+      // Never intercept keys while the user is typing in an input or textarea
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
       if (showTopicDrawer) {
         if (e.key === 'Escape') setShowTopicDrawer(false);
         return;
