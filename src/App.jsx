@@ -697,7 +697,7 @@ export default function App() {
           trendingCount={trendingTitles.size}
           followingThreads={followingThreads}
           activeFollowingThread={activeFollowingThread}
-          onFollowingOpen={() => setShowFollowingDrawer(true)}
+          onFollowingOpen={() => { setActiveMode('feed'); setShowFollowingDrawer(true); }}
           lang={lang}
           activeMode={activeMode}
           onAskMode={() => setActiveMode('ask')}
