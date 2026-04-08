@@ -8,7 +8,6 @@ export default function HistoryDrawer({ disputeIndex, onSelect, onClose }) {
         <div className="following-drawer-header">
           <div className="following-drawer-title-row">
             <span className="history-drawer-eyebrow">⚔ HISTORICAL CONTEXT</span>
-            <span className="following-drawer-title">Ongoing Conflicts</span>
           </div>
           <button className="following-drawer-close" onClick={onClose} aria-label="Close">✕</button>
         </div>

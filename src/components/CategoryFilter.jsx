@@ -27,7 +27,6 @@ export default function CategoryFilter({
   activeMode = 'feed',
   onAskMode,
   onHistoryOpen,
-  historyDisputeTitle = null,
 }) {
   const counts = topicShells.reduce((acc, t2) => {
     const cat = t2.category || 'US Politics';
@@ -62,7 +61,7 @@ export default function CategoryFilter({
         className={`cat-pill cat-pill-history${historyActive ? ' active' : ''}`}
         onClick={onHistoryOpen}
       >
-        {historyActive && historyDisputeTitle ? historyDisputeTitle : '⚔ History'}
+        ⚔ History
         <span className="follow-caret">▾</span>
       </button>
 
